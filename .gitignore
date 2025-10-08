@@ -241,3 +241,6 @@ static/css/dist/
 # Python byte-compiled files
 __pycache__/
 *.pyc
+
+celerybeat-schedule-shm
+celerybeat-schedule-shm

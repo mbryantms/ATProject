@@ -36,7 +36,8 @@
             {% endblock page_title %}
           </h1>
         </header>
-        {% include "page_metadata.html" %}
+        {% block page-metadata %}
+        {% endblock page-metadata %}
         {% block content %}
         {% endblock content %}
       </article>

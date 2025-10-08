@@ -44,19 +44,21 @@
     </span>
   {% endif %}
   {# Status #}
-  <span class="page-status"
-        title="Writing status of current page: {{ post.get_status_display|lower }}">
-    <em><span class="completion-status"
-      data-progress-percentage="{% if post.status == 'published' %}100{% elif post.status == 'draft' %}25{% else %}50{% endif %}">{{ post.get_status_display|lower }}</span></em>
-  </span>
-  {# Certainty with gauge #}
-  <span class="page-confidence">
+  <span class="page-status">
     {% tooltip position="top" theme="dark" %}
-    <a href="#">certainty:</a>
-    {% gauge post.certainty %}
+    <span class="completion-status"><em>{{ post.completion_status_label|lower }}</em></span>
     {% tooltip_content %}
-    This post's certainty was rated <strong>{{ post.certainty }}</strong> out of 10.
+    {{ post.completion_status_label|lower }}
   {% endtooltip %}
+</span>
+{# Certainty with gauge #}
+<span class="page-confidence">
+  {% tooltip position="top" theme="dark" %}
+  <a href="#">certainty:</a>
+  {% gauge post.certainty %}
+  {% tooltip_content %}
+  This post's certainty was rated <strong>{{ post.certainty }}</strong> out of 10.
+{% endtooltip %}
 </span>
 {# Importance with gauge #}
 <span class="page-importance">
@@ -67,17 +69,20 @@
   This post's importance was rated <strong>{{ post.importance }}</strong> out of 10.
 {% endtooltip %}
 </span>
-<span class="page-backlinks">
-  {% tooltip position="top" theme="dark" %}
-  <a class="backlinks link-self has-icon has-content spawns-popup has-indicator-hook"
-     href="#"
-     data-link-icon="arrows-pointing-inwards-to-dot"
-     data-link-icon-type="svg"
-     style="--link-icon-url: url(/static/img/icon/arrows-pointing-inwards-to-dot.svg)"
-     data-attribute-title="Reverse citations/backlinks for this page (the list of other pages which link to this page)."><span class="indicator-hook"></span>backlinks<span class="link-icon-hook dark-mode-invert"></span></a>
-  {% tooltip_content %}
-  This post has {{ backlinks_count }} backlink{{ backlinks_count|pluralize }}.
-{% endtooltip %}</span>
+{% if backlinks_count > 0 %}
+  <span class="page-backlinks">
+    {% tooltip position="top" theme="dark" %}
+    <a class="backlinks link-self has-icon has-content spawns-popup has-indicator-hook"
+       href="{{ post.get_absolute_url }}#backlinks-section"
+       data-link-icon="arrows-pointing-inwards-to-dot"
+       data-link-icon-type="svg"
+       style="--link-icon-url: url(/static/img/icon/arrows-pointing-inwards-to-dot.svg)"
+       data-attribute-title="Reverse citations/backlinks for this page (the list of other pages which link to this page)."><span class="indicator-hook"></span>backlinks<span class="link-icon-hook dark-mode-invert"></span></a>
+    {% tooltip_content %}
+    This post has {{ backlinks_count }} backlink{{ backlinks_count|pluralize }}.
+  {% endtooltip %}
+</span>
+{% endif %}
 {# Reading time #}
 {#      {% if post.reading_time_minutes %}#}
 {#        <span class="page-reading-time">#}

@@ -1957,6 +1957,7 @@ class PostAdmin(SoftDeleteAdminMixin):
         "post_title_with_status",
         "author",
         "status_badge",
+        "completion_status_badge",
         "visibility_badge",
         "featured_pinned_indicators",
         "published_at",
@@ -1965,6 +1966,7 @@ class PostAdmin(SoftDeleteAdminMixin):
 
     list_filter = (
         "status",
+        "completion_status",
         "visibility",
         "is_featured",
         "is_pinned",
@@ -2074,7 +2076,8 @@ class PostAdmin(SoftDeleteAdminMixin):
             "Publishing & Status",
             {
                 "fields": (
-                    ("status", "visibility"),
+                    ("status", "completion_status"),
+                    ("visibility",),
                     ("published_at", "expire_at"),
                     ("is_featured", "is_pinned", "pin_order"),
                     ("published_by", "last_edited_by", "version"),
@@ -2190,6 +2193,30 @@ class PostAdmin(SoftDeleteAdminMixin):
             colors.get(obj.status, "#e2e3e5"),
             text_colors.get(obj.status, "#383d41"),
             obj.get_status_display(),
+        )
+
+    @display(description="Completion", ordering="completion_status")
+    def completion_status_badge(self, obj):
+        """Display completion status with color."""
+        colors = {
+            "finished": "#d4edda",
+            "abandoned": "#f8d7da",
+            "notes": "#d1ecf1",
+            "draft": "#fff3cd",
+            "in_progress": "#cfe2ff",
+        }
+        text_colors = {
+            "finished": "#155724",
+            "abandoned": "#721c24",
+            "notes": "#0c5460",
+            "draft": "#856404",
+            "in_progress": "#084298",
+        }
+        return format_html(
+            '<span style="background: {}; color: {}; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">{}</span>',
+            colors.get(obj.completion_status, "#e2e3e5"),
+            text_colors.get(obj.completion_status, "#383d41"),
+            obj.get_completion_status_display(),
         )
 
     @display(description="Visibility", ordering="visibility")

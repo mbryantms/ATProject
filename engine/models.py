@@ -8,12 +8,11 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import Q
 from django.template.defaultfilters import slugify
-from django.urls import reverse, NoReverseMatch
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from engine.markdown.extensions.toc_extractor import extract_toc_from_html
 from engine.markdown.renderer import render_markdown
-
 
 # ---------------------------
 # Base / Mixins
@@ -220,6 +219,13 @@ class Post(TimeStampedModel, SoftDeleteModel):
         UNLISTED = "unlisted", "Unlisted"
         PRIVATE = "private", "Private"
 
+    class CompletionStatus(models.TextChoices):
+        FINISHED = "finished", "Finished"
+        ABANDONED = "abandoned", "Abandoned"
+        NOTES = "notes", "Notes"
+        DRAFT = "draft", "Draft"
+        IN_PROGRESS = "in_progress", "In Progress"
+
     VALUE_CHOICES = [(i, str(i)) for i in range(1, 11)]
 
     # --- Core fields ---
@@ -235,7 +241,7 @@ class Post(TimeStampedModel, SoftDeleteModel):
     description = models.TextField(blank=True, help_text="Optional summary/teaser.")
     abstract = models.TextField(
         blank=True,
-        help_text="Optional article abstract in markdown (longer-form description, similar to journal article abstract)."
+        help_text="Optional article abstract in markdown (longer-form description, similar to journal article abstract).",
     )
 
     show_toc = models.BooleanField(
@@ -262,6 +268,13 @@ class Post(TimeStampedModel, SoftDeleteModel):
     # --- Publication ---
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.DRAFT, db_index=True
+    )
+    completion_status = models.CharField(
+        max_length=20,
+        choices=CompletionStatus.choices,
+        default=CompletionStatus.DRAFT,
+        db_index=True,
+        help_text="Editorial completion state shown in page metadata.",
     )
     visibility = models.CharField(
         max_length=12,
@@ -352,11 +365,12 @@ class Post(TimeStampedModel, SoftDeleteModel):
         indexes = [
             models.Index(fields=["status", "published_at"]),
             models.Index(fields=["visibility", "published_at"]),
+            models.Index(fields=["completion_status"]),
         ]
         constraints = [
             models.CheckConstraint(
                 name="published_or_scheduled_requires_published_at",
-                condition=(
+                check=(
                     Q(status__in=["draft", "archived"]) | Q(published_at__isnull=False)
                 ),
             ),
@@ -400,6 +414,19 @@ class Post(TimeStampedModel, SoftDeleteModel):
             and not self.is_deleted
         )
 
+    @property
+    def completion_status_label(self) -> str:
+        """
+        Human readable label for the current completion status.
+
+        Falls back to a prettified version of the raw value if someone
+        manually stores an unknown status string.
+        """
+        try:
+            return self.CompletionStatus(self.completion_status).label
+        except ValueError:
+            return self.completion_status.replace("_", " ").strip().title()
+
     def get_absolute_url(self) -> str:
         try:
             return reverse("post-detail", kwargs={"slug": self.slug})
@@ -435,20 +462,20 @@ class InternalLink(TimeStampedModel, SoftDeleteModel):
     """
 
     source_post = models.ForeignKey(
-        'Post',
+        "Post",
         on_delete=models.CASCADE,
-        related_name='outgoing_links',
-        help_text="The post that contains the link"
+        related_name="outgoing_links",
+        help_text="The post that contains the link",
     )
     target_post = models.ForeignKey(
-        'Post',
+        "Post",
         on_delete=models.CASCADE,
-        related_name='incoming_links',
-        help_text="The post being linked to (these are the backlinks)"
+        related_name="incoming_links",
+        help_text="The post being linked to (these are the backlinks)",
     )
     link_count = models.PositiveIntegerField(
         default=1,
-        help_text="Number of times this post links to the target (if multiple links exist)"
+        help_text="Number of times this post links to the target (if multiple links exist)",
     )
 
     # Managers
@@ -456,12 +483,12 @@ class InternalLink(TimeStampedModel, SoftDeleteModel):
     all_objects = models.Manager()
 
     class Meta:
-        unique_together = [['source_post', 'target_post']]
+        unique_together = [["source_post", "target_post"]]
         indexes = [
-            models.Index(fields=['source_post']),
-            models.Index(fields=['target_post']),
-            models.Index(fields=['is_deleted', 'source_post']),
-            models.Index(fields=['is_deleted', 'target_post']),
+            models.Index(fields=["source_post"]),
+            models.Index(fields=["target_post"]),
+            models.Index(fields=["is_deleted", "source_post"]),
+            models.Index(fields=["is_deleted", "target_post"]),
         ]
         verbose_name = "Internal Link"
         verbose_name_plural = "Internal Links"
@@ -501,7 +528,6 @@ class AssetQuerySet(SoftDeleteQuerySet):
     def ready(self):
         """Get only ready assets."""
         return self.filter(status="ready")
-
 
     def search(self, query):
         """Full-text search across relevant fields."""
@@ -783,26 +809,26 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(file_size__gte=0) | models.Q(file_size__isnull=True),
+                check=models.Q(file_size__gte=0) | models.Q(file_size__isnull=True),
                 name="asset_file_size_positive",
             ),
             models.CheckConstraint(
-                condition=models.Q(width__gte=0) | models.Q(width__isnull=True),
+                check=models.Q(width__gte=0) | models.Q(width__isnull=True),
                 name="asset_width_positive",
             ),
             models.CheckConstraint(
-                condition=models.Q(height__gte=0) | models.Q(height__isnull=True),
+                check=models.Q(height__gte=0) | models.Q(height__isnull=True),
                 name="asset_height_positive",
             ),
             models.CheckConstraint(
-                condition=(
+                check=(
                     models.Q(focal_point_x__gte=0.0, focal_point_x__lte=1.0)
                     | models.Q(focal_point_x__isnull=True)
                 ),
                 name="asset_focal_point_x_range",
             ),
             models.CheckConstraint(
-                condition=(
+                check=(
                     models.Q(focal_point_y__gte=0.0, focal_point_y__lte=1.0)
                     | models.Q(focal_point_y__isnull=True)
                 ),
@@ -816,6 +842,11 @@ class Asset(TimeStampedModel, SoftDeleteModel):
 
     def __str__(self):
         return f"{self.title} - {self.get_asset_type_display()} ({self.key})"
+
+    def get_asset_type_display(self) -> str:
+        """Return the human readable label for the asset_type choice."""
+        field = self._meta.get_field("asset_type")
+        return self._get_FIELD_display(field)
 
     def clean(self):
         """Validate asset fields."""

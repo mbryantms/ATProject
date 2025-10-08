@@ -9,6 +9,7 @@
   {{ post.title }}
 {% endblock page_title %}
 {% block page-metadata %}
+  {% include "posts/page_metadata.html" %}
 {% endblock page-metadata %}
 {% block content %}
   <div id="markdownBody" class="markdownBody">
@@ -18,6 +19,6 @@
       </blockquote>
     {% endif %}
     {% markdown_with_context post.content_markdown %}
-    {% include "backlinks.html" %}
+    {% include "posts/backlinks.html" %}
   </div>
 {% endblock content %}
