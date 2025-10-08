@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Links{% endblock %}
+{% block page_title %}Links Showcase{% endblock %}
+{% block content %}
+  <p>Demonstrations of link styles and states.</p>
+
+  <h2>Basic Links</h2>
+  <p>
+    <a href="#">Default link</a><br>
+    <a href="https://example.com" target="_blank" rel="noopener">External link</a><br>
+    <a href="mailto:hello@example.com">Email link</a><br>
+    <a href="/css/dist/base.css" download>Download link</a>
+  </p>
+
+  <h2>Links in Context</h2>
+  <p>This is a paragraph with a <a href="#">link inside text</a> to check spacing and underlines.</p>
+
+  <h2>Button-style Links</h2>
+  <p>
+    <a class="btn" href="#">Button Link</a>
+    <a class="btn btn-primary" href="#">Primary Button</a>
+    <a class="btn btn-outline" href="#">Outline Button</a>
+  </p>
+
+  <h2>Visited/Hover/Focus States</h2>
+  <p>
+    Try visiting <a href="https://www.djangoproject.com/">Django</a>, then observe the visited style. Hover and focus
+    states should also be visible.
+  </p>
+
+  <nav aria-label="Example navigation">
+    <ul>
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Docs</a></li>
+      <li><a href="#">About</a></li>
+    </ul>
+  </nav>
+
+{% endblock %}

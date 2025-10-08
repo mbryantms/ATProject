@@ -1,0 +1,39 @@
+{
+  "name": "atproject",
+  "version": "1.0.0",
+  "description": "A place for everything",
+  "scripts": {
+    "build-css": "postcss static/css/src/*.css --dir static/css/dist/",
+    "watch-css": "postcss static/css/src/*.css --dir static/css/dist/ --watch",
+    "build-js": "npm run build-js:standalone && npm run build-js:main",
+    "build-js:standalone": "esbuild static/js/sidenotes-standalone.js static/js/marginnotes-standalone.js static/js/fullwidth-standalone.js static/js/tablesorter-standalone.js --bundle --minify --target=es2017 --outdir=static/js/dist --legal-comments=none",
+    "build-js:main": "esbuild static/js/tooltip.js --bundle --minify --target=es2017 --outfile=static/js/dist/main.js --legal-comments=none && esbuild static/js/math-copy.js --bundle --minify --target=es2017 --outfile=static/js/dist/math-copy.js --legal-comments=none",
+    "watch-js": "npm-run-all --parallel watch-js:*",
+    "watch-js:standalone": "npm run build-js:standalone -- --watch",
+    "watch-js:main": "npm run build-js:main -- --watch",
+    "format": "prettier --write \"**/*.{css,html,js,json}\"",
+    "format:check": "prettier --check \"**/*.{css,html,js,json}\"",
+    "lint:js": "eslint \"**/*.js\" --fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "autoprefixer": "^10.4.21",
+    "cssnano": "^7.1.1",
+    "esbuild": "^0.20.0",
+    "eslint": "^9.36.0",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "postcss-custom-properties": "^14.0.6",
+    "postcss-import": "^16.1.1",
+    "postcss-mixins": "^11.0.3",
+    "postcss-nested": "^7.0.2",
+    "postcss-sorting": "^9.1.0",
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.7.4"
+  }
+}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load markdown_tags %}
+{% block sidebar %}
+{% endblock sidebar %}
+{% block title %}
+  {{ post.title }}
+{% endblock title %}
+{% block page_title %}
+  {{ post.title }}
+{% endblock page_title %}
+{% block page-metadata %}
+{% endblock page-metadata %}
+{% block content %}
+  <div id="markdownBody" class="markdownBody">
+    {% if post.abstract %}
+      <blockquote class="page-abstract first-block block blockquote-level-1">
+        {{ post.abstract|markdown_abstract }}
+      </blockquote>
+    {% endif %}
+    {% markdown_with_context post.content_markdown %}
+    {% include "backlinks.html" %}
+  </div>
+{% endblock content %}

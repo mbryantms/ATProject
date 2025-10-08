@@ -1,0 +1,27 @@
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24"
+  role="img" aria-label="{{ aria }}"
+  class="inline-block align-middle"
+>
+  {# Background track #}
+  <circle cx="12" cy="12" r="9" fill="none"
+          stroke="currentColor" stroke-opacity="0.15" stroke-width="3" />
+
+  {# Progress arc (start at top) #}
+  <g transform="rotate(-90 12 12)">
+    <circle
+      cx="12" cy="12" r="9" fill="none"
+      stroke="{% if use_current_color %}currentColor{% else %}{{ color }}{% endif %}"
+      stroke-width="3" stroke-linecap="round"
+      stroke-dasharray="{{ progress }} {{ gap }}"
+    />
+  </g>
+
+  {# Optional center number #}
+  {% if show_number %}
+    <text x="12" y="12" text-anchor="middle" dominant-baseline="central"
+          font-size="8" fill="currentColor" opacity="0.85">{{ v }}</text>
+  {% endif %}
+</svg>

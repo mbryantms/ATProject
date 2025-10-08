@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/dist/base.css">
+    <link rel="stylesheet" href="/static/css/dist/colors.css">
+    <link rel="stylesheet" href="/static/css/dist/link-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="/static/js/dist/marginnotes-standalone.js" defer></script>
+    <script src="/static/js/dist/sidenotes-standalone.js" defer></script>
+    <script src="/static/js/dist/math-copy.js" defer></script>
+    <script src="/static/js/dist/tablesorter-standalone.js" defer></script>
+    <script src="/static/js/dist/fullwidth-standalone.js" defer></script>
+    <script src="/static/js/dist/main.js" defer></script>
+    {% block head_extra %}
+    {% endblock head_extra %}
+    <title>
+      {% block title %}
+        Architextual
+      {% endblock title %}
+    </title>
+  </head>
+  <body>
+    <main>
+      <nav id="sidebar">
+        {% block sidebar %}
+          {% include "sidebar.html" %}
+        {% endblock sidebar %}
+      </nav>
+      <article>
+        <header>
+          <h1>
+            {% block page_title %}
+              {{ page_title|default:"Lorem Ipsum" }}
+            {% endblock page_title %}
+          </h1>
+        </header>
+        {% include "page_metadata.html" %}
+        {% block content %}
+        {% endblock content %}
+      </article>
+    </main>
+  </body>
+</html>

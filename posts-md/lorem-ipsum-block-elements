@@ -1,0 +1,442 @@
+# Block Elements
+
+## Lists
+
+Unordered list hierarchy (3-levels):
+
+* **First**
+
+    * [Second]{.smallcaps}
+
+        * *Third*
+
+            * **Fourth**
+
+                * [Fifth]{.smallcaps}
+
+                    * *Sixth*
+
+Ordered list hierarchy:
+
+1) First
+4) Second
+    I) Third
+    II) Fourth
+        a) Fifth
+        d) Sixth
+            A) Seventh
+            B) Eighth
+                i) Ninth
+                iv) Tenth
+                    01) Eleventh
+                    02) Twelfth
+
+
+Mixed lists:
+
+* First
+    1) Second
+        * Third
+            I) Fourth
+                * Fifth
+                    a. Sixth
+
+
+1) First
+    * Second
+        I) Third
+            * Fourth
+                a) Fifth
+                    * Sixth
+
+Blockquote:
+
+> 1. First
+>     * Second
+>         1. Third
+>             * Fourth
+>                 1. Fifth
+>                     * Sixth
+
+
+Testing multiple items at each level:
+
+* One
+    * Two
+* Three
+* Four
+    * Five
+    * Five (again?)
+* Six
+* Seven
+* Eight
+    * Nine
+        * Ten
+        * Eleven
+    * Twelve
+        * Thirteen
+        * Fourteen
+            * Fifteen
+            * Sixteen
+
+1) One
+    I) Two
+2) Three
+3) Four
+    I) Five
+    II) Five (again?)
+4) Six
+5) Seven
+6) Eight
+    I) Nine
+        a) Ten
+        b) Eleven
+    II) Twelve
+        a) Thirteen
+        b) Fourteen
+            1) Fifteen
+            2) Sixteen
+
+* One
+    1) Two
+* Three
+* Four
+    1) Five
+    2) Five (again?)
+* Six
+* Seven
+* Eight
+    1) Nine
+        * Ten
+        * Eleven
+    2) Twelve
+        * Thirteen
+        * Fourteen
+            I) Fifteen
+            II) Sixteen
+
+1) One
+    * Two
+2) Three
+3) Four
+    * Five
+    * Five
+4) Six
+5) Seven
+6) Eight
+    * Nine
+        I) Ten
+        II) Eleven
+    * Twelve
+        I) Thirteen
+        II) Fourteen
+            * Fifteen
+            * Sixteen
+
+Test list-continuation vs new paragraph indentation confusion:
+
+* When the commissionaire had gone, Holmes took up the stone and held it against the light. “It’s a bonny thing,” said he. “Just see how it glints and sparkles. Of course it is a nucleus and focus of crime. Every good stone is. They are the devil’s pet baits. In the larger and older jewels every facet may stand for a bloody deed. This stone is not yet twenty years old. It was found in the banks of the Amoy River in southern China and is remarkable in having every characteristic of the carbuncle, save that it is blue in shade instead of ruby red. In spite of its youth, it has already a sinister history. There have been two murders, a vitriol-throwing, a suicide, and several robberies brought about for the sake of this forty-grain weight of crystallised charcoal. Who would think that so pretty a toy would be a purveyor to the gallows and the prison? I’ll lock it up in my strong box now and drop a line to the Countess to say that we have it.”
+
+
+    “Do you think that this man Horner is innocent?”
+
+
+    “I cannot tell.”
+
+
+    “Well, then, do you imagine that this other one, Henry Baker, had anything to do with the matter?”
+
+
+* “It is, I think, much more likely that Henry Baker is an absolutely innocent man, who had no idea that the bird which he was carrying was of considerably more value than if it were made of solid gold. That, however, I shall determine by a very simple test if we have an answer to our advertisement.”
+
+    “And you can do nothing until then?”
+
+    “Nothing.”
+
+    “In that case I shall continue my professional round. But I shall come back in the evening at the hour you have mentioned, for I should like to see the solution of so tangled a business.”
+
+    “Very glad to see you. I dine at seven. There is a woodcock, I believe. By the way, in view of recent occurrences, perhaps I ought to ask Mrs. Hudson to examine its crop.”
+* I had been delayed at a case, and it was a little after half-past six when I found myself in Baker Street once more. As I approached the house I saw a tall man in a Scotch bonnet with a coat which was buttoned up to his chin waiting outside in the bright semicircle which was thrown from the fanlight. Just as I arrived the door was opened, and we were shown up together to Holmes’ room.
+
+    “Mr. Henry Baker, I believe,” said he, rising from his armchair and greeting his visitor with the easy air of geniality which he could so readily assume. “Pray take this chair by the fire, Mr. Baker. It is a cold night, and I observe that your circulation is more adapted for summer than for winter. Ah, Watson, you have just come at the right time. Is that your hat, Mr. Baker?”
+
+
+When Dottie was an adult, she adopted two baby alligators without knowing quite what to do with them. So she left them in her bathtub until she could decide how to proceed. The next day she was out doing errands when her maid let herself in. Dottie returned to an uncleaned apartment and a note: “Dear Madam. I am leaving, as I cannot work in a house with alligators. I would have told you this before, but I never thought the subject would come up.” [This paragraph should look like a new paragraph after the list ended, not a continuation of the third list item.]
+
+## Blockquotes
+
+Consecutive blockquotes:
+
+> [Margin note 2.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow! Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza.
+
+> [Another, longer blockquote.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize evil mojo.
+
+Nested blockquotes (3-levels):
+
+> With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy chaps, or > jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+>
+> > With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy chaps,
+> > or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+> >
+> > > With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy
+> > > chaps, or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+> > >
+> > > > With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy
+> > > > chaps, or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+> > > >
+> > > > > With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy
+> > > > > chaps, or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+> > > > >
+> > > > > > With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy
+> > > > > > chaps, or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+
+
+
+
+Floated blockquote:
+
+> {>>} With tenure, Suzie’d have all the more leisure for yachting, but her publications are no good. Shaw, those twelve beige hooks are joined if I patch a young, gooey mouth. Are those shy Eurasian footwear, cowboy
+> chaps, or jolly earthmoving headgear? The beige hue on the waters of the loch impressed all, including the French queen, before she heard that symphony again, just as young Arthur wanted.
+
+[Vivamus mattis condimentum posuere.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. [Overlapping?]{.marginnote} Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. [Do these overlap]{.marginnote} I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize evil mojo. [End margin note.]{.marginnote}
+
+## Horizontal Rulers
+
+HTML Rulers:
+
+First ruler (should be sun):
+
+---
+
+Ruler (second, should be dotted-moon):
+
+---
+
+Another ruler (third, should be stars/asterism -- custom icon, loosely inspired by our Source Serif Pro star list icon):
+
+---
+
+The rulers also provide a handy source of astronomical symbolism in use on several pages.
+
+Markdown rulers:
+
+---
+
+Second:
+
+***
+
+Third:
+
+___
+
+
+## Math (Block)
+
+$$E = mc^2$$
+
+$$\mathcal{O}(\log(n)) \equiv \mathbb{E}[1]$$
+
+$$\mathbb{E}[x_{i}]\approx \mu+\sigma\Phi^{-1}\left(\frac{i}{N+1}\right)\left[1+\frac{\left(\frac{i}{N+1}\right)\left(1-\frac{i}{N+1}\right)}{2(N+2)\left[\phi\left[\Phi^{-1}\left(\frac{i}{N+1}\right)\right]\right]^{2}}\right]$$
+
+$$P(a|b) = \frac{P(b|a) \cdot P(a)}{(P(b|a) \cdot P(a)) + (P(b|\lnot a) \cdot P(\lnot a))} = \frac{0.05 \cdot 0.9}{((0.05 \cdot 0.9) + (0.95 \cdot 0.1))} = \frac{0.045}{((0.05 \cdot 0.9) + (0.95 \cdot 0.1))} = \frac{0.045}{(0.045 + (0.95 \cdot 0.1))} = \frac{0.045}{(0.045 + 0.095)} = \frac{0.045}{0.14} = 0.32$$
+
+Color emphasis:
+
+$$\color{red}{\text{red}}(x)$$
+
+$$\color{blue}{\mathcal{O}(\log(n))} \equiv \color{red}{\mathbb{E}[1]}$$
+
+## Epigraphs
+
+:::{.epigraph}
+> Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae abillo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.
+>
+> --- Cicero (§1.10.32 of De finibus bonorum et malorum, 45 BC)
+:::
+
+:::{.epigraph}
+> The possibilities of developing an atomic weapon and the desirability of doing it secretly were discussed at a Princeton University conference in which I participated in March 1939…Bohr said this rare variety could not be separated from common uranium except by turning the country into a gigantic factory. Bohr was worried that this could be done and that an atomic bomb could be developed—but he hoped that neither could be accomplished. Years later, when Bohr came to Los Alamos, I was prepared to say, “You see . . .” But before I could open my mouth, he said: “You see, I told you it couldn’t be done without turning the whole country into a factory. You have done just that.”
+>
+> --- Edward Teller
+:::
+
+---
+
+
+:::{.text-center}
+--- Mtbry
+:::
+
+***
+
+:::{.text-center}
+Your humble & obedient servant,
+Gwern Branwen
+Esquire, KA, ESTC, Adv. Lyc., C.O.B.E., L.L.C, MD, DPhil, Eur Ing
+:::
+
+___
+
+:::{.text-center}
+Multiple centered paragraphs.
+
+Paragraph the second.
+
+Paragraph tertius.
+:::
+
+
+## Multi-Columns
+
+
+::: {.columns}
+1. First step
+2. Second step
+3. Third step
+4. Fourth step
+5. Fifth step
+6. Sixth step
+:::
+
+::: {.columns}
+- First step
+- Second step
+- Third step
+- Fourth step
+- Fifth step
+- Sixth step
+- Seventh step
+- Eighth step
+- Ninth step
+- Tenth step
+:::
+
+
+## Tables
+
+::: {.float-right}
+
+  Right     Left     Center     Default
+-------     ------ ----------   -------
+     12     12        12            12
+    123     123       123          123
+      1     1          1             1
+:::
+
+[Vivamus mattis condimentum posuere.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. [Overlapping?]{.marginnote} Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. [Do these overlap]{.marginnote} I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize evil mojo. [End margin note.]{.marginnote}
+
+::: {.table-small}
+: Table: Here's the caption. It, too, may span
+multiple lines.
+
+-------------------------------------------------------------
+ Centered   Default           Right Left
+  Header    Aligned         Aligned Aligned
+----------- ------- --------------- -------------------------
+   First    row                12.0 Example of a row that
+                                    spans multiple lines.
+
+  Second    row                 5.0 Here's another one. Note
+                                    the blank line between
+                                    rows.
+-------------------------------------------------------------
+:::
+
+
+
+: Sample grid table.
+
++---------------+---------------+--------------------+
+| Fruit         | Price         | Advantages         |
++===============+===============+====================+
+| Bananas       | $1.34         | - built-in wrapper |
+|               |               | - bright color     |
++---------------+---------------+--------------------+
+| Oranges       | $2.10         | - cures scurvy     |
+|               |               | - tasty            |
++---------------+---------------+--------------------+
+
+
++---------------------+-----------------------+
+| Location            | Temperature 1961-1990 |
+|                     | in degree Celsius     |
+|                     +-------+-------+-------+
+|                     | min   | mean  | max   |
++=====================+=======+=======+=======+
+| Antarctica          | -89.2 | N/A   | 19.8  |
++---------------------+-------+-------+-------+
+| Earth               | -89.2 | 14    | 56.7  |
++---------------------+-------+-------+-------+
+
+
+
+  | Name | Age | City |
+  |------|-----|------|
+  | John | 30  | NYC  |
+  | Jane | 25  | LA   |
+  | Bob  | 35  | SF   |
+
+
+::: {.sortable}
+| Right | Left | Default | Center |
+|------:|:-----|---------|:------:|
+|   12  |  12  |    12   |    12  |
+|  123  |  123 |   123   |   123  |
+|    1  |    1 |     1   |     1  |
+:::
+
+[Vivamus mattis condimentum posuere.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. [Overlapping?]{.marginnote} Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game.[^1] By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. [Do these overlap]{.marginnote} I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize[^2] evil mojo. [End margin note.]{.marginnote}
+
+
+::: {.sortable .width-full}
+
+: Long description of sortable table that is full-width. Here be ghosts. Long description of sortable table that is full-width. Here be ghosts. Long description of sortable table that is full-width. Here be ghosts. Long description of sortable table that is full-width. Here be ghosts. Long description of sortable table that is full-width. Here be ghosts.
+
+| Variant | Old   |     Total: n (%) |    10–31 March |      1–6 April |    7–9 April |    10–17 April |    18–30 April |      1–11 May |     12–31 May |           1–8 June |
+|:-------:|-------|-----------------:|---------------:|---------------:|-------------:|---------------:|---------------:|--------------:|--------------:|-------------------:|
+| none    | FALSE |  17,648 (16.01%) | 1,189 (19.26%) |  3607 (13.97%) | 460 (17.39%) | 1,182 (16.58%) |  3444 (17.04%) |  2,397 (14.39 | %) 3997 (17.3 | 9%) 2,563 (16.35%) |
+| none    | TRUE  |    8009 (23.65%) | 578 (24.91%) 1 |  ,236 (22.09%) | 226 (20.35%) |   570 (23.86%) | 1,364 (27.05%) | 1,108 (23.83% | ) 2,142 (22.4 | 6%) 1,363 (23.84%) |
+| gray1   | FALSE |  1,7579 (16.28%) | 1,177 (19.71%) |  3471 (14.06%) | 475 (13.47%) | 1,200 (17.33%) |  3567 (17.49%) |  2,365 (13.57 | %) 3896 (18.1 | 7%) 2,605 (17.24%) |
+| gray1   | TRUE  |    7694 (23.85%) | 515 (28.35%) 1 |  ,183 (23.58%) | 262 (21.37%) |   518 (21.43%) | 1,412 (26.56%) | 1,090 (24.86% | ) 2,032 (22.6 | 9%) 1,197 (23.56%) |
+| gray3   | FALSE |  1,4871 (15.81%) | 1,192 (18.29%) |  3527 (14.15%) | 446 (15.47%) | 1,160 (15.43%) |  3481 (17.98%) |  2,478 (14.65 | %) 3776 (16.2 |     6%) 3 (33.33%) |
+| gray3   | TRUE  |    6631 (23.06%) | 600 (24.83%) 1 |  ,264 (21.52%) | 266 (18.05%) |   638 (21.79%) | 1,447 (25.22%) | 1,053 (24.60% | ) 1,912 (23.1 |     7%) 51 (5.88%) |
+| blues   | FALSE |  1,0844 (15.34%) | 1,157 (18.93%) |  3470 (14.35%) | 449 (16.04%) | 1,214 (15.57%) |  3346 (17.54%) |  2,362 (13.46 |     %) 3 (0.0 |                0%) |
+| blues   | TRUE  |    4544 (23.04%) | 618 (27.18%) 1 |  ,256 (23.81%) | 296 (20.27%) |   584 (22.09%) | 1,308 (24.46%) | 1,052 (22.15% |   ) 48 (12.50 |                 %) |
+| gray2   | FALSE |    8646 (15.51%) | 1,220 (20.33%) |  3649 (13.81%) | 416 (15.14%) | 1,144 (15.03%) |  3433 (17.54%) |     4 (0.00%) |               |                    |
+| gray2   | TRUE  |    3366 (22.82%) | 585 (22.74%) 1 |  ,271 (21.79%) | 230 (16.52%) |   514 (21.60%) | 1,298 (25.42%) |   44 (27.27%) |      6 (0.00% |        ) 3 (0.00%) |
+| dark    | FALSE |    5240 (14.05%) | 1,224 (20.59%) |  3644 (13.83%) | 420 (13.81%) | 1,175 (14.81%) |      1 (0.00%) |               |               |                    |
+| dark    | TRUE  |   2,161 (20.59%) |   618 (21.52%) | 1,242 (20.85%) | 276 (21.74%) |   574 (20.56%) |    64 (10.94%) |     1 (0.00%) |      2 (0.00% |       ) 2 (50.00%) |
+| gray6   | FALSE |    4022 (13.30%) | 1,153 (19.51%) |  3610 (12.88%) | 409 (17.11%) |      1 (0.00%) |      2 (0.00%) |     3 (0.00%) |               |                    |
+| gray6   | TRUE  |   1,727 (20.61%) |   654 (23.70%) | 1,358 (22.02%) | 259 (18.92%) |     95 (7.37%) |     11 (9.09%) |               |      1 (0.00% |                  ) |
+| gray5   | FALSE |    3245 (12.20%) | 1,175 (16.68%) |  3242 (12.21%) |    3 (0.00%) |                |                |               |               |                    |
+| gray5   | TRUE  |   1,180 (21.53%) |   559 (25.94%) | 1,130 (21.77%) |  34 (17.65%) |    16 (12.50%) |                |               |               |                    |
+| gray4   | FALSE |   1,176 (18.54%) | 1,174 (18.57%) |  1,174 (18.57% |            ) |                |      2 (0.00%) |               |               |                    |
+| gray4   | TRUE  |     673 (19.91%) | 650 (20.31%) 6 |    69 (20.03%) |              |      1 (0.00%) |      1 (0.00%) |     2 (0.00%) |               |                    |
+|         |       | 137,438 (18.27%) |                |                |              |                |                |               |               |                    |
+:::
+
+[Vivamus mattis condimentum posuere.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. [Overlapping?]{.marginnote} Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed[^3] with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. [Do these overlap]{.marginnote} I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize evil mojo. [End margin note.]{.marginnote}
+
+## Images
+
+![@asset:2019-lecun2](@asset:2019-lecun2?width=400){.float-right}
+[Vivamus mattis condimentum posuere.]{.marginnote} Waltz, nymph, for quick jigs vex Bud. Sphinx of black quartz, judge my vow. Pack my box with five dozen liquor jugs. Glib jocks quiz nymph to vex dwarf. Jackdaws love my big sphinx of quartz. The five boxing wizards jump quickly. How vexingly quick daft zebras jump! Quick zephyrs blow, vexing daft Jim. [Overlapping?]{.marginnote} Two driven jocks help fax my big quiz. The jay, pig, fox, zebra and my wolves quack! Sympathizing would fix Quacker objectives. A wizard’s job is to vex chumps quickly in fog. Watch Jeopardy!, Alex Trebek’s fun TV quiz game. By Jove, my quick study of lexicography won a prize! Waxy and quivering, jocks fumble the pizza. Fetching killjoy Mavis Wax was probed on the quay. “Yo, never mix Zoloft with Quik”, gabs Doc Jasper. One zany quaff is vodka mixed[^3] with grape juice and blood. Zitty Vicki smugly quipped in her journal, “Fay waxes her butt.” Hot Wendy gave me quasi-Kreutzfeld-Jacob pox. Jack’s pervy moxie quashed Bob’s new Liszt fugue. [Do these overlap]{.marginnote} I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. Two phony quacks of God bi-exorcize evil mojo. [End margin note.]{.marginnote}
+
+Mauris justo nunc, lobortis sed sapien nec, ullamcorper dapibus mi. Quisque ex magna, feugiat ac fermentum sit amet, maximus interdum odio. Praesent nec neque feugiat, maximus libero a, dignissim justo. Vivamus ultrices massa ac ex varius, at faucibus magna sodales. Nam ut volutpat quam. Mauris eleifend ac dolor sit amet volutpat. Morbi blandit tristique massa, id bibendum risus blandit et. Ut varius erat dignissim eros dignissim commodo. Sed commodo, tortor sit amet finibus laoreet, diam nibh convallis leo, quis porttitor nulla elit eu urna. Nam auctor commodo nisi, non scelerisque magna. Aliquam lacinia elit vel nisl ultrices rhoncus. Donec ac accumsan felis, vel sagittis enim.
+
+![Alt text here](@asset:2019-lecun2){.width-full}
+Vivamus vitae eros rutrum, pulvinar nibh sit amet, sagittis odio. Donec nulla neque, ultrices et libero quis, hendrerit vestibulum turpis. Curabitur vehicula viverra imperdiet. Nam tempus rhoncus velit. Nunc vulputate consequat leo quis imperdiet. Etiam sem dui, consectetur molestie cursus pharetra, malesuada quis neque. Mauris tincidunt rhoncus purus. Integer sed tellus a ex tempor faucibus ac malesuada velit. Aenean laoreet augue eros, sed volutpat elit finibus ac.
+
+Proin nec mauris non nisl vehicula volutpat. Integer lectus arcu, rutrum in lorem ut, pulvinar feugiat metus. Nulla hendrerit mi id mi rhoncus mollis. Fusce vitae purus ac sem cursus suscipit. Aenean auctor nunc in orci fringilla aliquet. Donec consequat mauris lectus, sit amet sollicitudin nunc elementum vel. Sed tristique ipsum lacus. Aliquam erat volutpat. Nulla varius nulla porta sem commodo, sollicitudin elementum diam hendrerit.
+
+![Alt text markdown overwrite](@chess-2025?width=1000){.width-full}
+
+Vestibulum at tristique est. Etiam varius sagittis sapien ac varius. Donec dictum mi nec risus pharetra, et semper metus facilisis. Proin et est et ex convallis suscipit ullamcorper suscipit nisi. Donec sed enim ac sapien placerat consequat fermentum sit amet leo. Quisque et tempus sapien. Ut mollis iaculis posuere. Pellentesque sit amet sagittis quam, ac cursus magna. Sed tincidunt erat sem, ornare bibendum leo porttitor sed.
+
+![](@spacenebula){.width-full}
+
+
+[^1]: Testing footnotes
+[^2]: I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fax. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fa. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fa.
+[^3]: Testing another footnote. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fa. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fa. I backed Zevy’s qualms over Janet’s wig of phlox. Tipsy Bangkok panjandrums fix elections with quivering zeal. Mexican juntas, viewed in fog, piqued Zachary, killed Rob. Jaywalking Zulu chieftains vex probate judge Marcy Quinn. Twenty-six Excedrin helped give Jocko quite a firm buzz. Racy pics of bed hijinx with glam queen sunk Val. Why Paxil? Jim’s Bodega stocked no quince-flavor Pez. Wavy-haired quints of El Paz mock Jorge by fa.

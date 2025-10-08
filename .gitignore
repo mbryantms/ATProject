@@ -1,0 +1,243 @@
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+__pycache__/
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+.env/
+pyvenv.cfg
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+
+# Django migrations (optional - some prefer to track these)
+# */migrations/*.py
+# */migrations/*.pyc
+# !*/migrations/__init__.py
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE - PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+.idea_modules/
+out/
+
+# IDE - VSCode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Node - Dependencies
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Node - Build outputs
+dist/
+build/
+.cache/
+.parcel-cache/
+
+# Testing
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+cover/
+*.cover
+.cache
+nosetests.xml
+coverage.xml
+*.coveragerc
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.tmp/
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Compression
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Media files (if you don't want to track uploads)
+# Uncomment if media files should not be in git
+# /media/
+
+# Static files (collected by Django)
+/staticfiles/
+/static_collected/
+/static_root/
+
+# Database dumps
+*.sql
+*.sqlite
+*.db
+
+# Secrets and credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+# Claude Code
+.claude/
+
+# Pre-commit
+.pre-commit-config.yaml.bak
+
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Documentation builds
+docs
+docs/_build/
+docs/.doctrees/
+
+# Sass
+.sass-cache/
+*.css.map
+
+# PostCSS
+*.css.map
+
+# Javascript
+static/js/dist/
+
+# CSS
+static/css/dist/
+
+# Python byte-compiled files
+__pycache__/
+*.pyc

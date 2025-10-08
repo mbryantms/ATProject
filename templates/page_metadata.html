@@ -1,0 +1,111 @@
+{% load gauge_tags tooltip_tags %}
+{% block page-metadata %}
+  <div class="markdownBody" id="page-metadata">
+    {# Tags #}
+    {% if post.tags.exists %}
+      <div class="link-tags">
+        <p>
+          {% for tag in post.tags.all %}
+            <a href="#"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               rel="tag"
+               title="Link to {{ tag.name }} tag index">{{ tag.name }}</a>
+            {% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
+    {# Description #}
+    {% if post.description %}
+      <div class="page-description">
+        <p>{{ post.description }}</p>
+      </div>
+    {% endif %}
+    {# Metadata fields #}
+    <div class="page-metadata-fields">
+      {# Author: if published #}
+      {% if post.author %}<span class="page-author">by: {{ post.author }}</span>{% endif %}
+      {# Date range: published to updated #}
+      {% if post.published_at %}
+        <span class="page-date-range">
+          {% tooltip position="top" theme="dark" %}
+          <time datetime="{{ post.published_at|date:'c' }}">{{ post.published_at|date:"Y-m-d" }}</time>
+          {% tooltip_content %}
+          The date this post was published.
+        {% endtooltip %}
+        {% if post.updated_at and post.updated_at != post.published_at %}
+          –
+          {% tooltip position="top" theme="dark" %}
+          <time datetime="{{ post.updated_at|date:'c' }}">{{ post.updated_at|date:"Y-m-d" }}</time>
+          {% tooltip_content %}
+          The date this post was last updated.
+        {% endtooltip %}
+      {% endif %}
+    </span>
+  {% endif %}
+  {# Status #}
+  <span class="page-status"
+        title="Writing status of current page: {{ post.get_status_display|lower }}">
+    <em><span class="completion-status"
+      data-progress-percentage="{% if post.status == 'published' %}100{% elif post.status == 'draft' %}25{% else %}50{% endif %}">{{ post.get_status_display|lower }}</span></em>
+  </span>
+  {# Certainty with gauge #}
+  <span class="page-confidence">
+    {% tooltip position="top" theme="dark" %}
+    <a href="#">certainty:</a>
+    {% gauge post.certainty %}
+    {% tooltip_content %}
+    This post's certainty was rated <strong>{{ post.certainty }}</strong> out of 10.
+  {% endtooltip %}
+</span>
+{# Importance with gauge #}
+<span class="page-importance">
+  {% tooltip position="top" theme="dark" %}
+  <a href="#">importance:</a>
+  {% gauge post.importance %}
+  {% tooltip_content %}
+  This post's importance was rated <strong>{{ post.importance }}</strong> out of 10.
+{% endtooltip %}
+</span>
+<span class="page-backlinks">
+  {% tooltip position="top" theme="dark" %}
+  <a class="backlinks link-self has-icon has-content spawns-popup has-indicator-hook"
+     href="#"
+     data-link-icon="arrows-pointing-inwards-to-dot"
+     data-link-icon-type="svg"
+     style="--link-icon-url: url(/static/img/icon/arrows-pointing-inwards-to-dot.svg)"
+     data-attribute-title="Reverse citations/backlinks for this page (the list of other pages which link to this page)."><span class="indicator-hook"></span>backlinks<span class="link-icon-hook dark-mode-invert"></span></a>
+  {% tooltip_content %}
+  This post has {{ backlinks_count }} backlink{{ backlinks_count|pluralize }}.
+{% endtooltip %}</span>
+{# Reading time #}
+{#      {% if post.reading_time_minutes %}#}
+{#        <span class="page-reading-time">#}
+{#          {% tooltip position="top" theme="dark" %}#}
+{#            <span>{{ post.reading_time_minutes }} min read</span>#}
+{#            {% tooltip_content %}#}
+{#            Estimated reading time: {{ post.reading_time_minutes }} minute{{ post.reading_time_minutes|pluralize }}.#}
+{#          {% endtooltip %}#}
+{#        </span>#}
+{#      {% endif %}#}
+{##}
+{# Word count #}
+{#      {% if post.word_count %}#}
+{#        <span class="page-word-count">#}
+{#          {% tooltip position="top" theme="dark" %}#}
+{#            <span>{{ post.word_count }} words</span>#}
+{#            {% tooltip_content %}#}
+{#            Word count: {{ post.word_count|floatformat:0 }} words.#}
+{#          {% endtooltip %}#}
+{#        </span>#}
+{#      {% endif %}#}
+{#    #}
+{# Categories #}
+{#      {% if post.categories.exists %}#}
+{#        <span class="page-categories">In {% for cat in post.categories.all %}#}
+{#          <a href="#" class="link-annotated">{{ cat.name }}</a>#}
+{#          {% if not forloop.last %},{% endif %}{% endfor %}</span>#}
+{#      {% endif %}#}
+</div>
+</div>
+{% endblock page-metadata %}

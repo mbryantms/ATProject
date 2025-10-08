@@ -1,0 +1,194 @@
+# Inline Formatting
+
+[Margin note 3.]{.marginnote} [Inline formatting:]{.smallcaps} *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^1]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://youtube.com). [External *italicized* **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. • ~~Strikethrough~~.
+
+[Inline *italics* then `code` then **bold** then [smallcaps]{.smallcaps} in link](https://gwern.net). (Entire link: [`code⁠`](https://toyota.com).)
+
+In blockquotes:
+
+> *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^2]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com). [External *italicized*
+> **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. • ~~Strikethrough~~.
+>
+> > *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^3]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com). [External *italicized*
+> > **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. • ~~Strikethrough~~.
+> >
+> > > *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^4]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com).
+> > > [External *italicized* **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. • ~~Strikethrough~~.
+> > >
+> > > > *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^5]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com).
+> > > > [External *italicized* **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. • ~~Strikethrough~~.
+> > > >
+> > > > > *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^6]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com).
+> > > > > [External *italicized* **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. •
+> > > > > ~~Strikethrough~~.
+> > > > >
+> > > > > > *Italics*. **Bold**. ***Bold italics***. `Code`. [Smallcaps[^7]]{.smallcaps} Span. [Internal link](http://127.1.1.1:8000/posts/lorem-ipsum-block-elements/). [External link](https://google.com).
+> > > > > > [External *italicized* **bolded** ***bold italicized*** then [smallcaps’d]{.smallcaps} (with bonus `code`) link](https://microsoft.com). Superscript^1^. Subscript~2~. • Interpunct separation. •
+> > > > > > ~~Strikethrough~~.
+
+
+___
+
+
+## Long Lines
+
+* **Hyphenation:** pneumonoultramicroscopicsilicovolcanoconiosis pseudopseudohypoparathyroidism floccinaucinihilipilification antidisestablishmentarianism supercalifragilisticexpialidocious incomprehensibilities strengths euouae unimaginatively honorificabilitudinitatibus sesquipedalianism otorhinolaryngological immunoelectrophoretically psychophysicotherapeutics thyroparathyroidectomized pneumoencephalographically radioimmunoelectrophoresis psychoneuroendocrinological hepaticocholangiogastrostomy spectrophotofluorometrically.
+* **Slashes:** Cwm/fjord/veg/balks/nth/pyx/quiz. Bortz/waqf/glyphs/vex/muck/djinn. PR/flacks/quiz/gym:/TV/DJ/box/when? Zing,/dwarf/jocks/vex/lymph,/Qutb. Zing,/vext/cwm/fly/jabs/Kurd/qoph.
+* **URLs/Code:** `https://gwern.substack.com/` • `https://www.patreon.com/gwern` • `https://fis.fda.gov/sense/app/d10be6bb-494e-4cd2-82e4-0135608ddc13/sheet/45beeb74-30ab-46be-8267-5756582633b4/state/analysis` • `https://forum.evageeks.org/post/366709/Im-calling-it-right-now/#366709` • `https://www.reddit.com/r/TOUHOUMUSIC/search/?q=author%3Agwern&sort=new&restrict_sr=on&t=all` • `https://forum.evageeks.org/post/366717/Im-calling-it-right-now/#366717` • `https://forum.evageeks.org/post/366731/Im-calling-it-right-now/#366731` • `https://www.thiswaifudoesnotexist.net/` • `https://www.lesswrong.com/tag/inside-outside-view` • `https://predictionbook.com/users/gwern` • `https://www.reddit.com/r/Vocaloid/search/?q=author%3Agwern&sort=new&restrict_sr=on&t=all` • `https://forum.evageeks.org/post/366565/Im-calling-it-right-now/#366565` • `https://forum.evageeks.org/post/558013/EOE-OST-Title-Translations/#558013`
+* **Citations** (should not break in the middle but as an unit): Foo 1990, Foo & Bar 1991, Foo & Quux 1992, Foo  et al  1993, Foo 1994, Foo  et al  1995, Foo 1996, Foo  et al  1997, Foo  et al  1998, Foo  et al  1999, Foo  et al  2000, Foo  et al  2001, Foo  et al  2002, Foo  et al  2003, Foo  et al  2004, Foo  et al  2005, Foo  et al  2006, Foobar 2007, Baz  et al  2008, Foo  et al  2009, Quux  et al  2010, Foo 2011, Foo & Bar 2012, Foo & Quux 2013, Foo  et al  2014, Foo  et al  2015, Foo  et al  2016, Foobar 2017, Baz  et al  2018, Quux  et al  2019, Foo & Quux 2020, Foo  et al  2021, Foo  et al  2022, Foo  et al  2023.
+This also tests whether the citations are properly subscripted.
+
+___
+
+## Accents
+Serif test cases (default):
+
+Dépôt Légal : Q4-1989-01969. ISBN (éd. orig.).
+
+Précieux éclairage sur l’un de ces organismes de recherche restés jusqu’ici méconnus, M. Trente a rendu à la communauté savante un service insigne, mettant en lumière. Espérée de la postérité, des érudits œuvrent sans relâche en à un autre de ces hauts lieux. Université T. U. O. T. (retraité à Chavignolles (Bouvard et Pécuchet))
+
+Sans-serif test cases (Source Sans 3):
+
+::: {.sans-serif}
+Dépôt Légal : Q4-1989-01969. ISBN (éd. orig.).
+
+Précieux éclairage sur l’un de ces organismes de recherche restés jusqu’ici méconnus, M. Trente a rendu à la communauté savante un service insigne, mettant en lumière. Espérée de la postérité, des érudits œuvrent sans relâche en à un autre de ces hauts lieux. Université T. U. O. T. (retraité à Chavignolles (Bouvard et Pécuchet))
+:::
+
+## Smallcaps
+
+Alphabet in smallcaps:
+
+* capitals: [A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9]{.smallcaps}
+* lowercase: [a b c d e f g h i j k l m n o p q r s t u v w x y z]{.smallcaps}
+
+Manual smallcaps (alternating):
+
+* [Yar Pirate Ipsum.]{.smallcaps} Prow Scuttle Parrel Provost. [Sail Ho Shrouds Spirits Boom Mizzenmast Yardarm.]{.smallcaps} Pinnace Holystone Mizzenmast Quarter Crow’s Nest Nipperkin Grog Yardarm Hempen Halter Furl. [Swab Barque Interloper Chantey Doubloon Starboard Grog Black Jack Gangway Rutters.]{.smallcaps} Trysail Sail Ho Corsair Red Ensign Hulk Smartly Boom Jib Rum Gangway. [Ford To City: ‘Drop Dead’.]{.smallcaps}
+
+## Subscript+Superscript
+
+* R~2~^3^ = 0.6499
+* h~1~^men^ = 0.56, h~2~^women^ = 0.54
+* Average number of articles read on the browser *NumArticles*~Browser~^it^ by subscribers and non-subscribers
+
+### Date Subscripts
+
+One reason I’m interested in the date subscript idea is that I already try to be consistent with commas to distinguish years from numbers which happen to fall in the range 1,000–2,100. (What about years whose number form wouldn’t have a comma, and they are ambiguous, like ‘999’ the number vs ‘AD 999’? There aren’t many of those on Gwern.net so they’ll just have to be marked up manually or possibly the regexp match made more complicated to match an AD/BC suffix).
+
+So hypothetically I can mark up years differently from numbers, and ranges as well.
+
+A date ‘1500’ (which is not the number ‘1,500’) can be subscripted `1500~524ya~` while a ‘1,500’ is ignored; and a date-range like ‘the third Swiss-Franco incursion (1549–1603) led to…’ can be marked up as both a sub and superscript, say, like 1549 to tell you at a glance that this war lasted an epic half century half a millennium ago.
+
+So it’d go:
+
+* single non-date number: nothing
+* single date number: subscript years-ago
+
+    Ranges and years-ago are rounded like inflation, to keep them workable for large ones, like in archaeology or anthropology or evolution where you might have a 10 million year range 100 million years ago.
+* double non-date number range: superscript range
+* double date number: superscript range, subscript years-ago.
+
+***
+
+Test-cases for using subscripts to annotate dates with auto-generated time spans to avoid the ‘context collapse’ or ‘eternal present’ problem as temporal intuitions seem to be breaking down.
+
+> WWII was [1939-1945]{.date-range-since}, or more specifically, [1939-09-01--1945-09-02]{.date-range-since}.
+>
+> The end of WWII was 1945. It is now 2025. It used to be 2009. Whereas in the year 1492, Columbus sailed the ocean blue. RIPE Sir Thomas Browne ([1605-10--1682-10]{.date-range-since}).
+>
+> Hirohito reigned [1926--1989]{.date-range-since}. The first atomic bombing to surrender speech interval was [1945-08-06--1945-08-15]{.date-since}. Then [1945-08-15--1945-10-09]{.date-since} saw the new cabinet. In the 1900s, *Neon Genesis Evangelion*: [1995-10-04--1996-03-27]{.date-since}, or sim1995-10-1996-03.
+> There were 1,700-2,001 ships available for moe anthropomorphism. 999. 1. 55. 2. 2600. 0. 3-2-1-0. 2000s.
+
+
+## Numbers
+
+Old-style numbers (default for inline use):
+
+- 0123456789 0,123,456,789. 1,234.567890. 0 1 2 3 4 5 6 7 8 9.
+
+Tabular numbers (override):
+
+- [0123456789 0,123,456,789. 1,234.567890. 0 1 2 3 4 5 6 7 8 9. Q4-1989-01969. ISBN (éd. orig.) 0-571-10012-Z]{.tabular-nums}
+
+Numbers in links (lining rather than old-style, to avoid skipping ink):
+
+- [9,876,543,210.](https://en.wikipedia.org/wiki/Pandigital_number)
+
+Dates (YYYY-MM-DD):
+
+- [2020-09-29]{.date-since}
+- [1970-01-01–2022-01-19]{.date-range-since}
+- [1970-01-01--2022-01-19]{.date-range-since}
+- [2025-09-28]{.date-since}
+- [AD 673]{.date-since}
+- [1500 BC]{.date-since}
+- [1986-12-22]{.date-since}
+- [1549]{.date-since}
+- [1986]{.date-since}
+- [673]{.date-since}
+- [984 BCE]{.date-since}
+- [984 BC]{.date-since}
+- [200,000 BC]{.date-since}
+- [1.4 million BC]{.date-since}
+
+There was a brief period after 1549 in which the dark ages began and millions of people dies. I'm not sure if the time since 1986 has been the same. Does a third date inclusion of 1972 matter?
+
+
+## Math (inline)
+
+$E = mc^2$ as long as $E = \frac{1}{2}$
+
+$\phi = \frac{1 + \sqrt{5}}{2}$
+
+Water's formula is $H_2O$ and Einstein wrote $E = mc^2$.
+
+Adjusted fractions: $\frac{123}{456}$. $\frac{1234}{5678}$. $\frac{1}{2345}$. $\frac{1234}{5}$.
+
+Not-adjusted fractions: $\frac{a}{b}$. $\frac{1}{log(n)}$. $\frac{log(n)}{pi}$. $\frac{1,234}{2}$. $\frac{1}{234,567}$.
+
+$\LaTeX$ inline: If $E$ then $mc^2$? Regular version: If *E* then *mc^2^*? (See also logotypes: $\TeX$)
+
+Run-together equals signs: $1,000=1,000,000; $2=2x1$; $1+2=3$; $1+2 \neq 40,000,000$.
+
+$\newcommand{\latex}{\LaTeX\xspace}$ Now use $\latex$ anywhere.
+
+  - $\dfrac{a}{b}$ - display-style fraction
+  - $\tfrac{a}{b}$ - text-style fraction
+
+## Link Icons
+
+[YouTube](https://www.youtube.com)
+[GitHub](https://www.github.com)
+[Wikipedia](https://wikipedia.org)
+[Google Scholar](https://scholar.google.com)
+[PLoS](https://plos.org)
+[NLM-NCBI](https://www.ncbi.nlm.nih.gov)
+
+
+[^1]: Footnote number one. Testing an incredibly long footnote. I used to read old weight training books. In one of them the author proudly recalled how his secretary had asked him for advice on how to lose weight. This guy went around studying all the secretaries and noticed that the thin ones sat more upright compared to the fat ones. He then recommended to his secretary that she sit more upright, and if she did this she would lose weight. What I loved most about that whole story was that the guy was so proud of his analysis and conclusion that he made it an entire chapter of his book, and that no one in the entire publishing chain from the writer to the editor to the proofreader to the librarian who put the book on the shelves noticed any problems with any of it.
+[^2]: Footnote number two. Testing an incredibly long footnote.
+[^3]: Testing?!
+[^4]:Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam tincidunt cursus ex at consectetur. Nam quis accumsan est. Morbi tristique quam porttitor tempus imperdiet. In et nunc lacinia, molestie enim vel, pellentesque orci. Donec eget vehicula lorem, ut dapibus nulla. Quisque condimentum, erat id laoreet molestie, ante nunc ornare lorem, in pulvinar diam erat tincidunt risus. Suspendisse a finibus nisl. Curabitur feugiat quis nisl et scelerisque. Aenean consequat faucibus lacus, aliquet auctor erat.
+
+
+    Fusce cursus purus a pellentesque euismod. In at vestibulum dolor. Nulla id dictum sapien. Mauris rhoncus nisi id neque viverra aliquet. Aenean suscipit sem lacus, sed venenatis risus viverra ac. Suspendisse porttitor elit mauris, sit amet dignissim massa efficitur laoreet. Praesent vel arcu consequat, tincidunt velit at, porttitor massa. Praesent lacinia rutrum convallis. Suspendisse elementum ipsum non justo venenatis sagittis. Etiam in elementum sapien, a iaculis quam. Quisque sem ligula, luctus in mauris id, venenatis mollis est. Sed velit diam, suscipit non aliquam vitae, feugiat eu nisi.
+
+
+    Aenean ultricies, libero quis ultrices fermentum, nulla erat commodo tortor, in faucibus nibh ante in tellus. Integer tincidunt purus sed magna vehicula, ac tincidunt lectus aliquam. Cras turpis neque, auctor ac venenatis vel, dapibus vel nulla. Vestibulum gravida turpis ac lacus accumsan, in placerat purus pharetra. Integer tristique mi iaculis ante auctor egestas. Duis justo sapien, facilisis sed malesuada vel, malesuada quis lorem. Maecenas sagittis pulvinar tellus, quis venenatis lacus vestibulum non. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla id mauris urna.
+
+
+    Integer a ultricies lectus. Vivamus eleifend, neque nec egestas faucibus, ipsum tortor lacinia nunc, eu faucibus magna lorem sed velit. Vestibulum convallis est ut ex pulvinar commodo. Cras commodo rhoncus nisi, eu blandit ligula sagittis sit amet. Aenean interdum arcu sed viverra interdum. Vestibulum diam mauris, facilisis sit amet consequat sed, eleifend nec eros. Mauris mollis ligula erat, sagittis porttitor libero molestie vel. Ut bibendum mauris sit amet arcu pretium, sagittis bibendum urna tempus. Proin bibendum dui vel velit gravida varius.
+
+
+    Morbi pretium condimentum neque, quis consectetur nisi dignissim at. In congue nulla ac porttitor vehicula. Ut gravida egestas libero, ut consequat enim dictum a. Vestibulum ornare eu tortor vel dignissim. Proin sodales lectus vel velit varius, eget semper erat ultrices. In fringilla egestas lectus fermentum molestie. Donec nec nisl at quam efficitur commodo sit amet a ante. Pellentesque malesuada efficitur ornare. Nullam vel turpis sit amet odio pellentesque varius nec quis turpis. Donec suscipit, erat vitae bibendum blandit, felis lectus interdum tellus, at interdum velit ex at tortor.
+
+
+    > Morbi pretium condimentum neque, quis consectetur nisi dignissim at. In congue nulla ac porttitor vehicula. Ut gravida egestas libero, ut consequat enim dictum a. Vestibulum ornare eu tortor vel dignissim. Proin sodales lectus vel velit varius, eget semper erat ultrices. In fringilla egestas lectus fermentum molestie. Donec nec nisl at quam efficitur commodo sit amet a ante. Pellentesque malesuada efficitur ornare. Nullam vel turpis sit amet odio pellentesque varius nec quis turpis. Donec suscipit, erat vitae bibendum blandit, felis lectus interdum tellus, at interdum velit ex at tortor.
+
+
+    Aenean ultricies, libero quis ultrices fermentum, nulla erat commodo tortor, in faucibus nibh ante in tellus. Integer tincidunt purus sed magna vehicula, ac tincidunt lectus aliquam. Cras turpis neque, auctor ac venenatis vel, dapibus vel nulla. Vestibulum gravida turpis ac lacus accumsan, in placerat purus pharetra. Integer tristique mi iaculis ante auctor egestas. Duis justo sapien, facilisis sed malesuada vel, malesuada quis lorem. Maecenas sagittis pulvinar tellus, quis venenatis lacus vestibulum non. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla id mauris urna.
+
+[^5]: Shorter
+[^6]: Short
+[^7]: Sh

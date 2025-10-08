@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Lists{% endblock %}
+{% block page_title %}Lists Showcase{% endblock %}
+{% block content %}
+  <p>Examples of list styles and hierarchies.</p>
+
+  <h2>Unordered List</h2>
+  <ul>
+    <li>Item one</li>
+    <li>Item two
+      <ul>
+        <li>Nested item A</li>
+        <li>Nested item B
+          <ul>
+            <li>Deep item i</li>
+            <li>Deep item ii</li>
+          </ul>
+        </li>
+        <li>Nested item C</li>
+      </ul>
+    </li>
+    <li>Item three</li>
+  </ul>
+
+  <h2>Ordered List</h2>
+  <ol>
+    <li>First</li>
+    <li>Second
+      <ol>
+        <li>Second.A</li>
+        <li>Second.B
+          <ol>
+            <li>Second.B.i</li>
+            <li>Second.B.ii</li>
+          </ol>
+        </li>
+      </ol>
+    </li>
+    <li>Third</li>
+  </ol>
+
+  <h2>Mixed List</h2>
+  <ul>
+    <li>Alpha</li>
+    <li>Beta
+      <ol>
+        <li>One</li>
+        <li>Two</li>
+      </ol>
+    </li>
+    <li>Gamma</li>
+  </ul>
+
+  <h2>Definition List</h2>
+  <dl>
+    <dt>Term</dt>
+    <dd>Definition of the term with additional details.</dd>
+    <dt>API</dt>
+    <dd>Application Programming Interface.</dd>
+  </dl>
+
+{% endblock %}

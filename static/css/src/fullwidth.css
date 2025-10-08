@@ -1,0 +1,93 @@
+/*********************/
+/* FULL-WIDTH BLOCKS */
+/*********************/
+
+/*	Full-width block expansion for elements marked with .width-full class.
+	Works with fullwidth-standalone.js to expand elements to viewport width
+	while maintaining proper centering and responsive behavior.
+
+	Supported elements:
+	- Tables (via table_enhancer.py with ::: {.width-full})
+	- Figures
+	- Divs
+	- Any other block-level element marked with .width-full
+ */
+
+/* CSS custom properties set by fullwidth-standalone.js */
+:root {
+	--fullwidth-side-margin: 25px;
+	--fullwidth-page-width: 0px;
+	--fullwidth-left-adjustment: 0px;
+}
+
+/* Base full-width styles */
+.width-full {
+	/* Margins are set dynamically by JavaScript for precise calculation */
+	/* Based on viewport width, content position, and nesting context */
+
+	/* Ensure proper box sizing */
+	box-sizing: border-box;
+
+	/* Allow scrolling for very wide content on small viewports */
+	overflow-x: auto;
+}
+
+/* Mobile: disable full-width expansion */
+@media all and (max-width: 649px) {
+	.width-full {
+		/* Reset any dynamically applied margins */
+		margin-left: 0 !important;
+		margin-right: 0 !important;
+
+		/* Allow normal content width on mobile */
+		width: 100%;
+	}
+}
+
+/* Desktop: enable full-width expansion */
+@media all and (min-width: 650px) {
+	.width-full {
+		/* Width is calculated via negative margins */
+		/* This allows the element to break out of its container */
+		width: auto;
+	}
+}
+
+/* Specific element type handling */
+
+/* Tables with width-full */
+.table-wrapper.width-full {
+	/* Additional table-specific styles if needed */
+}
+
+/* Ensure table scroll wrapper doesn't interfere */
+.table-wrapper.width-full .table-scroll-wrapper {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Figures with width-full */
+figure.width-full {
+	/* Override overflow to prevent clipping of image/caption outlines */
+	overflow: visible;
+}
+
+/* Ensure images within full-width figures scale properly */
+.width-full img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* Code blocks with width-full */
+.width-full pre {
+	/* Prevent double scrollbars */
+	overflow-x: auto;
+}
+
+/* Nested full-width elements (avoid compounding) */
+.width-full .width-full {
+	/* Reset margins for nested full-width elements */
+	margin-left: 0 !important;
+	margin-right: 0 !important;
+}
+

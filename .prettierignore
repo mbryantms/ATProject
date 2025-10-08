@@ -1,0 +1,28 @@
+# deps & builds
+node_modules/
+dist/
+build/
+.coverage/
+*.min.js
+
+# Python
+.venv/
+venv/
+**/__pycache__/
+.mypy_cache/
+.ruff_cache/
+
+# Django collected/static media
+staticfiles/
+media/
+
+# Pandoc build outputs (adjust if needed)
+public/
+_site/
+
+# Migrations (usually not worth formatting)
+**/migrations/
+
+# Let a Django/Jinja formatter (e.g., djlint) handle these if you prefer
+**/templates/**/*.html
+*.djhtml
