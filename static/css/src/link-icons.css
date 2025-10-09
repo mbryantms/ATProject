@@ -27,13 +27,13 @@ a[data-link-icon] {
  */
 a[data-link-icon-type*='svg'] {
   --link-icon-size-default: 0.55em;
-  --link-icon-offset-x-default: 0.20em;
+  --link-icon-offset-x-default: 0.2em;
   --link-icon-offset-y-default: 0.15em;
   --link-icon-opacity-default: 0.55;
 }
 
 a[data-link-icon-type*='svg']::after {
-  content: "";
+  content: '';
   position: relative;
   bottom: var(--link-icon-offset-y, var(--link-icon-offset-y-default));
   padding: 0 var(--link-icon-size, var(--link-icon-size-default)) 0 0;
@@ -55,8 +55,8 @@ a[data-link-icon-type*='svg']:hover::after {
 a[data-link-icon-type*='svg'][data-link-icon-type*='quad'] {
   --link-icon-size-default: 0.75em;
   --link-icon-offset-x-default: 0.15em;
-  --link-icon-offset-y-default: 0.30em;
-  --link-icon-opacity-default: 0.80;
+  --link-icon-offset-y-default: 0.3em;
+  --link-icon-opacity-default: 0.8;
 }
 
 a[data-link-icon-type*='svg'][data-link-icon-type*='quad']::after {
@@ -66,7 +66,7 @@ a[data-link-icon-type*='svg'][data-link-icon-type*='quad']::after {
 /*  Quad-letter SVG icons in a sans-serif font.
  */
 a[data-link-icon-type*='svg'][data-link-icon-type*='quad'][data-link-icon-type*='sans'] {
-  --link-icon-size-default: 0.80em;
+  --link-icon-size-default: 0.8em;
 }
 
 /*****************/
@@ -89,7 +89,10 @@ a[data-link-icon-type*='text']::after {
   font-weight: var(--link-icon-font-weight, var(--link-icon-font-weight-default));
   font-style: var(--link-icon-font-style, var(--link-icon-font-style-default));
   font-family: var(--link-icon-font, var(--link-icon-font-default));
-  text-decoration: var(--link-icon-text-decoration, var(--link-icon-text-decoration-default));
+  text-decoration: var(
+    --link-icon-text-decoration,
+    var(--link-icon-text-decoration-default)
+  );
   margin: 0 0 0 var(--link-icon-offset-x, var(--link-icon-offset-x-default));
   vertical-align: baseline;
   position: relative;
@@ -116,13 +119,13 @@ a[data-link-icon-type*='bold'] {
 }
 
 a[data-link-icon-type*='italic'] {
-  --link-icon-size-default: 0.80em;
-  --link-icon-offset-x-default: 0.10em;
+  --link-icon-size-default: 0.8em;
+  --link-icon-offset-x-default: 0.1em;
   --link-icon-font-style-default: italic;
 }
 
 a[data-link-icon-type*='overline'] {
-  --link-icon-offset-y-default: 0.20em;
+  --link-icon-offset-y-default: 0.2em;
   --link-icon-text-decoration-default: overline;
 }
 
@@ -144,7 +147,7 @@ a[data-link-icon-type*='text'][data-link-icon-type*='quad']::after {
 }
 
 a[data-link-icon-type*='text'][data-link-icon-type*='quad'][data-link-icon-type*='mono']::after {
-  line-height: 0.90;
+  line-height: 0.9;
 }
 
 /*===========================================*/
@@ -153,9 +156,9 @@ a[data-link-icon-type*='text'][data-link-icon-type*='quad'][data-link-icon-type*
 
 /*  ArXiv */
 a[data-link-icon='𝛘'] {
-  --link-icon-size: 0.70em;
+  --link-icon-size: 0.7em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.60em;
+  --link-icon-offset-y: 0.6em;
   --link-icon-opacity: 0.7;
 }
 
@@ -167,8 +170,8 @@ a[data-link-icon='𝛘'] {
 a[data-link-icon='pdf'] {
   --link-icon-url: url('/static/img/icon/pdf.svg');
   --link-icon-size: 0.45em;
-  --link-icon-offset-x: 0.10em;
-  --link-icon-opacity: 0.50;
+  --link-icon-offset-x: 0.1em;
+  --link-icon-opacity: 0.5;
 }
 
 a[data-link-icon='txt'] {
@@ -216,13 +219,13 @@ a[data-link-icon='github'] {
   --link-icon-url: url('/static/img/icon/github.svg');
   --link-icon-size: 0.75em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.20em;
+  --link-icon-offset-y: 0.2em;
   --link-icon-opacity: 0.65;
 }
 
 a[data-link-icon='wikipedia'] {
   --link-icon-url: url('/static/img/icon/wikipedia.svg');
-  --link-icon-size: 0.60em;
+  --link-icon-size: 0.6em;
   --link-icon-offset-x: 0.12em;
   --link-icon-offset-y: -0.05em;
   --link-icon-opacity: 0.65;
@@ -230,25 +233,25 @@ a[data-link-icon='wikipedia'] {
 
 a[data-link-icon='google-scholar'] {
   --link-icon-url: url('/static/img/icon/google-scholar.svg');
-  --link-icon-size: 0.80em;
-  --link-icon-offset-x: 0.10em;
-  --link-icon-opacity: 0.60;
+  --link-icon-size: 0.8em;
+  --link-icon-offset-x: 0.1em;
+  --link-icon-opacity: 0.6;
 }
 
 a[data-link-icon='nlm-ncbi'] {
   --link-icon-url: url('/static/img/icon/nlm-ncbi.svg');
-  --link-icon-size: 0.60em;
+  --link-icon-size: 0.6em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.20em;
+  --link-icon-offset-y: 0.2em;
   --link-icon-opacity: 0.9;
 }
 
 a[data-link-icon='plos'] {
   --link-icon-url: url('/static/img/icon/plos.svg');
-  --link-icon-size: 0.80em;
+  --link-icon-size: 0.8em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.10em;
-  --link-icon-opacity: 0.80;
+  --link-icon-offset-y: 0.1em;
+  --link-icon-opacity: 0.8;
 }
 
 a[data-link-icon='chi-dna'] {
@@ -260,7 +263,7 @@ a[data-link-icon='chi-dna'] {
 
 a[data-link-icon='reddit'] {
   --link-icon-url: url('/static/img/icon/reddit.svg');
-  --link-icon-size: 0.80em;
+  --link-icon-size: 0.8em;
   --link-icon-offset-x: 0.15em;
   --link-icon-offset-y: 0.25em;
   --link-icon-opacity: 0.5;
@@ -269,8 +272,8 @@ a[data-link-icon='reddit'] {
 a[data-link-icon='twitter'] {
   --link-icon-url: url('/static/img/icon/twitter.svg');
   --link-icon-size: 0.75em;
-  --link-icon-offset-x: 0.20em;
-  --link-icon-offset-y: 0.20em;
+  --link-icon-offset-x: 0.2em;
+  --link-icon-offset-y: 0.2em;
   --link-icon-opacity: 0.5;
 }
 
@@ -284,14 +287,14 @@ a[data-link-icon='youtube'] {
 a[data-link-icon='new-york-times'] {
   --link-icon-url: url('/static/img/icon/new-york-times.svg');
   --link-icon-size: 0.65em;
-  --link-icon-offset-x: 0.10em;
+  --link-icon-offset-x: 0.1em;
   --link-icon-offset-y: 0.15em;
   --link-icon-opacity: 0.6;
 }
 
 a[data-link-icon='the-guardian'] {
   --link-icon-url: url('/static/img/icon/the-guardian.svg');
-  --link-icon-size: 0.80em;
+  --link-icon-size: 0.8em;
   --link-icon-offset-x: 0.15em;
   --link-icon-offset-y: 0.25em;
   --link-icon-opacity: 0.55;
@@ -301,7 +304,7 @@ a[data-link-icon='wired'] {
   --link-icon-url: url('/static/img/icon/wired.svg');
   --link-icon-size: 0.75em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.20em;
+  --link-icon-offset-y: 0.2em;
   --link-icon-opacity: 0.55;
 }
 
@@ -315,21 +318,30 @@ a[data-link-icon='amazon'] {
   --link-icon-url: url('/static/img/icon/amazon.svg');
   --link-icon-size: 0.75em;
   --link-icon-offset-x: 0.15em;
-  --link-icon-offset-y: 0.20em;
+  --link-icon-offset-y: 0.2em;
   --link-icon-opacity: 0.65;
 }
 
 a[data-link-icon='stack-exchange'] {
   --link-icon-url: url('/static/img/icon/stack-exchange.svg');
-  --link-icon-size: 0.60em;
-  --link-icon-offset-x: 0.20em;
+  --link-icon-size: 0.6em;
+  --link-icon-offset-x: 0.2em;
   --link-icon-offset-y: 0.25em;
   --link-icon-opacity: 0.55;
 }
 
-a[data-link-icon='arrows-pointing-inwards-to-dot'] { /* bl backlinks ‘implosion’ */
-  --link-icon-size: 0.90em;
+a[data-link-icon='arrows-pointing-inwards-to-dot'] {
+  /* bl backlinks ‘implosion’ */
+  --link-icon-size: 0.9em;
   --link-icon-offset-y: 0.22em;
   --link-icon-offset-y: 0.25em;
-  --link-icon-opacity: 0.70;
+  --link-icon-opacity: 0.7;
+}
+
+a[data-link-icon='≈'] {
+  /* similar-links (ALMOST EQUAL TO) */
+  --link-icon-size: 1em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0em;
+  --link-icon-opacity: 0.75;
 }

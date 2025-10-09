@@ -433,6 +433,30 @@ class Post(TimeStampedModel, SoftDeleteModel):
         except NoReverseMatch:
             return f"/posts/{self.slug}/"
 
+    def get_similar_posts(
+        self,
+        limit: int = 6,
+        min_score: float | None = None,
+        *,
+        include_private: bool = False,
+    ):
+        """
+        Return posts automatically ranked for similarity.
+
+        Manual curation via ``related_posts`` is intentionally avoided here;
+        instead we rely on shared taxonomy data and lightweight content
+        analysis for ranking. ``include_private`` can be used for staff tools.
+        """
+        from engine.similarity import MIN_SCORE_DEFAULT, compute_similar_posts
+
+        threshold = MIN_SCORE_DEFAULT if min_score is None else min_score
+        return compute_similar_posts(
+            self,
+            limit=limit,
+            min_score=threshold,
+            allow_private=include_private,
+        )
+
     def _unique_slug(self, base: str) -> str:
         slug = base
         i = 2

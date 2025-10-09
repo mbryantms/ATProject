@@ -83,6 +83,22 @@
   {% endtooltip %}
 </span>
 {% endif %}
+{% if similar_posts_count > 0 %}
+  <span class="page-similars">
+    {% tooltip position="top" theme="dark" %}
+    <a class="similars link-self has-icon has-content spawns-popup has-indicator-hook"
+       href="{{ post.get_absolute_url }}#similar-posts-section"
+       data-link-icon="≈"
+       data-link-icon-type="text"
+       style='--link-icon: "≈"'
+       data-attribute-title="Automatically recommended posts that share related themes with this page.">
+      <span class="indicator-hook"></span>similar posts<span class="link-icon-hook dark-mode-invert"></span>
+    </a>
+    {% tooltip_content %}
+    {{ similar_posts_count }} similar post{{ similar_posts_count|pluralize }} found automatically.
+  {% endtooltip %}
+</span>
+{% endif %}
 {# Reading time #}
 {#      {% if post.reading_time_minutes %}#}
 {#        <span class="page-reading-time">#}

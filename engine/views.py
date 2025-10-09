@@ -90,4 +90,8 @@ class PostDetailView(DetailView):
         context['backlinks'] = backlinks
         context['backlinks_count'] = backlinks.count()
 
+        similar_posts = list(post.get_similar_posts(limit=6))
+        context['similar_posts'] = similar_posts
+        context['similar_posts_count'] = len(similar_posts)
+
         return context

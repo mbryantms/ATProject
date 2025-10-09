@@ -23,6 +23,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
     <figure class="float-right float block" style="--bsm: 10;">
       <span class="figure-outer-wrapper">
         <span class="image-wrapper img focusable">
+
           <img ...>
         </span>
         <span class="caption-wrapper">
@@ -32,8 +33,8 @@ def enhance_image_assets(html: str, context: dict) -> str:
     </figure>
     """
     # Lazy import to avoid circular import
-    from engine.models import Asset
     from engine.markdown.renderer import render_markdown
+    from engine.models import Asset
 
     soup = BeautifulSoup(html, "html.parser")
 

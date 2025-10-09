@@ -21,7 +21,7 @@ def get_pandoc_config():
             # Enable Pandoc markdown extensions (all in --from argument)
             "--from=markdown+autolink_bare_uris+strikeout+superscript+subscript+task_lists+smart+pipe_tables+grid_tables+definition_lists+footnotes+abbreviations+fenced_code_blocks+fenced_code_attributes+raw_html+header_attributes+implicit_header_references+fenced_code_attributes+fancy_lists+tex_math_dollars+smart+hard_line_breaks",
             # Code highlighting
-            "--syntax-highlighting=pygments",
+            # "--syntax-highlighting=pygments",
             # Math rendering with MathJax
             "--mathjax",
             # TOC generation (can be enabled if needed)
