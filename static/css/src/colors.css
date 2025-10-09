@@ -38,18 +38,18 @@
 
   /*  Table of contents.
    */
-  /*--AT-TOC-border-color: #ccc;*/
-  /*--AT-TOC-background-color: #f8f8f8;*/
-  /*--AT-TOC-collapse-button-text-color: #ccc;*/
-  /*--AT-TOC-collapse-button-text-hover-color: #fff;*/
-  /*--AT-TOC-collapse-button-color: rgba(248, 248, 248, 0.8);*/
-  /*--AT-TOC-collapse-button-hover-color: #ddd;*/
-  /*--AT-TOC-collapse-button-border-hover-color: #000;*/
-  /*--AT-TOC-link-hover-background-color: #ececec;*/
-  /*--AT-TOC-link-hover-color: #000;*/
-  /*--AT-TOC-link-hover-indicator-bar-color: #ccc;*/
-  /*--AT-TOC-number-color: #909090;*/
-  /*--AT-TOC-number-hover-color: #313131;*/
+  --AT-TOC-border-color: #ccc;
+  --AT-TOC-background-color: #f8f8f8;
+  --AT-TOC-collapse-button-text-color: #ccc;
+  --AT-TOC-collapse-button-text-hover-color: #fff;
+  --AT-TOC-collapse-button-color: rgba(248, 248, 248, 0.8);
+  --AT-TOC-collapse-button-hover-color: #ddd;
+  --AT-TOC-collapse-button-border-hover-color: #000;
+  --AT-TOC-link-hover-background-color: #ececec;
+  --AT-TOC-link-hover-color: #000;
+  --AT-TOC-link-hover-indicator-bar-color: #ccc;
+  --AT-TOC-number-color: #909090;
+  --AT-TOC-number-hover-color: #313131;
 
   /*  Collapse blocks.
       */
@@ -151,7 +151,6 @@
   --AT-code-block-line-number-color: #aaa;
   --AT-code-block-line-number-divider-color: #ccc;
 
-
   /*  Syntax highlight theme.
    */
   --AT-syntax-highlight-color-normal: #1f1c1b;
@@ -198,22 +197,22 @@
   /*--AT-dropcaps-cheshire-color: #191919;*/
   /*--AT-dropcaps-kanzlei-color: #191919;*/
 
-    /*  Admonitions.
+  /*  Admonitions.
      */
-    --AT-admonition-note-left-border-color: #909090;
-    --AT-admonition-note-background-color: #d8d8d8;
-    --AT-admonition-tip-left-border-color: #d8d8d8;
-    --AT-admonition-tip-background-color: #f0f0f0;
-    --AT-admonition-warning-left-border-color: #5a5a5a;
-    --AT-admonition-warning-background-color: #9a9a9a;
-    --AT-admonition-warning-text-color: #fff;
-    --AT-admonition-error-left-border-color: #2d2d2d;
-    --AT-admonition-error-background-color: #5a5a5a;
-    --AT-admonition-error-text-color: #fff;
-    --AT-admonition-reversed-link-color: #ddd;
-    --AT-admonition-reversed-link-color-hover: #ccc;
-    --AT-admonition-reversed-link-underline-gradient-line-color: #ccc;
-    --AT-admonition-reversed-link-underline-gradient-line-color-hover: #bbb;
+  --AT-admonition-note-left-border-color: #909090;
+  --AT-admonition-note-background-color: #d8d8d8;
+  --AT-admonition-tip-left-border-color: #d8d8d8;
+  --AT-admonition-tip-background-color: #f0f0f0;
+  --AT-admonition-warning-left-border-color: #5a5a5a;
+  --AT-admonition-warning-background-color: #9a9a9a;
+  --AT-admonition-warning-text-color: #fff;
+  --AT-admonition-error-left-border-color: #2d2d2d;
+  --AT-admonition-error-background-color: #5a5a5a;
+  --AT-admonition-error-text-color: #fff;
+  --AT-admonition-reversed-link-color: #ddd;
+  --AT-admonition-reversed-link-color-hover: #ccc;
+  --AT-admonition-reversed-link-underline-gradient-line-color: #ccc;
+  --AT-admonition-reversed-link-underline-gradient-line-color-hover: #bbb;
 
   /*	Footer.
    */
