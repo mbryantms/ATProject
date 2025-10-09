@@ -3,6 +3,7 @@
 @import "./fonts.css";
 @import "./link-icons.css";
 @import "./fullwidth.css";
+@import "./toc.css";
 
 :root {
   --AT-serif-font-stack: "Source Serif 4", "Apple Garamond", "Baskerville", "Libre Baskerville", "Droid Serif", "Times New Roman", "Times", serif, "Noto Emoji", "Quivira";

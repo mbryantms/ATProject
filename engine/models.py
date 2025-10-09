@@ -1,4 +1,5 @@
 # models.py
+import copy
 import re
 import uuid
 
@@ -10,8 +11,13 @@ from django.db.models import Q
 from django.template.defaultfilters import slugify
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 
-from engine.markdown.extensions.toc_extractor import extract_toc_from_html
+from engine.markdown.extensions.toc_extractor import (
+    HeadingNode,
+    extract_toc_from_html,
+    normalize_toc_structure,
+)
 from engine.markdown.renderer import render_markdown
 
 # ---------------------------
@@ -245,7 +251,14 @@ class Post(TimeStampedModel, SoftDeleteModel):
     )
 
     show_toc = models.BooleanField(
-        default=False, help_text="Optionally show table of contents."
+        default=False,
+        help_text="Optionally show table of contents.",
+        verbose_name="Show Table of Contents",
+    )
+    first_line_caps = models.BooleanField(
+        default=False,
+        verbose_name="Intro Paragraph Small Caps",
+        help_text="Style the first line of opening paragraph with small caps.",
     )
 
     # Markdown source of truth
@@ -426,6 +439,75 @@ class Post(TimeStampedModel, SoftDeleteModel):
             return self.CompletionStatus(self.completion_status).label
         except ValueError:
             return self.completion_status.replace("_", " ").strip().title()
+
+    @cached_property
+    def toc_tree(self):
+        """Normalized hierarchical TOC derived from stored JSON."""
+        return normalize_toc_structure(self.table_of_contents or [])
+
+    @cached_property
+    def has_footnotes(self) -> bool:
+        """Return True when the markdown contains footnote references."""
+        text = self.content_markdown or ""
+        return bool(re.search(r"\[\^[^\]]+\]", text))
+
+    def get_render_toc(
+        self, *, backlinks_count: int = 0, similar_posts_count: int = 0
+    ) -> list[HeadingNode]:
+        """
+        Produce a TOC tailored for templates, ensuring auxiliary sections appear last.
+
+        Backlinks and similar posts live outside the Markdown body, so we create
+        synthetic entries when those sections are rendered. Footnotes entries are
+        added when the document contains footnotes but the stored TOC predates the
+        extractor update that emits them.
+        """
+        tree: list[HeadingNode] = copy.deepcopy(self.toc_tree)
+
+        extras: list[HeadingNode] = []
+
+        def contains(nodes: list[HeadingNode], target: str) -> bool:
+            for node in nodes:
+                if node["id"] == target:
+                    return True
+                if contains(node.get("children", []), target):
+                    return True
+            return False
+
+        if self.has_footnotes and not contains(tree, "footnotes"):
+            extras.append(
+                {
+                    "level": 1,
+                    "id": "footnotes",
+                    "title": "Footnotes",
+                    "title_html": "Footnotes",
+                    "children": [],
+                }
+            )
+
+        if backlinks_count > 0:
+            extras.append(
+                {
+                    "level": 1,
+                    "id": "backlinks-section",
+                    "title": "Backlinks",
+                    "title_html": "Backlinks",
+                    "children": [],
+                }
+            )
+
+        if similar_posts_count > 0:
+            extras.append(
+                {
+                    "level": 1,
+                    "id": "similar-posts-section",
+                    "title": "Similar Links",
+                    "title_html": "Similar Links",
+                    "children": [],
+                }
+            )
+
+        return tree + extras
 
     def get_absolute_url(self) -> str:
         try:

@@ -220,6 +220,32 @@ document.addEventListener('DOMContentLoaded', function () {
 // Export functions if using as a module elsewhere
 export {computePosition, flip, shift, offset, arrow, autoUpdate};
 
+// Simple collapse toggle for the in-article TOC
+document.addEventListener("DOMContentLoaded", () => {
+  const toc = document.querySelector("[data-toc-collapsible]");
+  if (!toc) return;
+
+  const toggle = toc.querySelector("[data-toc-toggle]");
+  if (!toggle) return;
+
+  const setState = (collapsed) => {
+    toc.classList.toggle("collapsed", collapsed);
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    toggle.setAttribute(
+      "title",
+      collapsed ? "Expand table of contents" : "Collapse table of contents"
+    );
+  };
+
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    const nextState = !toc.classList.contains("collapsed");
+    setState(nextState);
+  });
+
+  setState(toc.classList.contains("collapsed"));
+});
+
 // Minimal scroll-spy for headings referenced in the TOC
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.querySelector("[data-toc-root]");

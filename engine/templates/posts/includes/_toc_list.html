@@ -1,0 +1,23 @@
+{% if nodes %}
+  <ul class="list-level-{{ depth }}"{% if depth > 1 %} data-toc-children{% endif %}>
+    {% for node in nodes %}
+      {% if node.title|default:node.title_html %}
+        <li data-toc-node data-toc-level="{{ node.level|default:depth }}">
+          <a
+            href="#{{ node.id }}"
+            id="toc-{{ node.id }}"
+            class="decorate-not has-content spawns-popup"
+            data-toc-link
+            data-target-id="{{ node.id }}"
+            data-toc-level="{{ node.level|default:depth }}"
+          >
+            {{ node.title_html|default:node.title|safe }}
+          </a>
+          {% if node.children %}
+            {% include "posts/includes/_toc_list.html" with nodes=node.children depth=depth|add:"1" %}
+          {% endif %}
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endif %}

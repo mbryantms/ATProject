@@ -6,22 +6,22 @@ from django.contrib.admin.widgets import AdminTextareaWidget
 from django.db import models
 from django.http import HttpResponse
 from django.utils.html import format_html
-from unfold.admin import ModelAdmin, TabularInline, StackedInline
-from unfold.decorators import display, action
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from unfold.decorators import action, display
 
 from .models import (
-    Post,
-    Tag,
-    Category,
-    Series,
     Asset,
+    AssetCollection,
+    AssetFolder,
     AssetMetadata,
     AssetRendition,
-    PostAsset,
-    AssetFolder,
     AssetTag,
-    AssetCollection,
+    Category,
     InternalLink,
+    Post,
+    PostAsset,
+    Series,
+    Tag,
 )
 
 
@@ -743,10 +743,10 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         return format_html(
             '<span style="background: #fff3e0; color: #e65100; padding: 4px 8px; border-radius: 4px; font-size: 11px;">'
-            '{} {}'
-            '</span>',
+            "{} {}"
+            "</span>",
             icon,
-            obj.asset_folder.name
+            obj.asset_folder.name,
         )
 
     @display(description="Collections")
@@ -764,9 +764,11 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         # Show count if more than 3
         if obj.collections.count() > 3:
-            badges.append(f'<span style="color: #999; font-size: 11px;">+{obj.collections.count() - 3} more</span>')
+            badges.append(
+                f'<span style="color: #999; font-size: 11px;">+{obj.collections.count() - 3} more</span>'
+            )
 
-        return format_html(''.join(badges))
+        return format_html("".join(badges))
 
     @display(description="Status", ordering="status")
     def status_badge(self, obj):
@@ -973,7 +975,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             html += f"""
             <li style="margin: 4px 0;">
                 <a href="{post_url}" target="_blank">{usage.post.title}</a>
-                {f'<code style="background: #f0f0f0; padding: 2px 4px; margin-left: 4px; border-radius: 2px;">@{usage.alias}</code>' if usage.alias else ''}
+                {f'<code style="background: #f0f0f0; padding: 2px 4px; margin-left: 4px; border-radius: 2px;">@{usage.alias}</code>' if usage.alias else ""}
             </li>
             """
         html += "</ul>"
@@ -1710,32 +1712,32 @@ class PostAssetInline(StackedInline):
         # Make alias not required
         if "alias" in formset.form.base_fields:
             formset.form.base_fields["alias"].required = False
-            formset.form.base_fields["alias"].help_text = (
-                'Optional: Short name for this post (e.g., "fig1")'
-            )
+            formset.form.base_fields[
+                "alias"
+            ].help_text = 'Optional: Short name for this post (e.g., "fig1")'
             formset.form.base_fields["alias"].widget.attrs.update(
                 {"placeholder": "Leave blank to use global key"}
             )
 
         # Improve order field
         if "order" in formset.form.base_fields:
-            formset.form.base_fields["order"].help_text = (
-                "Display order (lower numbers first)"
-            )
+            formset.form.base_fields[
+                "order"
+            ].help_text = "Display order (lower numbers first)"
 
         # Improve custom fields help text
         if "custom_caption" in formset.form.base_fields:
-            formset.form.base_fields["custom_caption"].help_text = (
-                "Override default caption for this post only"
-            )
+            formset.form.base_fields[
+                "custom_caption"
+            ].help_text = "Override default caption for this post only"
             formset.form.base_fields["custom_caption"].widget.attrs.update(
                 {"rows": 2, "placeholder": "Leave blank to use asset's default caption"}
             )
 
         if "custom_alt_text" in formset.form.base_fields:
-            formset.form.base_fields["custom_alt_text"].help_text = (
-                "Override default alt text for this post only"
-            )
+            formset.form.base_fields[
+                "custom_alt_text"
+            ].help_text = "Override default alt text for this post only"
             formset.form.base_fields["custom_alt_text"].widget.attrs.update(
                 {"placeholder": "Leave blank to use asset's default alt text"}
             )
@@ -1960,6 +1962,7 @@ class PostAdmin(SoftDeleteAdminMixin):
         "completion_status_badge",
         "visibility_badge",
         "featured_pinned_indicators",
+        "show_toc",
         "published_at",
         "stats_compact",
     )
@@ -1970,6 +1973,7 @@ class PostAdmin(SoftDeleteAdminMixin):
         "visibility",
         "is_featured",
         "is_pinned",
+        "show_toc",
         "is_deleted",
         "published_at",
         "created_at",
@@ -2092,8 +2096,11 @@ class PostAdmin(SoftDeleteAdminMixin):
                 "fields": (
                     ("series",),
                     ("categories", "tags"),
-                    ("related_posts",),
-                    ("show_toc", "certainty", "importance"),
+                    ("related_posts", "certainty", "importance"),
+                    (
+                        "show_toc",
+                        "first_line_caps",
+                    ),
                 ),
                 "classes": ["unfold-column-2", "collapse"],
                 "description": "Categorize and relate your content",
@@ -2440,26 +2447,26 @@ class PostAdmin(SoftDeleteAdminMixin):
         from engine.links.extractor import update_post_links
 
         total_stats = {
-            'posts_processed': 0,
-            'links_created': 0,
-            'links_updated': 0,
-            'links_deleted': 0,
-            'links_failed': 0,
+            "posts_processed": 0,
+            "links_created": 0,
+            "links_updated": 0,
+            "links_deleted": 0,
+            "links_failed": 0,
         }
 
         for post in queryset:
             try:
                 stats = update_post_links(post)
-                total_stats['posts_processed'] += 1
-                total_stats['links_created'] += stats['links_created']
-                total_stats['links_updated'] += stats['links_updated']
-                total_stats['links_deleted'] += stats['links_deleted']
-                total_stats['links_failed'] += stats['links_failed']
+                total_stats["posts_processed"] += 1
+                total_stats["links_created"] += stats["links_created"]
+                total_stats["links_updated"] += stats["links_updated"]
+                total_stats["links_deleted"] += stats["links_deleted"]
+                total_stats["links_failed"] += stats["links_failed"]
             except Exception as e:
                 self.message_user(
                     request,
                     f"Error processing '{post.title}': {str(e)}",
-                    level=messages.ERROR
+                    level=messages.ERROR,
                 )
 
         # Show summary
@@ -2469,14 +2476,14 @@ class PostAdmin(SoftDeleteAdminMixin):
             f"{total_stats['links_created']} links created, "
             f"{total_stats['links_updated']} updated, "
             f"{total_stats['links_deleted']} deleted.",
-            level=messages.SUCCESS
+            level=messages.SUCCESS,
         )
 
-        if total_stats['links_failed'] > 0:
+        if total_stats["links_failed"] > 0:
             self.message_user(
                 request,
                 f"Warning: {total_stats['links_failed']} link(s) failed to resolve.",
-                level=messages.WARNING
+                level=messages.WARNING,
             )
 
     @action(description="Export selected posts as CSV")
@@ -2710,11 +2717,15 @@ class AssetCollectionAdmin(ModelAdmin):
     @display(description="Collection", ordering="name")
     def collection_name_with_cover(self, obj):
         """Display collection with cover image."""
-        if obj.cover_asset and obj.cover_asset.asset_type == "image" and obj.cover_asset.file:
+        if (
+            obj.cover_asset
+            and obj.cover_asset.asset_type == "image"
+            and obj.cover_asset.file
+        ):
             return format_html(
                 '<div style="display: flex; align-items: center; gap: 10px;">'
                 '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #dee2e6;" />'
-                '<div>'
+                "<div>"
                 '<div style="font-weight: 600;">{}</div>'
                 '<div style="font-size: 11px; color: #6c757d;">{}</div>'
                 "</div>"
@@ -2729,7 +2740,7 @@ class AssetCollectionAdmin(ModelAdmin):
             '<div style="display: flex; align-items: center; gap: 10px;">'
             '<div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; '
             'background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 24px;">{}</div>'
-            '<div>'
+            "<div>"
             '<div style="font-weight: 600;">{}</div>'
             '<div style="font-size: 11px; color: #6c757d;">{}</div>'
             "</div>"
@@ -2749,7 +2760,7 @@ class AssetCollectionAdmin(ModelAdmin):
             )
         return format_html(
             '<span style="background: #e7f3ff; color: #004085; padding: 4px 12px; border-radius: 4px; font-weight: 600;">'
-            '{} asset{}'
+            "{} asset{}"
             "</span>",
             count,
             "s" if count != 1 else "",

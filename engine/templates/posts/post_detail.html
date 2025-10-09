@@ -11,8 +11,9 @@
 {% block page-metadata %}
   {% include "posts/page_metadata.html" %}
 {% endblock page-metadata %}
-{% block content %}
+  {% block content %}
   <div id="markdownBody" class="markdownBody">
+    {% include "posts/includes/table_of_contents.html" with toc=toc_nodes %}
     {% if post.abstract %}
       <blockquote class="page-abstract first-block block blockquote-level-1">
         {{ post.abstract|markdown_abstract }}

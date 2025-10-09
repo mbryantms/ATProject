@@ -81,6 +81,10 @@ def first_paragraph_marker(
     """
     first_paragraph_class = first_paragraph_class or ["first-graf"]
     is_abstract = context.get("is_abstract", False)
+    post = context.get("post")
+    intro_enabled = bool(context.get("first_line_caps"))
+    if not intro_enabled and post is not None:
+        intro_enabled = bool(getattr(post, "first_line_caps", False))
 
     soup = BeautifulSoup(html, "html.parser")
 
@@ -167,6 +171,33 @@ def first_paragraph_marker(
                 break
 
             next_sibling = next_sibling.find_next_sibling()
+
+    if intro_enabled:
+        intro_paragraph: Optional[Tag] = None
+        for candidate in soup.find_all("p"):
+            if candidate.find_parent(id="footnotes") or candidate.find_parent(
+                class_="footnotes"
+            ):
+                continue
+            intro_paragraph = candidate
+            break
+
+        if intro_paragraph:
+            # Remove intro-graf from all other paragraphs to enforce uniqueness
+            for paragraph in soup.find_all("p"):
+                if paragraph is intro_paragraph:
+                    continue
+                existing_classes = paragraph.get("class")
+                if not existing_classes or "intro-graf" not in existing_classes:
+                    continue
+                updated = [cls for cls in existing_classes if cls != "intro-graf"]
+                if updated:
+                    paragraph["class"] = updated
+                else:
+                    del paragraph["class"]
+
+            _add_class_to_paragraph(intro_paragraph, first_paragraph_class)
+            _add_class_to_paragraph(intro_paragraph, ["intro-graf"])
 
     return str(soup)
 

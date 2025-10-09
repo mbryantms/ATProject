@@ -94,4 +94,12 @@ class PostDetailView(DetailView):
         context['similar_posts'] = similar_posts
         context['similar_posts_count'] = len(similar_posts)
 
+        if post.show_toc:
+            context['toc_nodes'] = post.get_render_toc(
+                backlinks_count=context['backlinks_count'],
+                similar_posts_count=context['similar_posts_count'],
+            )
+        else:
+            context['toc_nodes'] = []
+
         return context
