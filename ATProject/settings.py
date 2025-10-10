@@ -172,7 +172,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Celery (Redis)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "django-db")
+CELERY_CACHE_BACKEND = os.getenv("CELERY_CACHE_BACKEND", "default")
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 
@@ -185,6 +186,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_EXPIRES = 60 * 60  # 1 hour
 CELERY_ENABLE_UTC = True  # Celery reads Django’s TZ too
+CELERY_RESULT_EXTENDED = True  # Store meta information for admin inspection
 
 
 # ==============================================================================
@@ -324,6 +326,50 @@ UNFOLD = {
                         "title": "Groups",
                         "icon": "group",
                         "link": lambda request: "/admin/auth/group/",
+                    },
+                ],
+            },
+            {
+                "title": "Task Queue",
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": "Periodic Tasks",
+                        "icon": "schedule",
+                        "link": lambda request: "/admin/django_celery_beat/periodictask/",
+                        "badge": "django_celery_beat.PeriodicTask",
+                    },
+                    {
+                        "title": "Interval Schedules",
+                        "icon": "timer",
+                        "link": lambda request: "/admin/django_celery_beat/intervalschedule/",
+                    },
+                    {
+                        "title": "Crontab Schedules",
+                        "icon": "calendar_month",
+                        "link": lambda request: "/admin/django_celery_beat/crontabschedule/",
+                    },
+                    {
+                        "title": "Solar Schedules",
+                        "icon": "wb_sunny",
+                        "link": lambda request: "/admin/django_celery_beat/solarschedule/",
+                    },
+                    {
+                        "title": "Clocked Schedules",
+                        "icon": "schedule_send",
+                        "link": lambda request: "/admin/django_celery_beat/clockedschedule/",
+                    },
+                    {
+                        "title": "Task Results",
+                        "icon": "fact_check",
+                        "link": lambda request: "/admin/django_celery_results/taskresult/",
+                        "badge": "django_celery_results.TaskResult",
+                    },
+                    {
+                        "title": "Group Results",
+                        "icon": "playlist_add_check",
+                        "link": lambda request: "/admin/django_celery_results/groupresult/",
                     },
                 ],
             },

@@ -2,6 +2,7 @@
 import csv
 
 from django.contrib import admin, messages
+from django.contrib.admin.sites import NotRegistered
 from django.contrib.admin.widgets import AdminTextareaWidget
 from django.db import models
 from django.http import HttpResponse
@@ -2765,3 +2766,67 @@ class AssetCollectionAdmin(ModelAdmin):
             count,
             "s" if count != 1 else "",
         )
+
+
+# --------------------------
+# Celery admin integration
+# --------------------------
+
+def _reregister_with_unfold(model, base_admin):
+    """Re-register third-party admin classes with Unfold styling."""
+    try:
+        admin.site.unregister(model)
+    except NotRegistered:
+        pass
+
+    attrs = {"__module__": __name__, "list_filter_sidebar": True}
+    admin_class = type(f"Unfold{model.__name__}Admin", (ModelAdmin, base_admin), attrs)
+    admin.site.register(model, admin_class)
+
+
+try:
+    from django_celery_beat import admin as beat_admin
+    from django_celery_beat.models import (
+        ClockedSchedule,
+        CrontabSchedule,
+        IntervalSchedule,
+        PeriodicTask,
+        SolarSchedule,
+    )
+except ImportError:
+    pass
+else:
+    beat_admin_map = [
+        (PeriodicTask, beat_admin.PeriodicTaskAdmin),
+        (CrontabSchedule, beat_admin.CrontabScheduleAdmin),
+        (IntervalSchedule, beat_admin.IntervalScheduleAdmin),
+        (SolarSchedule, beat_admin.SolarScheduleAdmin),
+        (ClockedSchedule, beat_admin.ClockedScheduleAdmin),
+    ]
+    for model, admin_class in beat_admin_map:
+        _reregister_with_unfold(model, admin_class)
+
+
+try:
+    from django_celery_results import admin as results_admin
+    from django_celery_results import models as results_models
+except ImportError:
+    pass
+else:
+    results_admin_map = []
+    if hasattr(results_models, "TaskResult") and hasattr(
+        results_admin, "TaskResultAdmin"
+    ):
+        results_admin_map.append(
+            (results_models.TaskResult, results_admin.TaskResultAdmin)
+        )
+    if hasattr(results_models, "GroupResult") and hasattr(
+        results_admin, "GroupResultAdmin"
+    ):
+        results_admin_map.append(
+            (results_models.GroupResult, results_admin.GroupResultAdmin)
+        )
+
+    # Register any available result admins with the Unfold base class.
+    for model, admin_class in results_admin_map:
+        _reregister_with_unfold(model, admin_class)
