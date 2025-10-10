@@ -1,7 +1,7 @@
 {
   "name": "atproject",
   "version": "1.0.0",
-  "description": "A place for everything",
+  "description": "A personal place for all my thoughts",
   "scripts": {
     "build-css": "postcss static/css/src/*.css --dir static/css/dist/",
     "watch-css": "postcss static/css/src/*.css --dir static/css/dist/ --watch",

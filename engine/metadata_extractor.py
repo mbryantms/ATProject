@@ -10,7 +10,9 @@ This module provides functions to extract rich metadata from various asset types
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
+
+from .storage_utils import ensure_local_file, open_field_file
 
 logger = logging.getLogger(__name__)
 
@@ -32,227 +34,256 @@ def extract_image_metadata(asset) -> Dict[str, Any]:
 
     try:
         from PIL import Image
-        from PIL.ExifTags import TAGS, GPSTAGS
-        import os
+        from PIL.ExifTags import GPSTAGS, TAGS
 
-        # Try to open the file - handle both file path and file object
         if not asset.file:
             logger.warning(f"Asset {asset.key} has no file attached")
             return metadata
 
-        # Try opening via file path first, then fallback to file object
-        try:
-            if hasattr(asset.file, 'path') and os.path.exists(asset.file.path):
-                logger.info(f"Opening image from path: {asset.file.path}")
-                img = Image.open(asset.file.path)
-            else:
-                logger.info(f"Opening image from file object")
-                # Open from file object if path doesn't exist
-                asset.file.seek(0)
-                img = Image.open(asset.file)
+        file_obj = open_field_file(asset.file)
 
-            logger.info(f"Image opened: format={img.format}, mode={img.mode}, size={img.size}")
-        except (FileNotFoundError, OSError) as e:
-            logger.error(f"Cannot open image file for {asset.key}: {e}")
-            return metadata
+        with Image.open(file_obj) as img:
+            img.load()
+            logger.info(
+                "Image opened: format=%s, mode=%s, size=%s",
+                img.format,
+                img.mode,
+                img.size,
+            )
 
-        # Basic image properties
-        metadata['has_alpha'] = img.mode in ('RGBA', 'LA', 'PA')
-        metadata['color_space'] = img.mode
-        logger.info(f"Basic properties: has_alpha={metadata.get('has_alpha')}, color_space={metadata.get('color_space')}")
+            # Basic image properties
+            metadata["has_alpha"] = img.mode in ("RGBA", "LA", "PA")
+            metadata["color_space"] = img.mode
 
-        # DPI information
-        if 'dpi' in img.info:
-            metadata['dpi'] = int(img.info['dpi'][0])
+            # DPI information
+            if "dpi" in img.info and img.info["dpi"]:
+                metadata["dpi"] = int(img.info["dpi"][0])
 
-        # ICC Color profile
-        if 'icc_profile' in img.info:
-            metadata['color_profile'] = 'Embedded ICC Profile'
+            # ICC Color profile
+            if "icc_profile" in img.info:
+                metadata["color_profile"] = "Embedded ICC Profile"
 
-        # Extract EXIF data
-        exif = img.getexif()
-        logger.info(f"EXIF data check: exif={'present' if exif else 'missing'}, count={len(exif) if exif else 0}")
+            # Extract EXIF data
+            exif = img.getexif()
+            logger.info(
+                "EXIF data check: exif=%s, count=%s",
+                "present" if exif else "missing",
+                len(exif) if exif else 0,
+            )
 
-        if exif:
-            exif_data = {}
+            if exif:
+                exif_data = {}
 
-            # Also get extended EXIF data (ExifOffset IFD) - contains detailed camera settings
-            exif_ifd = None
-            try:
-                exif_ifd = exif.get_ifd(0x8769)  # ExifOffset IFD
+                # Also get extended EXIF data (ExifOffset IFD) - contains detailed camera settings
+                exif_ifd = None
+                try:
+                    exif_ifd = exif.get_ifd(0x8769)  # ExifOffset IFD
+                    if exif_ifd:
+                        logger.info(
+                            "Found ExifOffset IFD with %s tags", len(exif_ifd)
+                        )
+                    else:
+                        logger.warning(
+                            "No ExifOffset IFD found for %s", asset.key
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "Could not read ExifOffset IFD for %s: %s",
+                        asset.key,
+                        exc,
+                    )
+
+                # Combine both main EXIF and extended EXIF
+                all_exif_items = list(exif.items())
                 if exif_ifd:
-                    logger.info(f"Found ExifOffset IFD with {len(exif_ifd)} tags")
-                else:
-                    logger.warning(f"No ExifOffset IFD found for {asset.key}")
-            except Exception as e:
-                logger.warning(f"Could not read ExifOffset IFD for {asset.key}: {e}")
+                    all_exif_items.extend(list(exif_ifd.items()))
 
-            # Combine both main EXIF and extended EXIF
-            all_exif_items = list(exif.items())
-            if exif_ifd:
-                all_exif_items.extend(list(exif_ifd.items()))
+                logger.info(
+                    "Processing %s total EXIF tags", len(all_exif_items)
+                )
 
-            logger.info(f"Processing {len(all_exif_items)} total EXIF tags")
+                for tag_id, value in all_exif_items:
+                    tag = TAGS.get(tag_id, tag_id)
 
-            for tag_id, value in all_exif_items:
-                tag = TAGS.get(tag_id, tag_id)
-
-                # Store original value for JSON serialization
-                json_value = value
-
-                # Convert various types to JSON-serializable formats
-                if isinstance(value, bytes):
-                    try:
-                        # Decode and remove null bytes that PostgreSQL JSON can't handle
-                        decoded = value.decode('utf-8', errors='ignore')
-                        json_value = decoded.replace('\u0000', '').replace('\x00', '')
-                        # If after removing nulls the string is empty or whitespace, use hex representation
-                        if not json_value.strip():
-                            json_value = value.hex()
-                    except:
-                        json_value = value.hex()
-                elif hasattr(value, '__iter__') and not isinstance(value, (str, dict)):
-                    # Handle IFDRational and tuple types
-                    try:
-                        # Convert tuples/IFDRational to list of numbers
-                        json_value = [float(v) if hasattr(v, '__float__') else v for v in value]
-                    except:
-                        json_value = str(value)
-                elif hasattr(value, 'numerator') and hasattr(value, 'denominator'):
-                    # Handle single IFDRational
-                    json_value = float(value.numerator) / float(value.denominator) if value.denominator != 0 else 0
-                elif isinstance(value, str):
-                    # Remove null bytes from strings
-                    json_value = value.replace('\u0000', '').replace('\x00', '')
-                else:
+                    # Store original value for JSON serialization
                     json_value = value
 
-                exif_data[tag] = json_value
-
-                # Extract specific fields (use original value for processing)
-                if tag == 'Make':
-                    metadata['camera_make'] = str(value).strip()
-                elif tag == 'Model':
-                    metadata['camera_model'] = str(value).strip()
-                elif tag == 'LensModel':
-                    metadata['lens'] = str(value).strip()
-                elif tag == 'FocalLength':
-                    # Handle IFDRational or tuple format
-                    if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
-                        metadata['focal_length'] = float(value) if value.denominator != 0 else 0
-                    elif isinstance(value, (tuple, list)) and len(value) == 2:
-                        metadata['focal_length'] = float(value[0]) / float(value[1]) if value[1] != 0 else 0
-                    else:
+                    # Convert various types to JSON-serializable formats
+                    if isinstance(value, bytes):
                         try:
-                            metadata['focal_length'] = float(value)
-                        except:
-                            pass
-                elif tag == 'FNumber' or tag == 'ApertureValue':
-                    # Handle IFDRational or tuple format
-                    if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
-                        metadata['aperture'] = float(value) if value.denominator != 0 else 0
-                    elif isinstance(value, (tuple, list)) and len(value) == 2:
-                        metadata['aperture'] = float(value[0]) / float(value[1]) if value[1] != 0 else 0
-                    else:
+                            decoded = value.decode("utf-8", errors="ignore")
+                            json_value = (
+                                decoded.replace("\u0000", "").replace("\x00", "")
+                            )
+                            if not json_value.strip():
+                                json_value = value.hex()
+                        except Exception:
+                            json_value = value.hex()
+                    elif hasattr(value, "__iter__") and not isinstance(
+                        value, (str, dict)
+                    ):
                         try:
-                            metadata['aperture'] = float(value)
-                        except:
-                            pass
-                elif tag == 'ExposureTime':
-                    # Format as string like "1/500"
-                    if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
-                        if value.numerator == 1:
-                            metadata['shutter_speed'] = f"1/{int(value.denominator)}"
-                        else:
-                            metadata['shutter_speed'] = f"{value.numerator}/{value.denominator}"
-                    elif isinstance(value, (tuple, list)) and len(value) == 2:
-                        if value[0] == 1:
-                            metadata['shutter_speed'] = f"1/{int(value[1])}"
-                        else:
-                            metadata['shutter_speed'] = f"{value[0]}/{value[1]}"
-                    elif isinstance(value, float):
-                        # Handle decimal format (e.g., 0.01666 = 1/60)
-                        if value < 1:
-                            # Convert to fraction format
-                            denominator = round(1 / value)
-                            metadata['shutter_speed'] = f"1/{denominator}"
-                        else:
-                            metadata['shutter_speed'] = f"{value}s"
+                            json_value = [
+                                float(v) if hasattr(v, "__float__") else v
+                                for v in value
+                            ]
+                        except Exception:
+                            json_value = str(value)
+                    elif hasattr(value, "numerator") and hasattr(
+                        value, "denominator"
+                    ):
+                        json_value = (
+                            float(value.numerator) / float(value.denominator)
+                            if value.denominator != 0
+                            else 0
+                        )
+                    elif isinstance(value, str):
+                        json_value = value.replace("\u0000", "").replace(
+                            "\x00", ""
+                        )
                     else:
-                        metadata['shutter_speed'] = str(value)
-                elif tag == 'ISOSpeedRatings' or tag == 'ISO' or tag == 'PhotographicSensitivity':
-                    try:
-                        # Handle tuple/list format
-                        if isinstance(value, (tuple, list)):
-                            metadata['iso'] = int(value[0])
+                        json_value = value
+
+                    exif_data[tag] = json_value
+
+                    if tag == "Make":
+                        metadata["camera_make"] = str(value).strip()
+                    elif tag == "Model":
+                        metadata["camera_model"] = str(value).strip()
+                    elif tag == "LensModel":
+                        metadata["lens"] = str(value).strip()
+                    elif tag == "FocalLength":
+                        if hasattr(value, "numerator") and hasattr(
+                            value, "denominator"
+                        ):
+                            metadata["focal_length"] = (
+                                float(value) if value.denominator != 0 else 0
+                            )
+                        elif isinstance(value, (tuple, list)) and len(value) == 2:
+                            metadata["focal_length"] = (
+                                float(value[0]) / float(value[1])
+                                if value[1] != 0
+                                else 0
+                            )
                         else:
-                            metadata['iso'] = int(value)
-                    except:
-                        pass
-                elif tag == 'DateTimeOriginal' or tag == 'DateTime':
-                    # Parse datetime and make timezone-aware
-                    try:
-                        from django.utils import timezone
-                        naive_dt = datetime.strptime(
-                            str(value), '%Y:%m:%d %H:%M:%S'
-                        )
-                        # Make timezone-aware using Django's configured timezone
-                        metadata['captured_at'] = timezone.make_aware(
-                            naive_dt,
-                            timezone.get_current_timezone()
-                        )
-                    except:
-                        pass
+                            try:
+                                metadata["focal_length"] = float(value)
+                            except Exception:
+                                pass
+                    elif tag in {"FNumber", "ApertureValue"}:
+                        if hasattr(value, "numerator") and hasattr(
+                            value, "denominator"
+                        ):
+                            metadata["aperture"] = (
+                                float(value) if value.denominator != 0 else 0
+                            )
+                        elif isinstance(value, (tuple, list)) and len(value) == 2:
+                            metadata["aperture"] = (
+                                float(value[0]) / float(value[1])
+                                if value[1] != 0
+                                else 0
+                            )
+                        else:
+                            try:
+                                metadata["aperture"] = float(value)
+                            except Exception:
+                                pass
+                    elif tag == "ExposureTime":
+                        if hasattr(value, "numerator") and hasattr(
+                            value, "denominator"
+                        ):
+                            if value.numerator == 1:
+                                metadata["shutter_speed"] = (
+                                    f"1/{int(value.denominator)}"
+                                )
+                            else:
+                                metadata["shutter_speed"] = (
+                                    f"{value.numerator}/{value.denominator}"
+                                )
+                        elif isinstance(value, (tuple, list)) and len(value) == 2:
+                            if value[0] == 1:
+                                metadata["shutter_speed"] = (
+                                    f"1/{int(value[1])}"
+                                )
+                            else:
+                                metadata["shutter_speed"] = (
+                                    f"{value[0]}/{value[1]}"
+                                )
+                        elif isinstance(value, float):
+                            if value < 1:
+                                denominator = round(1 / value)
+                                metadata["shutter_speed"] = f"1/{denominator}"
+                            else:
+                                metadata["shutter_speed"] = f"{value}s"
+                        else:
+                            metadata["shutter_speed"] = str(value)
+                    elif tag in {
+                        "ISOSpeedRatings",
+                        "ISO",
+                        "PhotographicSensitivity",
+                    }:
+                        try:
+                            if isinstance(value, (tuple, list)):
+                                metadata["iso"] = int(value[0])
+                            else:
+                                metadata["iso"] = int(value)
+                        except Exception:
+                            pass
+                    elif tag in {"DateTimeOriginal", "DateTime"}:
+                        try:
+                            from django.utils import timezone
 
-            # Extract GPS data
-            gps_info = exif.get_ifd(0x8825)  # GPS IFD
-            if gps_info:
-                gps_data = {}
-                for tag_id, value in gps_info.items():
-                    tag = GPSTAGS.get(tag_id, tag_id)
-                    gps_data[tag] = value
+                            naive_dt = datetime.strptime(
+                                str(value), "%Y:%m:%d %H:%M:%S"
+                            )
+                            metadata["captured_at"] = timezone.make_aware(
+                                naive_dt, timezone.get_current_timezone()
+                            )
+                        except Exception:
+                            pass
 
-                # Convert GPS coordinates
-                lat = _convert_gps_coordinate(
-                    gps_data.get('GPSLatitude'),
-                    gps_data.get('GPSLatitudeRef')
+                gps_info = exif.get_ifd(0x8825)  # GPS IFD
+                if gps_info:
+                    gps_data = {}
+                    for tag_id, value in gps_info.items():
+                        tag = GPSTAGS.get(tag_id, tag_id)
+                        gps_data[tag] = value
+
+                    lat = _convert_gps_coordinate(
+                        gps_data.get("GPSLatitude"),
+                        gps_data.get("GPSLatitudeRef"),
+                    )
+                    lon = _convert_gps_coordinate(
+                        gps_data.get("GPSLongitude"),
+                        gps_data.get("GPSLongitudeRef"),
+                    )
+
+                    if lat is not None:
+                        metadata["latitude"] = lat
+                    if lon is not None:
+                        metadata["longitude"] = lon
+
+                metadata["exif_data"] = exif_data
+
+            try:
+                color_info = _extract_color_info(img)
+                metadata.update(color_info)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to extract color info for %s: %s", asset.key, exc
                 )
-                lon = _convert_gps_coordinate(
-                    gps_data.get('GPSLongitude'),
-                    gps_data.get('GPSLongitudeRef')
-                )
 
-                if lat is not None:
-                    metadata['latitude'] = lat
-                if lon is not None:
-                    metadata['longitude'] = lon
-
-            # Store raw EXIF data (limit size for JSON field)
-            metadata['exif_data'] = exif_data
-
-        # Extract color information
         try:
-            color_info = _extract_color_info(img)
-            metadata.update(color_info)
-        except Exception as e:
-            logger.warning(f"Failed to extract color info for {asset.key}: {e}")
+            file_obj.seek(0)
+        except Exception:
+            pass
 
-        # Log what was extracted
-        logger.info(f"Image metadata extracted for {asset.key}:")
-        logger.info(f"  - Camera: {metadata.get('camera_make')} {metadata.get('camera_model')}")
-        logger.info(f"  - Lens: {metadata.get('lens')}")
-        logger.info(f"  - Focal length: {metadata.get('focal_length')}")
-        logger.info(f"  - Aperture: {metadata.get('aperture')}")
-        logger.info(f"  - Shutter speed: {metadata.get('shutter_speed')}")
-        logger.info(f"  - ISO: {metadata.get('iso')}")
-        logger.info(f"  - GPS: {metadata.get('latitude')}, {metadata.get('longitude')}")
-        logger.info(f"  - Captured at: {metadata.get('captured_at')}")
-        logger.info(f"  - Color: {metadata.get('average_color')}")
-        logger.info(f"  - Total fields: {len(metadata)}")
+        logger.info("Image metadata extracted for %s", asset.key)
 
-    except Exception as e:
-        logger.error(f"Error extracting image metadata for {asset.key}: {e}")
+    except Exception as exc:
+        logger.error(f"Error extracting image metadata for {asset.key}: {exc}")
         import traceback
+
         logger.error(traceback.format_exc())
 
     return metadata
@@ -269,24 +300,13 @@ def extract_audio_metadata(asset) -> Dict[str, Any]:
 
     try:
         from mutagen import File as MutagenFile
-        import os
 
         if not asset.file:
             logger.warning(f"Asset {asset.key} has no file attached")
             return metadata
 
-        # Try to get the file path
-        try:
-            if hasattr(asset.file, 'path') and os.path.exists(asset.file.path):
-                file_path = asset.file.path
-            else:
-                logger.warning(f"Audio file path not accessible for {asset.key}")
-                return metadata
-        except Exception as e:
-            logger.error(f"Cannot access audio file for {asset.key}: {e}")
-            return metadata
-
-        audio = MutagenFile(file_path)
+        file_obj = open_field_file(asset.file)
+        audio = MutagenFile(file_obj, filename=asset.file.name)
 
         if audio is None:
             return metadata
@@ -332,6 +352,11 @@ def extract_audio_metadata(asset) -> Dict[str, Any]:
                         metadata[field] = str(value).strip()
                     break  # Found the field, move to next
 
+        try:
+            file_obj.seek(0)
+        except Exception:
+            pass
+
     except ImportError:
         logger.warning(f"mutagen not installed - cannot extract audio metadata for {asset.key}")
     except Exception as e:
@@ -352,20 +377,14 @@ def extract_document_metadata(asset) -> Dict[str, Any]:
     if asset.file_extension.lower() == 'pdf':
         try:
             from PyPDF2 import PdfReader
-            import os
 
             if not asset.file:
                 logger.warning(f"Asset {asset.key} has no file attached")
                 return metadata
 
-            # Try to get the file path or file object
             try:
-                if hasattr(asset.file, 'path') and os.path.exists(asset.file.path):
-                    reader = PdfReader(asset.file.path)
-                else:
-                    # Try using file object
-                    asset.file.seek(0)
-                    reader = PdfReader(asset.file)
+                file_obj = open_field_file(asset.file)
+                reader = PdfReader(file_obj)
             except Exception as e:
                 logger.error(f"Cannot open PDF file for {asset.key}: {e}")
                 return metadata
@@ -381,6 +400,11 @@ def extract_document_metadata(asset) -> Dict[str, Any]:
                     metadata['subject'] = str(reader.metadata.subject).strip()
                 if hasattr(reader.metadata, 'keywords') and reader.metadata.keywords:
                     metadata['keywords'] = str(reader.metadata.keywords).strip()
+
+            try:
+                file_obj.seek(0)
+            except Exception:
+                pass
 
         except ImportError:
             logger.warning(f"PyPDF2 not installed - cannot extract PDF metadata for {asset.key}")
@@ -402,27 +426,26 @@ def extract_video_metadata(asset) -> Dict[str, Any]:
     metadata = {}
 
     try:
-        import subprocess
         import json
-        import os
+        import subprocess
 
         if not asset.file:
             logger.warning(f"Asset {asset.key} has no file attached")
             return metadata
 
-        # Get file path
-        if not (hasattr(asset.file, 'path') and os.path.exists(asset.file.path)):
-            logger.warning(f"Video file path not accessible for {asset.key}")
-            return metadata
-
-        # Use ffprobe to get format metadata
-        result = subprocess.run([
-            'ffprobe',
-            '-v', 'quiet',
-            '-print_format', 'json',
-            '-show_format',
-            asset.file.path
-        ], capture_output=True, text=True, timeout=30)
+        with ensure_local_file(asset.file) as local_path:
+            result = subprocess.run(
+                [
+                    'ffprobe',
+                    '-v', 'quiet',
+                    '-print_format', 'json',
+                    '-show_format',
+                    local_path
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
 
         if result.returncode == 0:
             data = json.loads(result.stdout)
@@ -469,7 +492,6 @@ def extract_all_metadata(asset) -> Optional['AssetMetadata']:
         AssetMetadata instance or None if extraction failed
     """
     from .models import AssetMetadata
-    import os
 
     logger.info(f"Starting metadata extraction for asset: {asset.key} (type: {asset.asset_type})")
 
@@ -478,19 +500,15 @@ def extract_all_metadata(asset) -> Optional['AssetMetadata']:
         logger.warning(f"Asset {asset.key} has no file attached - cannot extract metadata")
         return None
 
-    # Check file accessibility
+    # Basic accessibility check
     try:
-        if hasattr(asset.file, 'path'):
-            file_path = asset.file.path
-            file_exists = os.path.exists(file_path)
-            logger.info(f"Asset file path: {file_path}, exists: {file_exists}")
-            if not file_exists:
-                logger.error(f"File does not exist at path: {file_path}")
-                return None
-        else:
-            logger.warning(f"Asset file has no path attribute - will attempt to use file object")
-    except Exception as e:
-        logger.error(f"Error checking file path for {asset.key}: {e}")
+        file_obj = open_field_file(asset.file)
+        try:
+            file_obj.seek(0)
+        except Exception:
+            pass
+    except Exception as exc:
+        logger.error(f"Unable to open asset file for {asset.key}: {exc}")
         return None
 
     metadata_dict = {}

@@ -12,25 +12,70 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from typing import Literal, Optional
 
-from dotenv import load_dotenv
+import environ
+
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False),
+    # DB settings
+    DB_CONN_MAX_AGE=(int, 60),  # persistent connections (seconds)
+    DB_HEALTH_CHECKS=(bool, True),  # ping the DB when reusing connections (Django 4.2+)
+    DB_USE_ATOMIC_REQUESTS=(
+        bool,
+        False,
+    ),  # wrap each request in a transaction (trade-off below)
+    DB_SSL_REQUIRE=(bool, True),  # force TLS if your DB supports it
+    DB_CONNECT_TIMEOUT_S=(int, 5),  # fail fast on bad networks
+    DB_STATEMENT_TIMEOUT_MS=(int, 15000),  # kill slow queries (15s)
+    DB_IDLE_TX_TIMEOUT_MS=(int, 10000),  # kill stuck idle-in-tx sessions (10s)
+    DB_LOCK_TIMEOUT_MS=(int, 2000),  # fail fast on lock waits (2s)
+    DB_APP_NAME=(str, "django-app"),  # tag connections in pg_stat_activity
+    DB_TARGET_SESSION_ATTRS=(
+        str,
+        "read-write",
+    ),  # avoid accidentally hitting read-only endpoints
+    DB_DISABLE_SERVER_SIDE_CURSORS=(
+        bool,
+        False,
+    ),  # set True for PgBouncer (txn pooling)
+    # R2 / S3 params
+    R2_ACCESS_KEY_ID=(str, ""),
+    R2_SECRET_ACCESS_KEY=(str, ""),
+    R2_BUCKET_NAME=(str, ""),
+    R2_S3_ENDPOINT_URL=(str, ""),  # https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+    R2_REGION=(str, "auto"),
+    R2_SIG_VERSION=(str, "s3v4"),
+    R2_ADDRESSING_STYLE=(str, "path"),
+    # URL behavior
+    R2_SIGNED_URLS=(bool, False),  # False => public URLs; True => signed URLs
+    R2_CUSTOM_DOMAIN=(
+        str,
+        "",
+    ),  # e.g., cdn.example.com OR pub-xxxx.r2.dev (leave blank for private)
+    # Caching
+    R2_CACHE_CONTROL=(str, "public, max-age=31536000, immutable"),
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
-load_dotenv(BASE_DIR / ".env")
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-1u+!whix90d6f$+khc#b54+c)&ckmizp-cv&t$@y&vv^lm+lcz"
+SECRET_KEY = env("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = ["127.0.0.1"]
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+
+ADMINS = env.list("ADMINS")
 
 # Application definition
 
@@ -58,10 +103,12 @@ INSTALLED_APPS += [
     # Optional: enable result/beat Django apps
     "django_celery_results",
     "django_celery_beat",
+    "storages",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -96,32 +143,32 @@ WSGI_APPLICATION = "ATProject.wsgi.application"
 
 # PostgreSQL Database Configuration
 # You can override these with environment variables for different environments
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "atproject"),
-        "USER": os.getenv("POSTGRES_USER", "atproject"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5433"),
-        "OPTIONS": {
-            "connect_timeout": 10,
-        },
-        "CONN_MAX_AGE": 600,  # Keep connections alive for 10 minutes
-    }
-}
+DATABASES = {"default": env.db()}
 
-# SQLite Fallback Configuration (for testing or legacy support)
-# Uncomment to switch back to SQLite:
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#         "OPTIONS": {
-#             "timeout": 20,
-#         },
-#     }
-# }
+# ---- Recommended tweaks ----
+db = DATABASES["default"]
+
+# 1) Connection reuse & health
+db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # e.g. 60s in prod, 0 in dev/tests
+db["CONN_HEALTH_CHECKS"] = env.bool(
+    "DB_HEALTH_CHECKS"
+)  # ping on reuse to avoid stale sockets
+
+# 2) Safety/ergonomics per request
+db["ATOMIC_REQUESTS"] = env.bool("DB_USE_ATOMIC_REQUESTS")  # see notes below
+
+# 3) Driver / libpq options
+db.setdefault("OPTIONS", {})
+db["OPTIONS"].update(
+    {
+        # libpq keyword args (preferred where available)
+        "sslmode": "require" if env.bool("DB_SSL_REQUIRE") else "prefer",
+        "connect_timeout": env.int("DB_CONNECT_TIMEOUT_S"),
+        "application_name": env.str("DB_APP_NAME"),
+        "target_session_attrs": env.str("DB_TARGET_SESSION_ATTRS"),
+    }
+)
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -159,10 +206,73 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+# For Whitenoise
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Media files (User uploads)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Only in development
+if DEBUG:
+    WHITENOISE_USE_FINDERS = True
+
+# WhiteNoise (optional but recommended if static is local)
+if "whitenoise.middleware.WhiteNoiseMiddleware" in MIDDLEWARE:
+    STORAGES = {
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+        "default": {  # media on R2 (set below)
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+    }
+else:
+    STORAGES = {
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+    }
+
+# ---- R2 / django-storages (media) ----
+AWS_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = env("R2_BUCKET_NAME")
+AWS_S3_ENDPOINT_URL = env("R2_S3_ENDPOINT_URL")
+AWS_S3_REGION_NAME = env("R2_REGION")
+AWS_S3_SIGNATURE_VERSION = env("R2_SIG_VERSION")
+AWS_S3_ADDRESSING_STYLE = env("R2_ADDRESSING_STYLE")
+AWS_DEFAULT_ACL = None
+
+# Build URL behavior from env flags
+AWS_S3_CUSTOM_DOMAIN = env("R2_CUSTOM_DOMAIN") or None
+AWS_QUERYSTRING_AUTH = env.bool("R2_SIGNED_URLS")
+
+# Default to signed URLs when no public domain is configured (R2 buckets are private by default)
+if AWS_S3_CUSTOM_DOMAIN is None and not AWS_QUERYSTRING_AUTH:
+    AWS_QUERYSTRING_AUTH = True
+
+# Set Cache-Control on objects
+AWS_S3_OBJECT_PARAMETERS = {"CacheControl": env("R2_CACHE_CONTROL")}
+
+# MEDIA_URL:
+# - Public: use the custom domain (r2.dev or your domain)
+# - Private: MEDIA_URL is a placeholder; actual URLs are signed when calling file.url
+if AWS_S3_CUSTOM_DOMAIN:
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN.rstrip('/')}/"
+elif AWS_S3_ENDPOINT_URL:
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
+else:
+    MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
+
+# # Dev ergonomics: keep media local if you prefer
+# if DEBUG and env.bool("USE_LOCAL_MEDIA_IN_DEV", default=False):
+#     STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+#     MEDIA_URL = "/media/"
+#     MEDIA_ROOT = BASE_DIR / "media"
+
+# # Media files (User uploads)
+# MEDIA_URL = "/media/"
+# MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -171,15 +281,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Celery (Redis)
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "django-db")
-CELERY_CACHE_BACKEND = os.getenv("CELERY_CACHE_BACKEND", "default")
+CELERY_BROKER_URL = env("REDIS_URL")
+CELERY_RESULT_BACKEND = "django-db"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 
 # Recommended dev defaults
 CELERY_TASK_ALWAYS_EAGER = False  # set True in unit tests
-CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_EAGER_PROPAGATES = False
 CELERY_TASK_TIME_LIMIT = 60 * 5  # hard limit, seconds
 CELERY_TASK_SOFT_TIME_LIMIT = 60 * 4
 CELERY_TASK_SERIALIZER = "json"
@@ -428,9 +537,31 @@ UNFOLD = {
         },
     ],
     # ENVIRONMENT BADGE (useful for staging/production)
-    # "ENVIRONMENT": "Development",
-    # "ENVIRONMENT_COLOR": {
-    #     "light": "bg-blue-500",
-    #     "dark": "bg-blue-500",
-    # },
+    "ENVIRONMENT": "ATProject.settings.unfold_environment_callback",
+    # Optional: also prefix the <title> tag with the environment
+    "ENVIRONMENT_TITLE_PREFIX": "ATProject.settings.unfold_title_prefix_callback",
 }
+
+UnfoldColor = Literal["info", "danger", "warning", "success"]
+
+ENV_LABEL: str = env("UNFOLD_ENVIRONMENT")  # type: ignore
+
+COLOR_MAP: dict[str, UnfoldColor] = {
+    "PROD": "danger",
+    "PRODUCTION": "danger",
+    "STAGING": "warning",
+    "PREVIEW": "info",
+    "DEV": "success",
+    "DEVELOPMENT": "success",
+}
+
+
+def unfold_environment_callback(request) -> Optional[tuple[str, UnfoldColor]]:
+    if not ENV_LABEL:
+        return None
+    color: UnfoldColor = COLOR_MAP[ENV_LABEL] if ENV_LABEL in COLOR_MAP else "info"
+    return (ENV_LABEL.title(), color)
+
+
+def unfold_title_prefix_callback(request) -> str:
+    return f"[{ENV_LABEL.title()}] " if ENV_LABEL else ""

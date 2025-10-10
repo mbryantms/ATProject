@@ -88,20 +88,27 @@ class TagAdmin(ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
     list_per_page = 50
 
-    @display(description="Assets", ordering="assets__count")
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            _asset_count=models.Count("posts__post_assets__asset", distinct=True),
+            _post_count=models.Count("posts", distinct=True),
+        )
+
+    @display(description="Assets", ordering="_asset_count")
     def asset_count(self, obj):
-        count = obj.assets.count()
+        count = getattr(obj, "_asset_count", 0)
         if count == 0:
             return format_html('<span style="color: #999;">0</span>')
         return format_html(
-            '<a href="/admin/engine/asset/?tags__id__exact={}" style="font-weight: 500;">{}</a>',
+            '<a href="/admin/engine/asset/?post_usages__post__tags__id__exact={}" style="font-weight: 500;">{}</a>',
             obj.pk,
             count,
         )
 
-    @display(description="Posts", ordering="posts__count")
+    @display(description="Posts", ordering="_post_count")
     def post_count(self, obj):
-        count = obj.posts.count()
+        count = getattr(obj, "_post_count", 0)
         if count == 0:
             return format_html('<span style="color: #999;">0</span>')
         return format_html(
@@ -2772,6 +2779,7 @@ class AssetCollectionAdmin(ModelAdmin):
 # Celery admin integration
 # --------------------------
 
+
 def _reregister_with_unfold(model, base_admin):
     """Re-register third-party admin classes with Unfold styling."""
     try:
@@ -2807,26 +2815,26 @@ else:
         _reregister_with_unfold(model, admin_class)
 
 
-try:
-    from django_celery_results import admin as results_admin
-    from django_celery_results import models as results_models
-except ImportError:
-    pass
-else:
-    results_admin_map = []
-    if hasattr(results_models, "TaskResult") and hasattr(
-        results_admin, "TaskResultAdmin"
-    ):
-        results_admin_map.append(
-            (results_models.TaskResult, results_admin.TaskResultAdmin)
-        )
-    if hasattr(results_models, "GroupResult") and hasattr(
-        results_admin, "GroupResultAdmin"
-    ):
-        results_admin_map.append(
-            (results_models.GroupResult, results_admin.GroupResultAdmin)
-        )
+# try:
+#     from django_celery_results import admin as results_admin
+#     from django_celery_results import models as results_models
+# except ImportError:
+#     pass
+# else:
+#     results_admin_map = []
+#     if hasattr(results_models, "TaskResult") and hasattr(
+#         results_admin, "TaskResultAdmin"
+#     ):
+#         results_admin_map.append(
+#             (results_models.TaskResult, results_admin.TaskResultAdmin)
+#         )
+#     if hasattr(results_models, "GroupResult") and hasattr(
+#         results_admin, "GroupResultAdmin"
+#     ):
+#         results_admin_map.append(
+#             (results_models.GroupResult, results_admin.GroupResultAdmin)
+#         )
 
-    # Register any available result admins with the Unfold base class.
-    for model, admin_class in results_admin_map:
-        _reregister_with_unfold(model, admin_class)
+#     # Register any available result admins with the Unfold base class.
+#     for model, admin_class in results_admin_map:
+#         _reregister_with_unfold(model, admin_class)

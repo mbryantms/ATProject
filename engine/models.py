@@ -1102,9 +1102,25 @@ class Asset(TimeStampedModel, SoftDeleteModel):
 
         # Trigger async metadata extraction for new assets
         if is_new and self.file:
-            from .tasks import extract_metadata_async
+            metadata_enqueued = False
+            try:
+                from .tasks import extract_metadata_async
 
-            extract_metadata_async.delay(self.pk)
+                try:
+                    extract_metadata_async.delay(self.pk)
+                    metadata_enqueued = True
+                except Exception as exc:
+                    print(f"Celery unavailable for metadata extraction, running sync: {exc}")
+            except ImportError:
+                pass
+
+            if not metadata_enqueued:
+                try:
+                    from .metadata_extractor import extract_all_metadata
+
+                    extract_all_metadata(self)
+                except Exception as exc:
+                    print(f"Error extracting metadata synchronously for {self.pk}: {exc}")
 
     def detect_asset_type(self):
         """Detect asset type from file extension."""
@@ -1144,12 +1160,21 @@ class Asset(TimeStampedModel, SoftDeleteModel):
                 self.mime_type = mime_type
 
             # Populate dimensions for images
-            if self.asset_type == "image" and hasattr(self.file, "path"):
+            if self.asset_type == "image":
                 try:
                     from PIL import Image
 
-                    with Image.open(self.file.path) as img:
+                    self.file.open("rb")
+                    try:
+                        self.file.seek(0)
+                    except Exception:
+                        pass
+                    with Image.open(getattr(self.file, "file", self.file)) as img:
                         self.width, self.height = img.size
+                    try:
+                        self.file.seek(0)
+                    except Exception:
+                        pass
                 except Exception:
                     pass
 
