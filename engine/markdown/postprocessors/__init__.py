@@ -21,6 +21,7 @@ from .modify_external_links import modify_external_links
 from .sanitizer import sanitize_html
 from .table_enhancer import table_enhancer_default
 from .typography_enhancer import typography_enhancer_default
+from .utils import clear_shared_soup
 
 # Import other postprocessors
 
@@ -52,6 +53,8 @@ POSTPROCESSORS = [
 
 def apply_postprocessors(html, context):
     """Apply all postprocessors in order"""
+    clear_shared_soup(context)
     for processor in POSTPROCESSORS:
         html = processor(html, context)
+    clear_shared_soup(context)
     return html

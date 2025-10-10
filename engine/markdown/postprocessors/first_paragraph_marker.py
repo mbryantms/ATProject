@@ -14,7 +14,9 @@ This postprocessor:
 
 from typing import List, Optional
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import NavigableString, Tag
+
+from .utils import get_shared_soup, soup_to_html
 
 
 def _add_class_to_paragraph(p: Tag, classes: List[str]) -> None:
@@ -86,14 +88,14 @@ def first_paragraph_marker(
     if not intro_enabled and post is not None:
         intro_enabled = bool(getattr(post, "first_line_caps", False))
 
-    soup = BeautifulSoup(html, "html.parser")
+    soup = get_shared_soup(html, context)
 
     # If rendering an abstract, mark the first paragraph directly
     if is_abstract:
         first_p = soup.find("p")
         if first_p:
             _add_class_to_paragraph(first_p, first_paragraph_class)
-        return str(soup)
+        return soup_to_html(context, soup)
 
     # 1. Mark first paragraph in each section
     for section in soup.find_all("section"):
@@ -199,7 +201,7 @@ def first_paragraph_marker(
             _add_class_to_paragraph(intro_paragraph, first_paragraph_class)
             _add_class_to_paragraph(intro_paragraph, ["intro-graf"])
 
-    return str(soup)
+    return soup_to_html(context, soup)
 
 
 def first_paragraph_marker_default(html: str, context: dict) -> str:

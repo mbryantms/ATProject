@@ -1,14 +1,20 @@
 @charset "UTF-8";
-@import "./colors.css";
-@import "./fonts.css";
-@import "./link-icons.css";
-@import "./fullwidth.css";
-@import "./toc.css";
+@import './colors.css';
+@import './fonts.css';
+@import './link-icons.css';
+@import './fullwidth.css';
+@import './toc.css';
 
 :root {
-  --AT-serif-font-stack: "Source Serif 4", "Apple Garamond", "Baskerville", "Libre Baskerville", "Droid Serif", "Times New Roman", "Times", serif, "Noto Emoji", "Quivira";
-  --AT-sans-serif-font-stack: "Source Sans 3", "Lucida Sans Unicode", "Helvetica", "Trebuchet MS", sans-serif, "Noto Emoji", "Quivira";
-  --AT-monospaced-font-stack: "IBM Plex Mono", "Liberation Mono", "Consolas", "Courier", monospace, "Noto Emoji", "Quivira";
+  --AT-serif-font-stack:
+    'Source Serif 4', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
+    'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
+  --AT-sans-serif-font-stack:
+    'Source Sans 3', 'Lucida Sans Unicode', 'Helvetica', 'Trebuchet MS', sans-serif,
+    'Noto Emoji', 'Quivira';
+  --AT-monospaced-font-stack:
+    'IBM Plex Mono', 'Liberation Mono', 'Consolas', 'Courier', monospace, 'Noto Emoji',
+    'Quivira';
 
   --AT-body-text-font-size: 20px;
 
@@ -35,10 +41,12 @@
   --AT-image-japanesecrest-tsukinihoshi-dottedmoon-svg: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23"><path d="M3.028 3.725c-4.147 4.512-4.034 11.533.34 15.907 4.49 4.49 11.773 4.49 16.264 0s4.49-11.773 0-16.264C15.257-1.007 8.237-1.12 3.725 3.028c3.762-3.4 9.57-3.286 13.197.34 3.743 3.743 3.743 9.81 0 13.553s-9.81 3.743-13.553 0c-3.626-3.626-3.74-9.434-.34-13.197z"/><circle transform="matrix(.707107 -.707107 .707107 .707107 1663.446 -524.914)" cx="-1547.404" cy="-798.145" r="2.156"/></svg>');
   --AT-image-sun-verginasun-black-svg: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40.169"><g transform="matrix(.169492 0 0 .170209 67.602036 -5.5478)"><use href="%23D" /><use href="%23D" transform="matrix(1 0 0 -1 0 301.18804)" width="1" height="1"/><use href="%23D" transform="rotate(180 -280.852 150.594)" width="1" height="1"/><use href="%23D" transform="matrix(-1 0 0 1 -561.70444 0)" width="1" height="1"/><use href="%23C" /><use href="%23C" transform="matrix(1 0 0 -1 0 301.18804)" width="1" height="1"/><use href="%23C" transform="rotate(180 -280.852 150.594)" width="1" height="1"/><use href="%23C" transform="matrix(-1 0 0 1 -561.70444 0)" width="1" height="1"/><use href="%23B" /><use href="%23B" transform="matrix(1 0 0 -1 0 301.18804)" width="1" height="1"/><use href="%23B" transform="rotate(180 -280.852 150.594)" width="1" height="1"/><use href="%23B" transform="matrix(-1 0 0 1 -561.70444 0)" width="1" height="1"/><use href="%23A" /><use href="%23A" transform="rotate(90 -280.852 150.594)" width="1" height="1"/><use href="%23A" transform="rotate(270 -280.852 150.594)" width="1" height="1"/><use href="%23A" transform="matrix(1 0 0 -1 0 301.18804)" width="1" height="1"/><use href="%23X" /></g><defs><path id="A" d="M-280.663 32.594l-7.484 84.047c-1.13 3.43.305 7.303 3.587 9.105 3.708 2.036 8.382.676 10.422-3.025l.03-.03a7.64 7.64 0 0 0 .526-6.111l-7.082-83.986z"/><path id="B" d="M-364.767 66.797l54.252 64.712c1.63 3.22 5.4 4.95 8.987 3.907a7.67 7.67 0 0 0 5.226-9.494v-.043c-.63-2.126-2.1-3.78-3.958-4.692z"/><path id="C" d="M-325.888 42.686l21.338 66.3.155.525.124.4.062-.03c.5 1.036 1.326 1.935 2.412 2.53 2.78 1.527 6.263.522 7.793-2.253 1.148-2.082.86-4.57-.526-6.327l-31.357-61.145z"/><path id="D" d="M-389.98 105.915l62.9 32.28.022-.065a5.76 5.76 0 0 0 3.499.088c3.048-.883 4.8-4.05 3.914-7.093-.663-2.282-2.63-3.84-4.854-4.103l-65.5-21.105z"/><path id="X" d="M-263.73 160.02a19.545 19.545 0 1 1 .051-.094"/></defs></svg>');
 
-
-  --AT-checkerboard-scrollbar-background-image: var(--AT-image-checkerboard-777-fff-2x-gif);
-  --AT-checkerboard-scrollbar-hover-background-image: var(--AT-image-checkerboard-000-fff-2x-gif);
-
+  --AT-checkerboard-scrollbar-background-image: var(
+    --AT-image-checkerboard-777-fff-2x-gif
+  );
+  --AT-checkerboard-scrollbar-hover-background-image: var(
+    --AT-image-checkerboard-000-fff-2x-gif
+  );
 }
 
 @media all and (max-width: 649px) {
@@ -73,7 +81,6 @@ html,
     scroll-behavior: smooth;
   }
 }
-
 
 /****************/
 /* ADAPTIVENESS */
@@ -135,7 +142,6 @@ article {
   flex: 1 1 auto;
 }
 
-
 div.sans-serif {
   font-family: var(--AT-sans-serif-font-stack);
 }
@@ -179,7 +185,6 @@ header h1 em {
   font-variant-caps: normal;
 }
 
-
 /***********************/
 /* PAGE METADATA BLOCK */
 /***********************/
@@ -214,8 +219,8 @@ header h1 em {
   background-position: 0 calc(100% - 1px);
 }
 
-#page-metadata .link-tags a:nth-child(n+2) {
-  margin-left: 0.10em;
+#page-metadata .link-tags a:nth-child(n + 2) {
+  margin-left: 0.1em;
 }
 
 /********************/
@@ -256,7 +261,7 @@ header h1 em {
     or slashes.
  */
 #page-metadata .page-metadata-fields > span::after {
-  content: "\00B7"; /* interpunct MIDDLE DOT (U+00B7) '·'; TODO: replace with BULLET .separator-inline? */
+  content: '\00B7'; /* interpunct MIDDLE DOT (U+00B7) '·'; TODO: replace with BULLET .separator-inline? */
   margin: 0 0.75em;
 }
 
@@ -338,7 +343,7 @@ header h1 em {
 
   /* line break in one place */
   #page-metadata .page-metadata-fields::after {
-    content: "";
+    content: '';
     width: 100%;
     height: calc(1em * (4 / 20));
   }
@@ -379,7 +384,7 @@ header h1 em {
   /* line breaks in two places */
   #page-metadata .page-metadata-fields::before,
   #page-metadata .page-metadata-fields::after {
-    content: "";
+    content: '';
     width: 100%;
     height: calc(1em * (3 / 18));
   }
@@ -409,7 +414,7 @@ header h1 em {
   }
 
   #page-metadata .page-metadata-fields .page-author::after {
-    content: "";
+    content: '';
     display: block;
     height: calc(1em * (3 / 18));
   }
@@ -453,7 +458,7 @@ header h1 em {
 
 @media all and (max-width: 999px) {
   .markdownBody {
-    --line-height: 1.50;
+    --line-height: 1.5;
   }
 }
 
@@ -465,7 +470,7 @@ header h1 em {
 
 @media all and (min-width: 1200px) {
   .markdownBody {
-    --line-height: 1.60;
+    --line-height: 1.6;
   }
 }
 
@@ -587,7 +592,7 @@ section.level6 > .heading {
 /*=----------------------------=*/
 
 .heading a::after {
-  content: "\00B6"; /* Pilcrow sign: ¶ */
+  content: '\00B6'; /* Pilcrow sign: ¶ */
   font-size: 0.75em;
   position: absolute;
   bottom: 0.15em;
@@ -660,7 +665,7 @@ section.level6 > .heading a::after {
 
 @media all and (hover: hover) {
   .heading .copy-section-link-button::after {
-    content: "";
+    content: '';
     position: absolute;
     left: -0.1em;
     right: -0.1em;
@@ -740,10 +745,9 @@ section.level6 > .heading a::after {
   section.level4 > .heading .copy-section-link-button,
   section.level5 > .heading .copy-section-link-button,
   section.level6 > .heading .copy-section-link-button {
-    top: 0
+    top: 0;
   }
 }
-
 
 button {
   appearance: none;
@@ -763,7 +767,6 @@ button {
   margin: 0;
   cursor: pointer;
 }
-
 
 /**************/
 /* PARAGRAPHS */
@@ -856,7 +859,6 @@ p.empty-graf {
   text-indent: 0;
 }
 
-
 /***************/
 /* BLOCKQUOTES */
 /***************/
@@ -883,7 +885,9 @@ blockquote {
 
 blockquote > * {
   font-size: calc(var(--blockquote-font-size-scaling-factor) * 1em);
-  line-height: calc((var(--line-height) - 0.05) / var(--blockquote-font-size-scaling-factor));
+  line-height: calc(
+    (var(--line-height) - 0.05) / var(--blockquote-font-size-scaling-factor)
+  );
 }
 
 /*  Three-level of blockquote emphasis (darkening).
@@ -933,7 +937,6 @@ blockquote,
   }
 }
 
-
 /*********/
 /* LISTS */
 /*********/
@@ -962,7 +965,6 @@ ol.has-floats > li {
 /*.markdownBody .block {*/
 /*  margin-top: 0;*/
 /*}*/
-
 
 .list {
   --text-alignment: left;
@@ -1091,27 +1093,27 @@ ol > li::before {
 */
 ol > li::before,
 ol.list-type-decimal > li::before {
-  content: counter(list-item, decimal) ".";
+  content: counter(list-item, decimal) '.';
 }
 
 ol.list-type-lower-alpha > li::before {
-  content: counter(list-item, lower-alpha) ".";
+  content: counter(list-item, lower-alpha) '.';
 }
 
 ol.list-type-upper-alpha > li::before {
-  content: counter(list-item, upper-alpha) ".";
+  content: counter(list-item, upper-alpha) '.';
 }
 
 ol.list-type-lower-roman > li::before {
-  content: counter(list-item, lower-roman) ".";
+  content: counter(list-item, lower-roman) '.';
 }
 
 ol.list-type-upper-roman > li::before {
-  content: counter(list-item, upper-roman) ".";
+  content: counter(list-item, upper-roman) '.';
 }
 
 ol.list-type-lower-greek > li::before {
-  content: counter(list-item, lower-greek) ".";
+  content: counter(list-item, lower-greek) '.';
 }
 
 /**********/
@@ -1153,7 +1155,6 @@ ol.list-type-lower-greek > li::before {
     margin-right: var(--float-side-margin);
   }
 }
-
 
 /*********/
 /* LINKS */
@@ -1217,8 +1218,10 @@ May be able at some point to simplify this using regular link underlining, since
   --link-underline-background-color: var(--background-color);
   --link-underline-gradient-line-color: currentColor;
 
-  background-image: linear-gradient(var(--link-underline-gradient-line-color),
-  var(--link-underline-gradient-line-color));
+  background-image: linear-gradient(
+    var(--link-underline-gradient-line-color),
+    var(--link-underline-gradient-line-color)
+  );
   background-size: 1px 1px;
   background-repeat: repeat-x;
   background-position: 0 calc(100% - 0.1em);
@@ -1229,13 +1232,14 @@ May be able at some point to simplify this using regular link underlining, since
 
 .markdownBody a,
 .markdownBody a * {
-  text-shadow: 0 0.05em var(--link-underline-background-color),
-  0.05em 0.05em var(--link-underline-background-color),
-  -0.05em 0.05em var(--link-underline-background-color),
-  0.17em 0.05em var(--link-underline-background-color),
-  -0.17em 0.05em var(--link-underline-background-color),
-  0.17em 0 var(--link-underline-background-color),
-  -0.17em 0 var(--link-underline-background-color);
+  text-shadow:
+    0 0.05em var(--link-underline-background-color),
+    0.05em 0.05em var(--link-underline-background-color),
+    -0.05em 0.05em var(--link-underline-background-color),
+    0.17em 0.05em var(--link-underline-background-color),
+    -0.17em 0.05em var(--link-underline-background-color),
+    0.17em 0 var(--link-underline-background-color),
+    -0.17em 0 var(--link-underline-background-color);
 }
 
 /*  Links with decoration disabled.
@@ -1297,11 +1301,11 @@ a code {
 .inline-icon {
   --link-underline-background-color: var(--background-color);
 
-  --icon-opacity: 1.00;
-  --icon-width: 1.00em;
-  --icon-height: 1.00em;
-  --icon-offset-x: 0.00em;
-  --icon-offset-y: 0.00em;
+  --icon-opacity: 1;
+  --icon-width: 1em;
+  --icon-height: 1em;
+  --icon-offset-x: 0em;
+  --icon-offset-y: 0em;
 
   position: relative;
   top: calc(0.05em + var(--icon-offset-y));
@@ -1313,7 +1317,7 @@ a code {
 .inline-icon::before {
   --dark-mode-invert-filter: invert(1);
 
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -1328,37 +1332,37 @@ a code {
 
 .icon-moon-solid,
 .icon-gear-solid {
-  --icon-opacity: 0.70;
-  --icon-width: 0.90em;
-  --icon-height: 1.00em;
+  --icon-opacity: 0.7;
+  --icon-width: 0.9em;
+  --icon-height: 1em;
 }
 
 .icon-book-open-solid,
 .icon-message-slash-solid,
 .icon-eye-slash-solid {
-  --icon-opacity: 0.70;
-  --icon-width: 0.90em;
+  --icon-opacity: 0.7;
+  --icon-width: 0.9em;
   --icon-height: 0.75em;
 }
 
 .icon-manicule-left,
 .icon-manicule-right {
   --icon-opacity: 0.85;
-  --icon-width: 1.70em;
-  --icon-height: 1.10em;
+  --icon-width: 1.7em;
+  --icon-height: 1.1em;
   --icon-offset-y: -0.05em;
 }
 
 .icon-sun-solid {
   --icon-opacity: 0.75;
-  --icon-width: 1.00em;
-  --icon-height: 1.00em;
+  --icon-width: 1em;
+  --icon-height: 1em;
 }
 
 .icon-magnifying-glass {
-  --icon-opacity: 0.90;
-  --icon-width: 0.90em;
-  --icon-height: 1.00em;
+  --icon-opacity: 0.9;
+  --icon-width: 0.9em;
+  --icon-height: 1em;
 }
 
 .icon-question-solid {
@@ -1368,7 +1372,7 @@ a code {
 .icon-single-white-star-on-black-circle {
   --icon-opacity: 0.75;
   --icon-width: 0.65em;
-  --icon-height: 1.00em;
+  --icon-height: 1em;
 
   /*  This icon uses a special data-URI variable.
    */
@@ -1376,8 +1380,8 @@ a code {
 }
 
 .icon-special.progress-indicator-icon {
-  --icon-opacity: 0.60;
-  --icon-width: 0.80em;
+  --icon-opacity: 0.6;
+  --icon-width: 0.8em;
 }
 
 /*  Recently-modified link icons.
@@ -1398,7 +1402,7 @@ a code {
 }
 
 .has-recently-modified-icon .recently-modified-icon-hook::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -1450,7 +1454,6 @@ sub {
   line-height: 1;
   font-size: 0.6em;
 }
-
 
 /********/
 /* MISC */
@@ -1560,7 +1563,7 @@ hr {
 hr::after {
   --dark-mode-invert-filter: var(--icon-dark-mode-invert-filter);
 
-  content: "";
+  content: '';
   margin: auto;
   box-sizing: border-box;
   width: 40px;
@@ -1607,7 +1610,7 @@ hr.horizontal-rule-2 {
 hr.horizontal-rule-3 {
   --icon-image: var(--AT-image-asterism-triplewhitestar-svg);
   --icon-size: 38px;
-  --icon-opacity: 0.90;
+  --icon-opacity: 0.9;
   --icon-dark-mode-invert-filter: invert(1) drop-shadow(0 0 0 currentColor);
 }
 
@@ -1675,7 +1678,7 @@ a.footnote-ref sup {
 /*  Expanded hover/tap area.
  */
 a.footnote-ref::after {
-  content: "";
+  content: '';
   position: absolute;
   left: -40%;
   top: 5%;
@@ -1694,14 +1697,20 @@ a.footnote-ref.targeted {
   --o-p: 4px;
   --o-h-s: 2px;
 
-  box-shadow: var(--o-h-s) var(--o-v-o) 0 var(--o-p) var(--background-color),
-  calc(-1 * var(--o-h-s)) var(--o-v-o) 0 var(--o-p) var(--background-color),
-  var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 1px) var(--AT-highlighted-link-outline-color),
-  calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 1px) var(--AT-highlighted-link-outline-color),
-  var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 2px) var(--background-color),
-  calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 2px) var(--background-color),
-  var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 3px) var(--AT-highlighted-link-outline-color),
-  calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 3px) var(--AT-highlighted-link-outline-color)
+  box-shadow:
+    var(--o-h-s) var(--o-v-o) 0 var(--o-p) var(--background-color),
+    calc(-1 * var(--o-h-s)) var(--o-v-o) 0 var(--o-p) var(--background-color),
+    var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 1px)
+      var(--AT-highlighted-link-outline-color),
+    calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 1px)
+      var(--AT-highlighted-link-outline-color),
+    var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 2px) var(--background-color),
+    calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 2px)
+      var(--background-color),
+    var(--o-h-s) var(--o-v-o) 0 calc(var(--o-p) + 3px)
+      var(--AT-highlighted-link-outline-color),
+    calc(-1 * var(--o-h-s)) var(--o-v-o) 0 calc(var(--o-p) + 3px)
+      var(--AT-highlighted-link-outline-color);
 }
 
 /*  Deal with multiple footnote superscripts one after another; per Charuru
@@ -1715,13 +1724,13 @@ a.footnote-ref {
  */
 sup a,
 sub a {
-  margin-left: 0.10em;
+  margin-left: 0.1em;
   margin-right: 0.13em;
 }
 
 sup a + a,
 sub a + a {
-  margin-left: 0.20em;
+  margin-left: 0.2em;
   margin-right: 0.13em;
 }
 
@@ -1746,21 +1755,22 @@ section.footnotes > hr:first-child {
 }
 
 section.footnotes > hr:first-child::after {
-  content: "";
+  content: '';
   border: 1px solid var(--AT-footnotes-section-top-rule-color);
   width: 2em;
   height: 2em;
   background-color: var(--background-color);
   background-image: none;
   z-index: 1;
-  box-shadow: 0 0 0 calc(0.5em - 1px) var(--background-color) inset,
-  0 0 0 0.5em var(--AT-footnotes-section-top-rule-color) inset;
+  box-shadow:
+    0 0 0 calc(0.5em - 1px) var(--background-color) inset,
+    0 0 0 0.5em var(--AT-footnotes-section-top-rule-color) inset;
   filter: none;
-  opacity: 1.0;
+  opacity: 1;
 }
 
 section.footnotes > hr:first-child::before {
-  content: "";
+  content: '';
   position: absolute;
   height: 1px;
   background-color: var(--AT-footnotes-section-top-rule-color);
@@ -1772,38 +1782,42 @@ section.footnotes > hr:first-child.highlighted::after,
 section.footnotes > hr:first-child:hover::after,
 section.footnotes:has(> .section-self-link:hover) > hr:first-child::after {
   border-color: var(--AT-footnote-highlighted-border-color);
-  box-shadow: 0 0 0 1px var(--background-color) inset,
-  0 0 0 2px var(--AT-footnote-highlighted-border-color) inset,
-  0 0 0 calc(0.5em - 1px) var(--background-color) inset,
-  0 0 0 0.5em var(--AT-footnote-highlighted-border-color) inset,
-  0 0 0 calc(0.5em + 1px) var(--background-color) inset,
-  0 0 0 calc(0.5em + 2px) var(--AT-footnote-highlighted-border-color) inset;
+  box-shadow:
+    0 0 0 1px var(--background-color) inset,
+    0 0 0 2px var(--AT-footnote-highlighted-border-color) inset,
+    0 0 0 calc(0.5em - 1px) var(--background-color) inset,
+    0 0 0 0.5em var(--AT-footnote-highlighted-border-color) inset,
+    0 0 0 calc(0.5em + 1px) var(--background-color) inset,
+    0 0 0 calc(0.5em + 2px) var(--AT-footnote-highlighted-border-color) inset;
 }
 
 section.footnotes > hr:first-child.highlighted::before,
 section.footnotes > hr:first-child:hover::before,
 section.footnotes:has(> .section-self-link:hover) > hr:first-child::before {
   background-color: var(--background-color);
-  box-shadow: 0 1px 0 0 var(--AT-footnote-highlighted-border-color) inset,
-  0 -1px 0 0 var(--AT-footnote-highlighted-border-color) inset;
+  box-shadow:
+    0 1px 0 0 var(--AT-footnote-highlighted-border-color) inset,
+    0 -1px 0 0 var(--AT-footnote-highlighted-border-color) inset;
   height: 3px;
 }
 
 /* Separate styling for :target state (less prominent) */
 section.footnotes:target > hr:first-child::after {
   border-color: var(--AT-footnote-highlighted-border-color);
-  box-shadow: 0 0 0 1px var(--background-color) inset,
-  0 0 0 2px var(--AT-footnote-highlighted-border-color) inset,
-  0 0 0 calc(0.5em - 1px) var(--background-color) inset,
-  0 0 0 0.5em var(--AT-footnote-highlighted-border-color) inset,
-  0 0 0 calc(0.5em + 1px) var(--background-color) inset,
-  0 0 0 calc(0.5em + 2px) var(--AT-footnote-highlighted-border-color) inset;
+  box-shadow:
+    0 0 0 1px var(--background-color) inset,
+    0 0 0 2px var(--AT-footnote-highlighted-border-color) inset,
+    0 0 0 calc(0.5em - 1px) var(--background-color) inset,
+    0 0 0 0.5em var(--AT-footnote-highlighted-border-color) inset,
+    0 0 0 calc(0.5em + 1px) var(--background-color) inset,
+    0 0 0 calc(0.5em + 2px) var(--AT-footnote-highlighted-border-color) inset;
 }
 
 section.footnotes:target > hr:first-child::before {
   background-color: var(--background-color);
-  box-shadow: 0 1px 0 0 var(--AT-footnote-highlighted-border-color) inset,
-  0 -1px 0 0 var(--AT-footnote-highlighted-border-color) inset;
+  box-shadow:
+    0 1px 0 0 var(--AT-footnote-highlighted-border-color) inset,
+    0 -1px 0 0 var(--AT-footnote-highlighted-border-color) inset;
   height: 3px;
 }
 
@@ -1859,7 +1873,7 @@ section.footnotes > ol > li::before {
 /*  Dotted vertical line.
  */
 section.footnotes > ol > li::after {
-  content: "";
+  content: '';
   position: absolute;
   border-right: 1px dotted var(--AT-footnote-border-color);
   height: calc(100% + 0.125em - 4px);
@@ -1877,8 +1891,9 @@ section.footnotes > ol > li:hover::before,
 section.footnotes > ol > li:hover::after {
   border-style: solid;
   border-color: var(--AT-footnote-highlighted-border-color);
-  box-shadow: 0 0 0 1px var(--background-color) inset,
-  0 0 0 2px var(--AT-footnote-highlighted-border-color) inset;
+  box-shadow:
+    0 0 0 1px var(--background-color) inset,
+    0 0 0 2px var(--AT-footnote-highlighted-border-color) inset;
 }
 
 section.footnotes > ol > li.targeted::after,
@@ -1921,9 +1936,9 @@ section.footnotes .footnote-self-link {
   font-size: 1em;
   line-height: 0.5;
   border: 1px dotted var(--AT-footnote-backlink-border-color);
-  top: 0.10em;
-  padding: 0.25em 0.30em 0.25em 0.30em;
-  width: 0.70em;
+  top: 0.1em;
+  padding: 0.25em 0.3em 0.25em 0.3em;
+  width: 0.7em;
   z-index: 1;
 }
 
@@ -1940,8 +1955,9 @@ a.footnote-back {
 .markdownBody .footnotes a.footnote-back:hover {
   border-color: var(--AT-footnote-backlink-border-hover-color);
   border-style: solid;
-  box-shadow: 0 0 0 1px var(--background-color) inset,
-  0 0 0 2px var(--AT-footnote-backlink-border-hover-color) inset;
+  box-shadow:
+    0 0 0 1px var(--background-color) inset,
+    0 0 0 2px var(--AT-footnote-backlink-border-hover-color) inset;
 }
 
 .markdownBody .footnotes .footnote-back-block {
@@ -1957,7 +1973,7 @@ section.highlighted {
 }
 
 section.highlighted::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   top: -0.5em;
@@ -2079,11 +2095,13 @@ pre::-webkit-scrollbar-thumb:hover {
  */
 @supports (-moz-appearance: none) {
   pre {
-    scrollbar-color: var(--AT-pre-element-scrollbar-thumb-color) var(--AT-pre-element-scrollbar-track-color);
+    scrollbar-color: var(--AT-pre-element-scrollbar-thumb-color)
+      var(--AT-pre-element-scrollbar-track-color);
   }
 
   pre:hover {
-    scrollbar-color: var(--AT-pre-element-scrollbar-thumb-hover-color) var(--AT-pre-element-scrollbar-track-color);
+    scrollbar-color: var(--AT-pre-element-scrollbar-thumb-hover-color)
+      var(--AT-pre-element-scrollbar-track-color);
   }
 }
 
@@ -2102,9 +2120,9 @@ pre::-webkit-scrollbar-thumb:hover {
 
 /* Support for both old (MathJax 2) and new (MathJax 3+) output */
 .math.block .mjpage,
-.math.block mjx-container[display="true"],
+.math.block mjx-container[display='true'],
 .block .math.display .mjpage,
-.block .math.display mjx-container[display="true"] {
+.block .math.display mjx-container[display='true'] {
   display: block;
   overflow: auto;
 }
@@ -2130,8 +2148,8 @@ pre::-webkit-scrollbar-thumb:hover {
 }
 
 /* New MathJax 3+ styles */
-.math.block mjx-container[display="true"],
-.block .math.display mjx-container[display="true"] {
+.math.block mjx-container[display='true'],
+.block .math.display mjx-container[display='true'] {
   --background-color: var(--AT-math-block-background-color);
 
   margin: 0;
@@ -2141,8 +2159,8 @@ pre::-webkit-scrollbar-thumb:hover {
   transition: background-color 0.15s ease-out;
 }
 
-.math.block mjx-container[display="true"].flash,
-.block .math.display mjx-container[display="true"].flash {
+.math.block mjx-container[display='true'].flash,
+.block .math.display mjx-container[display='true'].flash {
   --background-color: var(--AT-math-block-background-color-flash);
 
   transition: background-color 0.1s ease-out;
@@ -2151,38 +2169,42 @@ pre::-webkit-scrollbar-thumb:hover {
 /*  Horizontal scroll bar styles (for WebKit/Chromium).
     */
 .math.block .mjpage::-webkit-scrollbar,
-.math.block mjx-container[display="true"]::-webkit-scrollbar,
+.math.block mjx-container[display='true']::-webkit-scrollbar,
 .block .math.display .mjpage::-webkit-scrollbar,
-.block .math.display mjx-container[display="true"]::-webkit-scrollbar {
+.block .math.display mjx-container[display='true']::-webkit-scrollbar {
   height: 14px;
   border-top: 1px solid var(--AT-math-block-scrollbar-border-color);
   background-color: var(--background-color);
 }
 
 .math.block .mjpage::-webkit-scrollbar-thumb,
-.math.block mjx-container[display="true"]::-webkit-scrollbar-thumb,
+.math.block mjx-container[display='true']::-webkit-scrollbar-thumb,
 .block .math.display .mjpage::-webkit-scrollbar-thumb,
-.block .math.display mjx-container[display="true"]::-webkit-scrollbar-thumb {
-  box-shadow: 0 0 0 2px var(--background-color) inset,
-  0 0 0 8px var(--AT-math-block-scrollbar-thumb-color) inset;
+.block .math.display mjx-container[display='true']::-webkit-scrollbar-thumb {
+  box-shadow:
+    0 0 0 2px var(--background-color) inset,
+    0 0 0 8px var(--AT-math-block-scrollbar-thumb-color) inset;
   border-color: var(--AT-math-block-scrollbar-border-color);
   border-style: solid;
   border-width: 1px 0 0 0;
 }
 
 .math.block .mjpage:hover::-webkit-scrollbar-thumb:hover,
-.math.block mjx-container[display="true"]:hover::-webkit-scrollbar-thumb:hover,
+.math.block mjx-container[display='true']:hover::-webkit-scrollbar-thumb:hover,
 .block .math.display .mjpage:hover::-webkit-scrollbar-thumb:hover,
-.block .math.display mjx-container[display="true"]:hover::-webkit-scrollbar-thumb:hover {
-  box-shadow: 0 0 0 2px var(--background-color) inset,
-  0 0 0 8px var(--AT-math-block-scrollbar-thumb-hover-color) inset;
+.block
+  .math.display
+  mjx-container[display='true']:hover::-webkit-scrollbar-thumb:hover {
+  box-shadow:
+    0 0 0 2px var(--background-color) inset,
+    0 0 0 8px var(--AT-math-block-scrollbar-thumb-hover-color) inset;
 }
 
 @media all and (max-width: 649px) {
   .math.block .mjpage::-webkit-scrollbar,
-  .math.block mjx-container[display="true"]::-webkit-scrollbar,
+  .math.block mjx-container[display='true']::-webkit-scrollbar,
   .block .math.display .mjpage::-webkit-scrollbar,
-  .block .math.display mjx-container[display="true"]::-webkit-scrollbar {
+  .block .math.display mjx-container[display='true']::-webkit-scrollbar {
     height: 10px;
   }
 }
@@ -2191,17 +2213,18 @@ pre::-webkit-scrollbar-thumb:hover {
     */
 @supports (-moz-appearance: none) {
   .math.block,
-  .math.block mjx-container[display="true"],
+  .math.block mjx-container[display='true'],
   .block .math.display,
-  .block .math.display mjx-container[display="true"] {
+  .block .math.display mjx-container[display='true'] {
     scrollbar-color: var(--AT-math-block-scrollbar-thumb-color) var(--background-color);
   }
 
   .math.block:hover,
-  .math.block mjx-container[display="true"]:hover,
+  .math.block mjx-container[display='true']:hover,
   .block .math.display:hover,
-  .block .math.display mjx-container[display="true"]:hover {
-    scrollbar-color: var(--AT-math-block-scrollbar-thumb-hover-color) var(--background-color);
+  .block .math.display mjx-container[display='true']:hover {
+    scrollbar-color: var(--AT-math-block-scrollbar-thumb-hover-color)
+      var(--background-color);
   }
 }
 
@@ -2222,16 +2245,18 @@ pre::-webkit-scrollbar-thumb:hover {
   .block .math.display .block-button-bar {
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.15s ease,
-    visibility 0.15s ease;
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease;
   }
 
   .math.block:hover .block-button-bar,
   .block .math.display:hover .block-button-bar {
-    opacity: 1.0;
+    opacity: 1;
     visibility: visible;
-    transition: opacity 0s ease 0.05s,
-    visibility 0s ease 0.05s;
+    transition:
+      opacity 0s ease 0.05s,
+      visibility 0s ease 0.05s;
   }
 }
 
@@ -2427,13 +2452,13 @@ del {
   text-transform: uppercase;
   vertical-align: -0.5ex;
   margin-left: -0.13em;
-  margin-right: -0.10em;
+  margin-right: -0.1em;
   line-height: 1ex;
 }
 
 .logotype-tex sub {
   text-transform: uppercase;
-  vertical-align: -0.50ex;
+  vertical-align: -0.5ex;
   margin-left: -0.08em;
   margin-right: -0.08em;
   font-size: 1em;
@@ -2507,15 +2532,17 @@ script {
   padding: 2em 0 0 0;
   font-size: 0.85em;
   line-height: calc(1.3 / 0.85);
-  transition: opacity 0.25s ease-in,
-  transform 0.25s ease-in,
-  top 0.15s ease-out;
+  transition:
+    opacity 0.25s ease-in,
+    transform 0.25s ease-in,
+    top 0.15s ease-out;
   pointer-events: auto;
 }
 
 #markdownBody .sidenote.displaced {
-  transition: opacity 0.25s ease-out,
-  transform 0.25s ease-out;
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.25s ease-out;
 }
 
 #markdownBody .sidenote.hidden {
@@ -2527,7 +2554,7 @@ script {
 #markdownBody .sidenote.displaced,
 #markdownBody .sidenote.highlighted {
   background-color: var(--background-color);
-  opacity: 1.0;
+  opacity: 1;
   box-shadow: 0 0 0 16px var(--background-color);
 }
 
@@ -2547,15 +2574,16 @@ script {
 /*  This provides a solid hover margin.
     */
 #markdownBody .sidenote::after {
-  content: "";
+  content: '';
   position: absolute;
   width: calc(100% + 2 * var(--sidenote-padding));
   height: calc(100% + 2 * var(--sidenote-padding));
   top: calc(-1 * (var(--sidenote-padding) + var(--sidenote-border-width)));
   left: calc(-1 * (var(--sidenote-padding) + var(--sidenote-border-width)));
   border: 0px solid var(--background-color);
-  transition: border-color 0.15s ease 0.05s,
-  border-style 0.15s ease 0.05s;
+  transition:
+    border-color 0.15s ease 0.05s,
+    border-style 0.15s ease 0.05s;
 }
 
 #markdownBody .sidenote:hover::after,
@@ -2566,7 +2594,7 @@ script {
 }
 
 #markdownBody .sidenote.cut-off::before {
-  content: "…";
+  content: '…';
   position: absolute;
   border: 1px dotted var(--AT-sidenote-border-color);
   top: calc(100% - 1px);
@@ -2611,7 +2639,10 @@ script {
 #markdownBody .sidenote.displaced .sidenote-outer-wrapper,
 #markdownBody .sidenote.highlighted .sidenote-outer-wrapper {
   /*  1px for inner border; 1px for minimum distance from edge. */
-  max-height: calc(100vh - (2em + 2 * (var(--sidenote-padding) + var(--sidenote-border-width) + 1px + 1px)));
+  max-height: calc(
+    100vh -
+      (2em + 2 * (var(--sidenote-padding) + var(--sidenote-border-width) + 1px + 1px))
+  );
 }
 
 #markdownBody .sidenote.cut-off .sidenote-outer-wrapper {
@@ -2645,7 +2676,8 @@ script {
   }
 
   #markdownBody .sidenote.cut-off .sidenote-outer-wrapper:hover {
-    scrollbar-color: var(--AT-sidenote-scrollbar-thumb-hover-color) var(--background-color);
+    scrollbar-color: var(--AT-sidenote-scrollbar-thumb-hover-color)
+      var(--background-color);
   }
 }
 
@@ -2684,7 +2716,7 @@ script {
 }
 
 #markdownBody .sidenote blockquote > * {
-  line-height: calc(1.25 / (var(--blockquote-font-size-scaling-factor) * 0.85))
+  line-height: calc(1.25 / (var(--blockquote-font-size-scaling-factor) * 0.85));
 }
 
 /*=-------------------------------=*/
@@ -2705,8 +2737,9 @@ script {
   align-items: center;
   justify-content: center;
   z-index: 1;
-  transition: border-color 0.15s ease 0.05s,
-  border-style 0.15s ease 0.05s;
+  transition:
+    border-color 0.15s ease 0.05s,
+    border-style 0.15s ease 0.05s;
 }
 
 #markdownBody #sidenote-column-left .sidenote > .sidenote-self-link {
@@ -2736,15 +2769,16 @@ script {
 
 #markdownBody .sidenote.targeted > .sidenote-self-link::before,
 #markdownBody .sidenote > .sidenote-self-link:hover::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   bottom: -3px;
   width: calc(50vw - (var(--AT-body-max-width) / 2 + 96px) + 10px);
   max-width: var(--AT-sidenotes-max-width);
   border-bottom: 3px double var(--AT-sidenote-self-link-border-color);
-  transition: border-color 0.15s ease 0.05s,
-  border-style 0.15s ease 0.05s;
+  transition:
+    border-color 0.15s ease 0.05s,
+    border-style 0.15s ease 0.05s;
 }
 
 #markdownBody #sidenote-column-left .sidenote.targeted > .sidenote-self-link::before,
@@ -2764,7 +2798,6 @@ script {
 #markdownBody .sidenote .footnote-back svg {
   transition: transform 0.25s ease-out;
 }
-
 
 /****************/
 /* MARGIN NOTES */
@@ -2831,7 +2864,9 @@ script {
     This is based on the width of the admonition icon area.
  */
 #markdownBody .admonition .marginnote.sidenote {
-  width: calc(50vw - ((var(--AT-body-max-width) + (2.875em / (0.85 / 0.875))) / 2 + 96px));
+  width: calc(
+    50vw - ((var(--AT-body-max-width) + (2.875em / (0.85 / 0.875))) / 2 + 96px)
+  );
   right: calc(var(--AT-body-max-width) + (2.875em / (0.85 / 0.875)) + 64px);
 }
 
@@ -2849,7 +2884,6 @@ script {
   font-size: inherit;
   padding-top: 0.1em;
 }
-
 
 /*=--------------=*/
 /*= Margin notes =*/
@@ -2923,13 +2957,13 @@ script {
 }
 
 .epigraph > blockquote::before {
-  content: "\201C";
+  content: '\201C';
   left: -1em;
   top: -0.56em;
 }
 
 .epigraph > blockquote::after {
-  content: "\201D";
+  content: '\201D';
   right: -1em;
   bottom: -1.12em;
 }
@@ -3055,13 +3089,13 @@ script {
 }
 
 .admonition::before {
-  content: "";
+  content: '';
   width: 2.875em;
   height: 100%;
   position: absolute;
   top: 0.125em;
   right: 100%;
-  padding: 0.60em;
+  padding: 0.6em;
   box-sizing: border-box;
   background-origin: content-box;
   background-clip: content-box;
@@ -3172,7 +3206,6 @@ script {
   z-index: 1;
 }
 
-
 /***********/
 /* FIGURES */
 /***********/
@@ -3190,7 +3223,7 @@ figure .image-wrapper {
 figure .image-wrapper::before {
   --dark-mode-invert-filter: invert(1);
 
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   top: 0;
@@ -3378,16 +3411,18 @@ table td > code {
 }
 
 .table-scroll-wrapper::-webkit-scrollbar-thumb:horizontal {
-  box-shadow: 0 2px 0 0 var(--background-color) inset,
-  0 0 0 1px var(--AT-table-scrollbar-border-color) inset,
-  0 2px 0 1px var(--AT-table-scrollbar-border-color) inset;
+  box-shadow:
+    0 2px 0 0 var(--background-color) inset,
+    0 0 0 1px var(--AT-table-scrollbar-border-color) inset,
+    0 2px 0 1px var(--AT-table-scrollbar-border-color) inset;
 }
 
 .table-scroll-wrapper::-webkit-scrollbar-thumb:vertical {
-  box-shadow: 0 -1px 0 0 var(--AT-table-scrollbar-border-color),
-  0 1px 0 0 var(--AT-table-scrollbar-border-color),
-  1px 0 0 0 var(--AT-table-scrollbar-border-color) inset,
-  -1px 0 0 0 var(--AT-table-scrollbar-border-color) inset;
+  box-shadow:
+    0 -1px 0 0 var(--AT-table-scrollbar-border-color),
+    0 1px 0 0 var(--AT-table-scrollbar-border-color),
+    1px 0 0 0 var(--AT-table-scrollbar-border-color) inset,
+    -1px 0 0 0 var(--AT-table-scrollbar-border-color) inset;
 }
 
 .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
@@ -3395,7 +3430,7 @@ table td > code {
 }
 
 .table-scroll-wrapper::-webkit-scrollbar-track:vertical {
-  border-left: 1px dotted var(--AT-table-scrollbar-border-color)
+  border-left: 1px dotted var(--AT-table-scrollbar-border-color);
 }
 
 /*  Scroll bar styles (for Firefox).
@@ -3445,8 +3480,9 @@ th.tablesorter-headerAsc:hover,
 th.tablesorter-headerDesc:hover {
   background-color: var(--AT-table-sorted-column-heading-background-color);
   color: var(--AT-table-sorted-column-heading-text-color);
-  text-shadow: 0.5px 0.5px 0 var(--AT-table-sorted-column-heading-text-shadow-color),
-  0 0 1px var(--AT-table-sorted-column-heading-text-shadow-color);
+  text-shadow:
+    0.5px 0.5px 0 var(--AT-table-sorted-column-heading-text-shadow-color),
+    0 0 1px var(--AT-table-sorted-column-heading-text-shadow-color);
 }
 
 /*  Zebra-stripe tables (CSS3); from Twitter’s bootstrap package.
@@ -3494,7 +3530,6 @@ table tbody tr:hover {
   outline: 1px dotted var(--AT-table-row-hover-outline-color);
 }
 
-
 /***********/
 /* NUMBERS */
 /***********/
@@ -3507,10 +3542,18 @@ table tbody tr:hover {
 /*  Skip old-style figures in elements with underlining, to reduce the need to
     cross the underline with skip-ink
  */
-table, code, pre, a, h1, h2, h3, h4, h5, h6 {
+table,
+code,
+pre,
+a,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-variant-numeric: tabular-nums;
 }
-
 
 /*******************/
 /*  Figure contents.
@@ -3573,8 +3616,9 @@ figure audio {
 
 figure audio:hover {
   border-color: var(--AT-figure-outline-color);
-  box-shadow: 0 0 4px 0 var(--AT-figure-outline-color) inset,
-  0 0 4px 0 var(--AT-figure-outline-color);
+  box-shadow:
+    0 0 4px 0 var(--AT-figure-outline-color) inset,
+    0 0 4px 0 var(--AT-figure-outline-color);
 }
 
 /*******************/
@@ -3583,7 +3627,7 @@ figure audio:hover {
 
 figcaption {
   font-size: 0.9em;
-  line-height: 1.50;
+  line-height: 1.5;
   margin: auto;
   padding: 0.5em 0.875em calc(0.5em + 1px) 0.875em;
   width: fit-content;
@@ -3644,9 +3688,11 @@ figure.width-full {
  */
 .markdownBody a.has-annotation,
 .markdownBody a.has-annotation-partial {
-  background-image: linear-gradient(to right,
-  var(--link-underline-gradient-line-color) 50%,
-  var(--link-underline-background-color) 50%);
+  background-image: linear-gradient(
+    to right,
+    var(--link-underline-gradient-line-color) 50%,
+    var(--link-underline-background-color) 50%
+  );
   background-size: 2px 1px;
 }
 
@@ -3659,7 +3705,6 @@ figure.width-full {
 a[data-link-icon-color]:hover {
   --link-underline-gradient-line-color: var(--link-icon-color-hover);
 }
-
 
 /* Tooltip system */
 .tooltip {
@@ -3752,7 +3797,6 @@ a[data-link-icon-color]:hover {
   left: -4px;
 }
 
-
 /*  Certainty and Importance gauge alignment. */
 
 #page-metadata .page-metadata-fields .page-confidence,
@@ -3762,9 +3806,7 @@ a[data-link-icon-color]:hover {
   vertical-align: middle;
 }
 
-#page-metadata .page-metadata-fields .page-confidence svg,
 #page-metadata .page-metadata-fields .page-importance svg {
   vertical-align: middle;
   margin-left: 0.15em;
 }
-

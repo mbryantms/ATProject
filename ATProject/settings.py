@@ -53,6 +53,13 @@ INSTALLED_APPS = [
     "engine",
 ]
 
+# THIRD-PARTY APPS
+INSTALLED_APPS += [
+    # Optional: enable result/beat Django apps
+    "django_celery_results",
+    "django_celery_beat",
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -166,6 +173,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Celery (Redis)
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 
 # Recommended dev defaults
@@ -178,11 +186,6 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_EXPIRES = 60 * 60  # 1 hour
 CELERY_ENABLE_UTC = True  # Celery reads Django’s TZ too
 
-# Optional: enable result/beat Django apps
-INSTALLED_APPS += [
-    "django_celery_results",
-    "django_celery_beat",
-]
 
 # ==============================================================================
 # DJANGO-UNFOLD CONFIGURATION

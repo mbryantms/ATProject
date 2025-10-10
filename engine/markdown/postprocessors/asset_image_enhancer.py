@@ -14,6 +14,8 @@ from math import gcd
 
 from bs4 import BeautifulSoup, NavigableString
 
+from .utils import get_shared_soup, soup_to_html
+
 
 def enhance_image_assets(html: str, context: dict) -> str:
     """
@@ -36,7 +38,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
     from engine.markdown.renderer import render_markdown
     from engine.models import Asset
 
-    soup = BeautifulSoup(html, "html.parser")
+    soup = get_shared_soup(html, context)
 
     # Find all images with asset metadata
     for img in list(soup.find_all("img")):
@@ -411,7 +413,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 # Insert where img was
                 img_parent.insert(img_index, figure)
 
-    return str(soup)
+    return soup_to_html(context, soup)
 
 
 def asset_image_enhancer_default(html: str, context: dict) -> str:
