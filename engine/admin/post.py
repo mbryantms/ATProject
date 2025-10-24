@@ -11,15 +11,15 @@ from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from unfold.admin import StackedInline, TabularInline
-from unfold.decorators import action, display
+
+
 
 from engine.models import InternalLink, Post, PostAsset
 
 from .mixins import SoftDeleteAdminMixin
 
 
-class PostAssetInline(StackedInline):
+class PostAssetInline(admin.StackedInline):
     model = PostAsset
     extra = 1
     min_num = 0
@@ -40,7 +40,7 @@ class PostAssetInline(StackedInline):
                     ("asset_preview", "asset"),
                     ("alias", "order", "markdown_ref_display"),
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -97,7 +97,7 @@ class PostAssetInline(StackedInline):
 
         return formset
 
-    @display(description="Preview")
+    @admin.display(description="Preview")
     def asset_preview(self, obj):
         """Show enhanced preview in inline."""
         if not obj.asset or not obj.asset.file:
@@ -145,7 +145,7 @@ class PostAssetInline(StackedInline):
             label,
         )
 
-    @display(description="Reference")
+    @admin.display(description="Reference")
     def markdown_ref_display(self, obj):
         """Show the markdown reference with copy button."""
         # Generate reference - this displays correctly for saved objects
@@ -180,7 +180,7 @@ class PostAssetInline(StackedInline):
         )
 
 
-class IncomingLinksInline(TabularInline):
+class IncomingLinksInline(admin.TabularInline):
     """Inline to show backlinks (incoming links) in Post admin."""
 
     model = InternalLink
@@ -198,7 +198,7 @@ class IncomingLinksInline(TabularInline):
         """Backlinks are auto-generated, not manually added."""
         return False
 
-    @display(description="Source Post")
+    @admin.display(description="Source Post")
     def source_post_link(self, obj):
         """Display source post with link to admin."""
         if not obj.pk:
@@ -214,7 +214,7 @@ class IncomingLinksInline(TabularInline):
 # Post admin
 # --------------------------
 @admin.register(Post)
-class PostAdmin(SoftDeleteAdminMixin):
+class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     inlines = [PostAssetInline, IncomingLinksInline]
     save_on_top = True
     date_hierarchy = "published_at"
@@ -338,7 +338,7 @@ class PostAdmin(SoftDeleteAdminMixin):
                     ("subtitle", "language"),
                     ("author", "co_authors"),
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
                 "description": "Core post identity and authorship",
             },
         ),
@@ -352,7 +352,7 @@ class PostAdmin(SoftDeleteAdminMixin):
                     ("is_featured", "is_pinned", "pin_order"),
                     ("published_by", "last_edited_by", "version"),
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
                 "description": "Control post status, visibility, and publication schedule",
             },
         ),
@@ -368,7 +368,7 @@ class PostAdmin(SoftDeleteAdminMixin):
                         "first_line_caps",
                     ),
                 ),
-                "classes": ["unfold-column-2", "collapse"],
+                "classes": ["collapse"],
                 "description": "Categorize and relate your content",
             },
         ),
@@ -392,7 +392,7 @@ class PostAdmin(SoftDeleteAdminMixin):
                     ("view_count", "like_count", "rating"),
                     ("reading_time_minutes", "word_count"),
                 ),
-                "classes": ["unfold-column-3", "collapse"],
+                "classes": ["collapse"],
                 "description": "User engagement metrics and reading statistics",
             },
         ),
@@ -415,13 +415,13 @@ class PostAdmin(SoftDeleteAdminMixin):
                     ("created_at", "updated_at"),
                     ("is_deleted", "deleted_at"),
                 ),
-                "classes": ["unfold-column-2", "collapse"],
+                "classes": ["collapse"],
                 "description": "System-managed timestamps and soft-delete status",
             },
         ),
     )
 
-    @display(description="Post", ordering="title")
+    @admin.display(description="Post", ordering="title")
     def post_title_with_status(self, obj):
         """Display post title with visual indicators."""
         # Status emoji
@@ -446,7 +446,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             obj.title,
         )
 
-    @display(description="Status", ordering="status")
+    @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with color."""
         colors = {
@@ -468,7 +468,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             obj.get_status_display(),
         )
 
-    @display(description="Completion", ordering="completion_status")
+    @admin.display(description="Completion", ordering="completion_status")
     def completion_status_badge(self, obj):
         """Display completion status with color."""
         colors = {
@@ -492,7 +492,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             obj.get_completion_status_display(),
         )
 
-    @display(description="Visibility", ordering="visibility")
+    @admin.display(description="Visibility", ordering="visibility")
     def visibility_badge(self, obj):
         """Display visibility with color."""
         colors = {
@@ -518,7 +518,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             obj.get_visibility_display(),
         )
 
-    @display(description="Features")
+    @admin.display(description="Features")
     def featured_pinned_indicators(self, obj):
         """Show featured/pinned indicators."""
         badges = []
@@ -534,7 +534,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             return format_html('<span style="color: #999;">—</span>')
         return format_html(" ".join(badges))
 
-    @display(description="Stats")
+    @admin.display(description="Stats")
     def stats_compact(self, obj):
         """Display compact statistics."""
         return format_html(
@@ -549,7 +549,7 @@ class PostAdmin(SoftDeleteAdminMixin):
             obj.word_count,
         )
 
-    @display(description="Asset Markdown References")
+    @admin.display(description="Asset Markdown References")
     def asset_markdown_reference_helper(self, obj=None):
         """Display assets attached to this post with their markdown references for quick copying."""
         # If no post object (add page), show help message
@@ -673,7 +673,7 @@ class PostAdmin(SoftDeleteAdminMixin):
 
         return mark_safe("".join(parts))
 
-    @action(description="Publish selected posts")
+    @admin.action(description="Publish selected posts")
     def publish_selected(self, request, queryset):
         """Publish selected posts."""
         from django.utils import timezone
@@ -687,25 +687,25 @@ class PostAdmin(SoftDeleteAdminMixin):
             count += 1
         self.message_user(request, f"Published {count} post(s).")
 
-    @action(description="Unpublish selected posts")
+    @admin.action(description="Unpublish selected posts")
     def unpublish_selected(self, request, queryset):
         """Unpublish selected posts."""
         count = queryset.update(status="draft")
         self.message_user(request, f"Unpublished {count} post(s).")
 
-    @action(description="Feature selected posts")
+    @admin.action(description="Feature selected posts")
     def feature_selected(self, request, queryset):
         """Mark selected posts as featured."""
         count = queryset.update(is_featured=True)
         self.message_user(request, f"Featured {count} post(s).")
 
-    @action(description="Unfeature selected posts")
+    @admin.action(description="Unfeature selected posts")
     def unfeature_selected(self, request, queryset):
         """Remove featured status from selected posts."""
         count = queryset.update(is_featured=False)
         self.message_user(request, f"Unfeatured {count} post(s).")
 
-    @action(description="Rebuild backlinks for selected posts")
+    @admin.action(description="Rebuild backlinks for selected posts")
     def rebuild_backlinks_for_selected(self, request, queryset):
         """Rebuild internal links for selected posts by parsing their content."""
         from engine.links.extractor import update_post_links
@@ -750,7 +750,7 @@ class PostAdmin(SoftDeleteAdminMixin):
                 level=messages.WARNING,
             )
 
-    @action(description="Export selected posts as CSV")
+    @admin.action(description="Export selected posts as CSV")
     def export_posts_csv(self, request, queryset):
         """Export posts as CSV."""
         response = HttpResponse(content_type="text/csv")
@@ -841,7 +841,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
                     ("source_post", "target_post"),
                     "link_count",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -860,7 +860,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
         ),
     )
 
-    @display(description="Link", ordering="source_post__title")
+    @admin.display(description="Link", ordering="source_post__title")
     def link_display(self, obj):
         """Display the link relationship."""
         return format_html(
@@ -875,7 +875,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
             obj.target_post.title[:40],
         )
 
-    @display(description="Link Text")
+    @admin.display(description="Link Text")
     def link_text_preview(self, obj):
         """Display truncated link text."""
         if not obj.link_text:
@@ -885,7 +885,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
             '<span style="font-size: 11px; color: #666;">"<em>{}</em>"</span>', text
         )
 
-    @display(description="Type")
+    @admin.display(description="Type")
     def link_type_badge(self, obj):
         """Display link direction."""
         return format_html(

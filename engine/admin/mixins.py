@@ -5,12 +5,10 @@ This module contains reusable admin mixins that provide common functionality
 across different admin classes.
 """
 
-from django.contrib import messages
-from unfold.admin import ModelAdmin
-from unfold.decorators import action
+from django.contrib import admin, messages
 
 
-class SoftDeleteAdminMixin(ModelAdmin):
+class SoftDeleteAdminMixin:
     """Show ALL objects in admin (including soft-deleted), add actions to delete/restore."""
 
     def get_queryset(self, request):
@@ -20,7 +18,7 @@ class SoftDeleteAdminMixin(ModelAdmin):
             return self.model.all_objects.get_queryset()
         return qs
 
-    @action(description="Soft delete selected")
+    @admin.action(description="Soft delete selected")
     def soft_delete_selected(self, request, queryset):
         count = 0
         for obj in queryset:
@@ -32,7 +30,7 @@ class SoftDeleteAdminMixin(ModelAdmin):
             request, f"Soft-deleted {count} item(s).", level=messages.SUCCESS
         )
 
-    @action(description="Restore selected (clear soft delete)")
+    @admin.action(description="Restore selected (clear soft delete)")
     def restore_selected(self, request, queryset):
         count = 0
         for obj in queryset:

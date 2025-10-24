@@ -2,6 +2,9 @@
 
 Complete reference for all admin actions and management commands in the ATProject.
 
+**Admin Interface**: Standard Django Admin
+**Theme**: Django's default admin theme
+
 ---
 
 ## Table of Contents
@@ -290,4 +293,4 @@ Recommended cleanup workflow to free storage:
 
 **Last Updated**: 2025-10-10
 **Django Version**: 5.2.7
-**Unfold Version**: Latest
+**Admin Theme**: Django Default

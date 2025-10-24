@@ -15,8 +15,8 @@ import csv
 from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.utils.html import format_html
-from unfold.admin import ModelAdmin, StackedInline, TabularInline
-from unfold.decorators import action, display
+
+
 
 from engine.models import (
     Asset,
@@ -33,7 +33,7 @@ from .mixins import SoftDeleteAdminMixin
 # --------------------------
 # Inline classes
 # --------------------------
-class AssetMetadataInline(StackedInline):
+class AssetMetadataInline(admin.StackedInline):
     """Inline for extended asset metadata (OneToOne relationship)."""
 
     model = AssetMetadata
@@ -121,7 +121,7 @@ class AssetMetadataInline(StackedInline):
 
     readonly_fields = ("gps_map_display", "color_preview_display")
 
-    @display(description="GPS Location")
+    @admin.display(description="GPS Location")
     def gps_map_display(self, obj):
         """Display GPS coordinates with map link."""
         if not obj.has_gps:
@@ -140,7 +140,7 @@ class AssetMetadataInline(StackedInline):
             maps_url,
         )
 
-    @display(description="Color Preview")
+    @admin.display(description="Color Preview")
     def color_preview_display(self, obj):
         """Display visual color preview."""
         if not obj.average_color and not obj.dominant_colors:
@@ -183,7 +183,7 @@ class AssetMetadataInline(StackedInline):
         )
 
 
-class AssetRenditionInline(TabularInline):
+class AssetRenditionInline(admin.TabularInline):
     """Inline for asset renditions."""
 
     model = AssetRendition
@@ -202,7 +202,7 @@ class AssetRenditionInline(TabularInline):
     readonly_fields = ("rendition_preview", "file_size_display")
     ordering = ["width"]
 
-    @display(description="Preview")
+    @admin.display(description="Preview")
     def rendition_preview(self, obj):
         """Show thumbnail of rendition."""
         if obj.file:
@@ -212,7 +212,7 @@ class AssetRenditionInline(TabularInline):
             )
         return "-"
 
-    @display(description="File Size")
+    @admin.display(description="File Size")
     def file_size_display(self, obj):
         """Display file size in human-readable format."""
         return obj.human_file_size
@@ -222,7 +222,7 @@ class AssetRenditionInline(TabularInline):
 # Asset Admin
 # --------------------------
 @admin.register(Asset)
-class AssetAdmin(SoftDeleteAdminMixin):
+class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     # Compressed list view with expandable details
     list_display = [
         "asset_title_with_preview",
@@ -313,7 +313,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                     "file",
                     ("key", "key_preview"),
                 ],
-                "classes": ["unfold-column-2"],
+                "classes": [],
                 "description": "Core asset information and file upload. Leave 'Key' blank for auto-generation with smart prefixes.",
             },
         ),
@@ -325,7 +325,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                     "caption",
                     "description",
                 ],
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -371,7 +371,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                     ("is_public", "uploaded_by"),
                     "permissions",
                 ],
-                "classes": ["unfold-column-2", "collapse"],
+                "classes": ["collapse"],
             },
         ),
         (
@@ -442,7 +442,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             )
         return form
 
-    @display(description="Asset", ordering="title")
+    @admin.display(description="Asset", ordering="title")
     def asset_title_with_preview(self, obj):
         """Combined preview thumbnail with title for compact list view."""
         icon_map = {
@@ -481,7 +481,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                 obj.title,
             )
 
-    @display(description="Key", ordering="key")
+    @admin.display(description="Key", ordering="key")
     def key_display(self, obj):
         """Display key in compact format."""
         return format_html(
@@ -490,7 +490,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.key,
         )
 
-    @display(description="File Info")
+    @admin.display(description="File Info")
     def file_info_compact(self, obj):
         """Compact file information."""
         info = []
@@ -515,7 +515,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             " • ".join(info) if info else "—",
         )
 
-    @display(description="📋")
+    @admin.display(description="📋")
     def markdown_key_compact(self, obj):
         """Compact markdown copy button."""
         return format_html(
@@ -532,7 +532,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.key,
         )
 
-    @display(description="Type", ordering="asset_type")
+    @admin.display(description="Type", ordering="asset_type")
     def asset_type_badge(self, obj):
         """Display asset type with colored badge."""
         icons = {
@@ -567,7 +567,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.get_asset_type_display(),
         )
 
-    @display(description="Folder")
+    @admin.display(description="Folder")
     def folder_badge(self, obj):
         """Display asset folder."""
         if not obj.asset_folder:
@@ -585,7 +585,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.asset_folder.name,
         )
 
-    @display(description="Collections")
+    @admin.display(description="Collections")
     def collection_badge(self, obj):
         """Display collections as badges."""
         collections = obj.collections.all()[:3]  # Show up to 3 collections
@@ -606,7 +606,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         return format_html("".join(badges))
 
-    @display(description="Status", ordering="status")
+    @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with appropriate color."""
         colors = {
@@ -628,7 +628,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.get_status_display(),
         )
 
-    @display(description="Usage", ordering="usage_count")
+    @admin.display(description="Usage", ordering="usage_count")
     def usage_indicator(self, obj):
         """Visual indicator of asset usage."""
         if obj.usage_count == 0:
@@ -647,7 +647,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             "s" if obj.usage_count != 1 else "",
         )
 
-    @display(description="Asset Preview")
+    @admin.display(description="Asset Preview")
     def preview_large(self, obj):
         """Show full preview in detail view."""
         if obj.asset_type == "image" and obj.file:
@@ -672,7 +672,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.file.url,
         )
 
-    @display(description="Metadata Status")
+    @admin.display(description="Metadata Status")
     def metadata_status_detailed(self, obj):
         """Display metadata completeness status in detail view."""
         checks = {
@@ -706,7 +706,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         return format_html(status_html)
 
-    @display(description="Auto-Generated Key Preview")
+    @admin.display(description="Auto-Generated Key Preview")
     def key_preview(self, obj):
         """Show preview of what the auto-generated key will be."""
         if obj.key:
@@ -753,7 +753,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             " + ".join(parts),
         )
 
-    @display(description="Markdown Reference")
+    @admin.display(description="Markdown Reference")
     def markdown_reference_copyable(self, obj):
         """Copyable markdown reference with copy button."""
         return format_html(
@@ -770,7 +770,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             obj.key,
         )
 
-    @display(description="Usage Examples")
+    @admin.display(description="Usage Examples")
     def markdown_usage_examples(self, obj):
         """Show markdown usage examples."""
         examples = {
@@ -798,7 +798,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             example,
         )
 
-    @display(description="Usage")
+    @admin.display(description="Usage")
     def usage_list(self, obj):
         """Show list of posts using this asset."""
         usages = obj.post_usages.select_related("post")[:10]
@@ -822,7 +822,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         return format_html(html)
 
-    @action(description="Generate renditions for selected images")
+    @admin.action(description="Generate renditions for selected images")
     def generate_renditions(self, request, queryset):
         """Admin action to generate renditions for selected images."""
         from engine.utils import generate_asset_renditions
@@ -834,7 +834,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         self.message_user(request, f"Generated renditions for {count} image(s).")
 
-    @action(description="Update usage count")
+    @admin.action(description="Update usage count")
     def update_usage_count(self, request, queryset):
         """Update usage count for selected assets."""
         for asset in queryset:
@@ -845,7 +845,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             request, f"Updated usage count for {queryset.count()} asset(s)."
         )
 
-    @action(description="Regenerate keys with organized format")
+    @admin.action(description="Regenerate keys with organized format")
     def regenerate_keys(self, request, queryset):
         """Regenerate asset keys using the new organized format."""
         from django.template.defaultfilters import slugify
@@ -886,7 +886,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             for error in errors:
                 self.message_user(request, f"Error: {error}", level="error")
 
-    @action(description="Populate metadata (dimensions, MIME type, file size)")
+    @admin.action(description="Populate metadata (dimensions, MIME type, file size)")
     def populate_metadata(self, request, queryset):
         """Admin action to populate metadata for selected assets."""
         from engine.utils import populate_asset_metadata
@@ -914,7 +914,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                 level="warning",
             )
 
-    @action(description="Extract extended metadata (EXIF, audio tags, etc.)")
+    @admin.action(description="Extract extended metadata (EXIF, audio tags, etc.)")
     def extract_extended_metadata(self, request, queryset):
         """Admin action to extract extended metadata (EXIF, audio tags, document info, colors)."""
         from engine.metadata_extractor import extract_all_metadata
@@ -958,7 +958,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
                     level=messages.ERROR,
                 )
 
-    @action(description="Extract metadata (async with Celery)")
+    @admin.action(description="Extract metadata (async with Celery)")
     def extract_metadata_async_action(self, request, queryset):
         """Admin action to extract metadata asynchronously using Celery."""
         try:
@@ -989,19 +989,19 @@ class AssetAdmin(SoftDeleteAdminMixin):
                 level=messages.ERROR,
             )
 
-    @action(description="Mark as Ready")
+    @admin.action(description="Mark as Ready")
     def mark_as_ready(self, request, queryset):
         """Mark selected assets as ready."""
         count = queryset.update(status="ready")
         self.message_user(request, f"Marked {count} asset(s) as ready.")
 
-    @action(description="Mark as Archived")
+    @admin.action(description="Mark as Archived")
     def mark_as_archived(self, request, queryset):
         """Mark selected assets as archived."""
         count = queryset.update(status="archived")
         self.message_user(request, f"Marked {count} asset(s) as archived.")
 
-    @action(description="Export metadata as CSV")
+    @admin.action(description="Export metadata as CSV")
     def export_metadata_csv(self, request, queryset):
         """Export asset metadata as CSV."""
         response = HttpResponse(content_type="text/csv")
@@ -1065,7 +1065,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 
         return response
 
-    @action(description="Delete orphaned renditions")
+    @admin.action(description="Delete orphaned renditions")
     def cleanup_orphaned_renditions(self, request, queryset):
         """Delete renditions of soft-deleted assets."""
         from engine.models import AssetRendition
@@ -1097,7 +1097,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
             level=messages.SUCCESS
         )
 
-    @action(description="Delete unused assets (not in posts)")
+    @admin.action(description="Delete unused assets (not in posts)")
     def cleanup_unused_assets(self, request, queryset):
         """Delete selected assets that are not used in any posts."""
         from django.db.models import Count
@@ -1149,7 +1149,7 @@ class AssetAdmin(SoftDeleteAdminMixin):
 # AssetMetadata Admin
 # --------------------------
 @admin.register(AssetMetadata)
-class AssetMetadataAdmin(ModelAdmin):
+class AssetMetadataAdmin(admin.ModelAdmin):
     """Admin for extended asset metadata."""
 
     list_display = (
@@ -1213,7 +1213,7 @@ class AssetMetadataAdmin(ModelAdmin):
                     ("shutter_speed", "iso"),
                     "captured_at",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1224,7 +1224,7 @@ class AssetMetadataAdmin(ModelAdmin):
                     "location_name",
                     "gps_map_display",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1235,7 +1235,7 @@ class AssetMetadataAdmin(ModelAdmin):
                     ("genre", "year"),
                     "track_number",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1247,7 +1247,7 @@ class AssetMetadataAdmin(ModelAdmin):
                     "keywords",
                     "page_count",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1260,14 +1260,14 @@ class AssetMetadataAdmin(ModelAdmin):
                     "dominant_colors",
                     "color_palette",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
             "Image Quality",
             {
                 "fields": (("dpi", "has_alpha"),),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1289,7 +1289,7 @@ class AssetMetadataAdmin(ModelAdmin):
         ),
     )
 
-    @display(description="Asset", ordering="asset__key")
+    @admin.display(description="Asset", ordering="asset__key")
     def asset_key_with_preview(self, obj):
         """Display asset key with thumbnail preview."""
         if obj.asset.asset_type == "image" and obj.asset.file:
@@ -1308,7 +1308,7 @@ class AssetMetadataAdmin(ModelAdmin):
             obj.asset.key,
         )
 
-    @display(description="Metadata Summary")
+    @admin.display(description="Metadata Summary")
     def metadata_summary(self, obj):
         """Display compact summary of available metadata."""
         from django.utils.safestring import mark_safe
@@ -1343,27 +1343,27 @@ class AssetMetadataAdmin(ModelAdmin):
             f'<div style="font-size: 11px;">{" • ".join(info_parts)}</div>'
         )
 
-    @display(description="Camera", boolean=True)
+    @admin.display(description="Camera", boolean=True)
     def has_camera_info_display(self, obj):
         """Display if camera metadata exists."""
         return obj.has_camera_info
 
-    @display(description="GPS", boolean=True)
+    @admin.display(description="GPS", boolean=True)
     def has_gps_display(self, obj):
         """Display if GPS coordinates exist."""
         return obj.has_gps
 
-    @display(description="Audio", boolean=True)
+    @admin.display(description="Audio", boolean=True)
     def has_audio_info_display(self, obj):
         """Display if audio metadata exists."""
         return obj.has_audio_info
 
-    @display(description="Color", boolean=True)
+    @admin.display(description="Color", boolean=True)
     def has_color_info_display(self, obj):
         """Display if color information exists."""
         return bool(obj.average_color or obj.dominant_colors)
 
-    @display(description="GPS Location")
+    @admin.display(description="GPS Location")
     def gps_map_display(self, obj):
         """Display GPS coordinates with map link."""
         if not obj.has_gps:
@@ -1382,7 +1382,7 @@ class AssetMetadataAdmin(ModelAdmin):
             maps_url,
         )
 
-    @display(description="Color Preview")
+    @admin.display(description="Color Preview")
     def color_preview_display(self, obj):
         """Display visual color preview."""
         if not obj.average_color and not obj.dominant_colors:
@@ -1429,7 +1429,7 @@ class AssetMetadataAdmin(ModelAdmin):
 # AssetRendition Admin
 # --------------------------
 @admin.register(AssetRendition)
-class AssetRenditionAdmin(ModelAdmin):
+class AssetRenditionAdmin(admin.ModelAdmin):
     """Admin for asset renditions."""
 
     list_display = (
@@ -1469,7 +1469,7 @@ class AssetRenditionAdmin(ModelAdmin):
                     ("format", "quality"),
                     "preset",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1480,7 +1480,7 @@ class AssetRenditionAdmin(ModelAdmin):
                     "file_size",
                     "cdn_url",
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1512,7 +1512,7 @@ class AssetRenditionAdmin(ModelAdmin):
         ),
     )
 
-    @display(description="Preview")
+    @admin.display(description="Preview")
     def rendition_display(self, obj):
         """Show rendition preview."""
         if obj.file:
@@ -1522,7 +1522,7 @@ class AssetRenditionAdmin(ModelAdmin):
             )
         return "-"
 
-    @display(description="Asset")
+    @admin.display(description="Asset")
     def asset_key(self, obj):
         """Display asset key with link."""
         return format_html(
@@ -1531,7 +1531,7 @@ class AssetRenditionAdmin(ModelAdmin):
             obj.asset.key,
         )
 
-    @display(description="Preset")
+    @admin.display(description="Preset")
     def preset_badge(self, obj):
         """Display preset as badge."""
         if not obj.preset:
@@ -1541,12 +1541,12 @@ class AssetRenditionAdmin(ModelAdmin):
             obj.preset,
         )
 
-    @display(description="File Size")
+    @admin.display(description="File Size")
     def file_size_display(self, obj):
         """Display file size in human-readable format."""
         return obj.human_file_size
 
-    @display(description="Status", ordering="status")
+    @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with color."""
         colors = {
@@ -1573,7 +1573,7 @@ class AssetRenditionAdmin(ModelAdmin):
 # Asset Organization Admins
 # --------------------------
 @admin.register(AssetFolder)
-class AssetFolderAdmin(ModelAdmin):
+class AssetFolderAdmin(admin.ModelAdmin):
     """Admin for asset folder hierarchy."""
 
     list_display = (
@@ -1604,7 +1604,7 @@ class AssetFolderAdmin(ModelAdmin):
                     ("user",),
                     ("path",),
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1616,7 +1616,7 @@ class AssetFolderAdmin(ModelAdmin):
         ),
     )
 
-    @display(description="Folder", ordering="path")
+    @admin.display(description="Folder", ordering="path")
     def folder_name_with_icon(self, obj):
         """Display folder with icon and hierarchy."""
         depth = obj.path.count("/")
@@ -1630,7 +1630,7 @@ class AssetFolderAdmin(ModelAdmin):
             obj.name,
         )
 
-    @display(description="Assets")
+    @admin.display(description="Assets")
     def asset_count_display(self, obj):
         """Display number of assets in folder."""
         count = obj.folder_assets.count()
@@ -1643,7 +1643,7 @@ class AssetFolderAdmin(ModelAdmin):
 
 
 @admin.register(AssetTag)
-class AssetTagAdmin(ModelAdmin):
+class AssetTagAdmin(admin.ModelAdmin):
     """Admin for asset tags."""
 
     list_display = ("tag_display", "slug", "asset_count_display", "color_preview")
@@ -1663,7 +1663,7 @@ class AssetTagAdmin(ModelAdmin):
         ),
     )
 
-    @display(description="Tag", ordering="name")
+    @admin.display(description="Tag", ordering="name")
     def tag_display(self, obj):
         """Display tag with color badge."""
         return format_html(
@@ -1672,7 +1672,7 @@ class AssetTagAdmin(ModelAdmin):
             obj.name,
         )
 
-    @display(description="Assets")
+    @admin.display(description="Assets")
     def asset_count_display(self, obj):
         """Display number of assets with this tag."""
         count = obj.tagged_assets.count()
@@ -1685,7 +1685,7 @@ class AssetTagAdmin(ModelAdmin):
             count,
         )
 
-    @display(description="Preview")
+    @admin.display(description="Preview")
     def color_preview(self, obj):
         """Show color swatch."""
         return format_html(
@@ -1695,7 +1695,7 @@ class AssetTagAdmin(ModelAdmin):
 
 
 @admin.register(AssetCollection)
-class AssetCollectionAdmin(ModelAdmin):
+class AssetCollectionAdmin(admin.ModelAdmin):
     """Admin for asset collections."""
 
     list_display = (
@@ -1721,7 +1721,7 @@ class AssetCollectionAdmin(ModelAdmin):
                     ("user", "is_public"),
                     ("cover_asset",),
                 ),
-                "classes": ["unfold-column-2"],
+                "classes": [],
             },
         ),
         (
@@ -1740,7 +1740,7 @@ class AssetCollectionAdmin(ModelAdmin):
         ),
     )
 
-    @display(description="Collection", ordering="name")
+    @admin.display(description="Collection", ordering="name")
     def collection_name_with_cover(self, obj):
         """Display collection with cover image."""
         if (
@@ -1776,7 +1776,7 @@ class AssetCollectionAdmin(ModelAdmin):
             "Public" if obj.is_public else "Private",
         )
 
-    @display(description="Assets")
+    @admin.display(description="Assets")
     def asset_count_display(self, obj):
         """Display number of assets in collection."""
         count = obj.asset_count()

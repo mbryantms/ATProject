@@ -39,7 +39,6 @@ dependencies = [
     { name = "django-celery-results" },
     { name = "django-environ" },
     { name = "django-storages" },
-    { name = "django-unfold" },
     { name = "djlint" },
     { name = "ffprobe" },
     { name = "flower" },
@@ -69,7 +68,6 @@ requires-dist = [
     { name = "django-celery-results", specifier = ">=2.6.0" },
     { name = "django-environ", specifier = ">=0.12.0" },
     { name = "django-storages", specifier = ">=1.14.6" },
-    { name = "django-unfold", specifier = ">=0.67.0" },
     { name = "djlint", specifier = ">=1.36.4" },
     { name = "ffprobe", specifier = ">=0.5" },
     { name = "flower", specifier = ">=2.0.1" },
@@ -397,18 +395,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ba/5b/0dbe271fef3c2274b83dbcb1b19fa3dacf1f7e542382819294644e78ea8b/django_timezone_field-7.1.tar.gz", hash = "sha256:b3ef409d88a2718b566fabe10ea996f2838bc72b22d3a2900c0aa905c761380c", size = 13727, upload-time = "2025-01-11T17:49:54.486Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/09/7a808392a751a24ffa62bec00e3085a9c1a151d728c323a5bab229ea0e58/django_timezone_field-7.1-py3-none-any.whl", hash = "sha256:93914713ed882f5bccda080eda388f7006349f25930b6122e9b07bf8db49c4b4", size = 13177, upload-time = "2025-01-11T17:49:52.142Z" },
-]
-
-[[package]]
-name = "django-unfold"
-version = "0.67.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/22/92/a83a74f4a810a3b592892b55b0babe1a96a7aef83bf72dbaac51cd8697d2/django_unfold-0.67.0.tar.gz", hash = "sha256:94a918a2108b62419f6b8dcaef8351af13e75111b7139125f36985fabe68547a", size = 1078405, upload-time = "2025-09-30T08:31:55.105Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/99/fdf2ddba83c090fb5840be6178d656efc8a03a52efaf5f04c82804fcea71/django_unfold-0.67.0-py3-none-any.whl", hash = "sha256:87939d7c2fbc8a39880d0af28c32f919515819e54bfbc3d845bb495852bf8da7", size = 1187388, upload-time = "2025-09-30T08:31:53.49Z" },
 ]
 
 [[package]]

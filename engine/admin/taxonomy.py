@@ -12,8 +12,6 @@ from django.db import models
 from django.http import HttpResponse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from unfold.admin import ModelAdmin, TabularInline
-from unfold.decorators import action, display
 
 from engine.models import Category, Series, Tag, TagAlias
 
@@ -21,7 +19,7 @@ from engine.models import Category, Series, Tag, TagAlias
 # --------------------------
 # Tag Alias Inline
 # --------------------------
-class TagAliasInline(TabularInline):
+class TagAliasInline(admin.TabularInline):
     model = TagAlias
     extra = 1
     fields = ("alias", "slug")
@@ -34,7 +32,7 @@ class TagAliasInline(TabularInline):
 # Tag Admin
 # --------------------------
 @admin.register(Tag)
-class TagAdmin(ModelAdmin):
+class TagAdmin(admin.ModelAdmin):
     list_display = (
         "colored_name_display",
         "namespace_display",
@@ -133,7 +131,7 @@ class TagAdmin(ModelAdmin):
         )
 
     # Custom display methods
-    @display(description="Tag", ordering="name")
+    @admin.display(description="Tag", ordering="name")
     def colored_name_display(self, obj):
         """Display tag name with colored badge and icon."""
         icon_html = ""
@@ -147,7 +145,7 @@ class TagAdmin(ModelAdmin):
         html = f'{icon_html}<span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: {obj.color}; color: white; font-weight: 500; font-size: 13px;">{obj.name}</span>'
         return mark_safe(html)
 
-    @display(description="Namespace", ordering="namespace")
+    @admin.display(description="Namespace", ordering="namespace")
     def namespace_display(self, obj):
         """Display namespace with distinct styling."""
         if not obj.namespace:
@@ -157,7 +155,7 @@ class TagAdmin(ModelAdmin):
             f'font-size: 12px; font-weight: 500; color: #374151;">{obj.namespace}</span>'
         )
 
-    @display(description="Parent", ordering="parent__name")
+    @admin.display(description="Parent", ordering="parent__name")
     def parent_display(self, obj):
         """Display parent tag with link."""
         if not obj.parent:
@@ -166,12 +164,12 @@ class TagAdmin(ModelAdmin):
             f'<a href="/admin/engine/tag/{obj.parent.pk}/change/" style="color: #3B82F6; font-weight: 500;">{obj.parent.name}</a>'
         )
 
-    @display(description="Active", ordering="is_active", boolean=True)
+    @admin.display(description="Active", ordering="is_active", boolean=True)
     def is_active_display(self, obj):
         """Display active status as boolean icon."""
         return obj.is_active
 
-    @display(description="Rank", ordering="rank")
+    @admin.display(description="Rank", ordering="rank")
     def rank_display(self, obj):
         """Display rank with visual indicator."""
         if obj.rank == 0:
@@ -179,7 +177,7 @@ class TagAdmin(ModelAdmin):
         color = "#10B981" if obj.rank > 0 else "#EF4444"
         return mark_safe(f'<span style="color: {color}; font-weight: 600;">{obj.rank}</span>')
 
-    @display(description="Usage", ordering="usage_count")
+    @admin.display(description="Usage", ordering="usage_count")
     def usage_count_display(self, obj):
         """Display usage count with visual weight."""
         if obj.usage_count == 0:
@@ -196,7 +194,7 @@ class TagAdmin(ModelAdmin):
 
         return mark_safe(f'<span style="{style}">{obj.usage_count}</span>')
 
-    @display(description="Posts", ordering="_post_count")
+    @admin.display(description="Posts", ordering="_post_count")
     def post_count(self, obj):
         """Display post count with link to filtered posts."""
         count = getattr(obj, "_post_count", 0)
@@ -207,7 +205,7 @@ class TagAdmin(ModelAdmin):
             f'style="color: #3B82F6; font-weight: 500;">{count}</a>'
         )
 
-    @display(description="Aliases", ordering="_alias_count")
+    @admin.display(description="Aliases", ordering="_alias_count")
     def alias_count_display(self, obj):
         """Display alias count."""
         count = getattr(obj, "_alias_count", 0)
@@ -222,7 +220,7 @@ class TagAdmin(ModelAdmin):
             f'<span title="{alias_list}" style="color: #8B5CF6; font-weight: 500; cursor: help;">{count}</span>'
         )
 
-    @display(description="Children", ordering="_children_count")
+    @admin.display(description="Children", ordering="_children_count")
     def children_count_display(self, obj):
         """Display children count."""
         count = getattr(obj, "_children_count", 0)
@@ -231,7 +229,7 @@ class TagAdmin(ModelAdmin):
         return mark_safe(f'<span style="color: #F59E0B; font-weight: 500;">{count}</span>')
 
     # Bulk actions
-    @action(description="Activate selected tags")
+    @admin.action(description="Activate selected tags")
     def activate_tags(self, request, queryset):
         """Bulk activate tags."""
         updated = queryset.update(is_active=True)
@@ -241,7 +239,7 @@ class TagAdmin(ModelAdmin):
             level=messages.SUCCESS,
         )
 
-    @action(description="Deactivate selected tags")
+    @admin.action(description="Deactivate selected tags")
     def deactivate_tags(self, request, queryset):
         """Bulk deactivate tags."""
         updated = queryset.update(is_active=False)
@@ -251,7 +249,7 @@ class TagAdmin(ModelAdmin):
             level=messages.WARNING,
         )
 
-    @action(description="Update usage counts")
+    @admin.action(description="Update usage counts")
     def update_usage_counts(self, request, queryset):
         """Recalculate usage counts for selected tags."""
         count = 0
@@ -264,7 +262,7 @@ class TagAdmin(ModelAdmin):
             level=messages.SUCCESS,
         )
 
-    @action(description="Export selected tags to CSV")
+    @admin.action(description="Export selected tags to CSV")
     def export_tags_csv(self, request, queryset):
         """Export selected tags to CSV file."""
         response = HttpResponse(content_type="text/csv")
@@ -316,7 +314,7 @@ class TagAdmin(ModelAdmin):
 # Tag Alias Admin
 # --------------------------
 @admin.register(TagAlias)
-class TagAliasAdmin(ModelAdmin):
+class TagAliasAdmin(admin.ModelAdmin):
     list_display = (
         "alias",
         "tag_display",
@@ -330,7 +328,7 @@ class TagAliasAdmin(ModelAdmin):
     list_per_page = 50
     autocomplete_fields = ("tag",)
 
-    @display(description="Canonical Tag", ordering="tag__name")
+    @admin.display(description="Canonical Tag", ordering="tag__name")
     def tag_display(self, obj):
         """Display the canonical tag with link and color."""
         return mark_safe(
@@ -345,7 +343,7 @@ class TagAliasAdmin(ModelAdmin):
 # Category Admin
 # --------------------------
 @admin.register(Category)
-class CategoryAdmin(ModelAdmin):
+class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "slug", "parent", "post_count", "created_at", "updated_at")
     list_filter = ("parent",)
     search_fields = ("name", "description")
@@ -360,7 +358,6 @@ class CategoryAdmin(ModelAdmin):
             "Basic Information",
             {
                 "fields": (("name", "slug"), "description", "parent"),
-                "classes": ["unfold-column-2"],
             },
         ),
         (
@@ -374,7 +371,7 @@ class CategoryAdmin(ModelAdmin):
 
     readonly_fields = ("created_at", "updated_at")
 
-    @display(description="Posts", ordering="posts__count")
+    @admin.display(description="Posts", ordering="posts__count")
     def post_count(self, obj):
         count = obj.posts.count()
         if count == 0:
@@ -390,7 +387,7 @@ class CategoryAdmin(ModelAdmin):
 # Series Admin
 # --------------------------
 @admin.register(Series)
-class SeriesAdmin(ModelAdmin):
+class SeriesAdmin(admin.ModelAdmin):
     list_display = ("title", "slug", "post_count", "created_at", "updated_at")
     search_fields = ("title", "description")
     ordering = ("title",)
@@ -402,7 +399,6 @@ class SeriesAdmin(ModelAdmin):
             "Basic Information",
             {
                 "fields": (("title", "slug"), "description"),
-                "classes": ["unfold-column-2"],
             },
         ),
         (
@@ -416,7 +412,7 @@ class SeriesAdmin(ModelAdmin):
 
     readonly_fields = ("created_at", "updated_at")
 
-    @display(description="Posts", ordering="posts__count")
+    @admin.display(description="Posts", ordering="posts__count")
     def post_count(self, obj):
         count = obj.posts.count()
         if count == 0:

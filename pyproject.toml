@@ -15,7 +15,6 @@ dependencies = [
     "django-celery-results>=2.6.0",
     "django-environ>=0.12.0",
     "django-storages>=1.14.6",
-    "django-unfold>=0.67.0",
     "djlint>=1.36.4",
     "ffprobe>=0.5",
     "flower>=2.0.1",
