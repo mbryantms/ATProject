@@ -1,9 +1,49 @@
+from collections import OrderedDict
+
 from django.db.models import F
 from django.shortcuts import render
 from django.utils import timezone
-from django.views.generic import DetailView
+from django.views.generic import DetailView, TemplateView
 
 from .models import Post
+
+
+class PostArchiveView(TemplateView):
+    """
+    Landing page showing all published posts in reverse chronological order,
+    grouped by year.
+    """
+
+    template_name = "posts/post_archive.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        # Get published, public posts ordered by publication date (newest first)
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            # Staff can see all posts
+            posts = Post.all_objects.filter(is_deleted=False).order_by("-published_at")
+        else:
+            # Public visitors see only published, public posts
+            posts = (
+                Post.objects.published()
+                .public()
+                .order_by("-published_at")
+            )
+
+        # Group posts by year
+        posts_by_year = OrderedDict()
+        for post in posts:
+            if post.published_at:
+                year = post.published_at.year
+                if year not in posts_by_year:
+                    posts_by_year[year] = []
+                posts_by_year[year].append(post)
+
+        context["posts_by_year"] = posts_by_year
+        context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        return context
 
 
 def home(request):

@@ -24,7 +24,7 @@
     {# Metadata fields #}
     <div class="page-metadata-fields">
       {# Author: if published #}
-      {% if post.author %}<span class="page-author">by: {{ post.author }}</span>{% endif %}
+      {% if post.author %}<span class="page-author">by: {{ post.author.get_full_name|default:post.author.username }}</span>{% endif %}
       {# Date range: published to updated #}
       {% if post.published_at %}
         <span class="page-date-range">

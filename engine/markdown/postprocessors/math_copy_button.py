@@ -13,7 +13,7 @@ def add_math_copy_buttons(html: str, context: dict) -> str:
 
     Pandoc with --mathjax outputs display math as:
     <span class="math display">
-      \[LaTeX source\]
+      \\[LaTeX source\\]
     </span>
 
     Or sometimes with a script tag:

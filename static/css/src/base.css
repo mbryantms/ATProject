@@ -251,6 +251,7 @@ header h1 em {
   display: flex;
   flex-flow: row wrap;
   justify-content: center;
+  align-items: baseline;
 }
 
 #page-metadata .page-metadata-fields > span {
@@ -2503,6 +2504,16 @@ script {
   pointer-events: none;
 }
 
+/*  Elevate sidenote column z-index when a sidenote is hovered/highlighted
+    to ensure it appears above sticky table headers in full-width tables.
+*/
+#sidenote-column-left:has(.sidenote:hover),
+#sidenote-column-left:has(.sidenote.highlighted),
+#sidenote-column-right:has(.sidenote:hover),
+#sidenote-column-right:has(.sidenote.highlighted) {
+  z-index: 10;
+}
+
 #sidenote-column-left {
   right: calc(100% + 64px);
 }
@@ -3460,6 +3471,7 @@ th.tablesorter-header {
 
 th.tablesorter-header:hover {
   background-color: var(--AT-table-column-heading-hover-background-color);
+  background-clip: padding-box;
 }
 
 th.tablesorter-header:focus {
@@ -3806,6 +3818,7 @@ a[data-link-icon-color]:hover {
   vertical-align: middle;
 }
 
+#page-metadata .page-metadata-fields .page-confidence svg,
 #page-metadata .page-metadata-fields .page-importance svg {
   vertical-align: middle;
   margin-left: 0.15em;
