@@ -2,17 +2,9 @@
 # Railpack is Railway's default builder (auto-detects Python/Django)
 builder = "RAILPACK"
 
-[deploy]
-# Run migrations before each deployment
-preDeployCommand = "python manage.py migrate --noinput"
-
-# Start command (Railpack auto-detects gunicorn for Django, but we customize workers)
-startCommand = "gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100"
-
-# Health check endpoint
-healthcheckPath = "/health/"
-healthcheckTimeout = 300
-
-# Restart on failure with limited retries
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+# Note: Deploy settings (startCommand, healthcheck, etc.) are configured
+# per-service in Railway dashboard to allow different commands for:
+# - Web pre-deploy: python manage.py migrate --noinput
+# - Web: gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
+# - Worker: celery -A ATProject worker --loglevel=info --concurrency=2
+# - Beat: celery -A ATProject beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
