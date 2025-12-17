@@ -1,12 +1,11 @@
 # Process types for Railway multi-service deployment
-# Create separate Railway services and set the start command to the process type
-# e.g., for worker service, set start command to: celery -A ATProject worker...
+# Create separate Railway services and override the start command per service
 
-# Web server (default - also configured in railway.toml)
+# Web server (configured in railway.toml startCommand)
 web: gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100
 
-# Celery worker - deploy as separate Railway service
+# Celery worker - create separate Railway service with this start command
 worker: celery -A ATProject worker --loglevel=info --concurrency=2
 
-# Celery beat scheduler - deploy as separate Railway service
+# Celery beat scheduler - create separate Railway service with this start command
 beat: celery -A ATProject beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler

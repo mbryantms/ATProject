@@ -1,13 +1,12 @@
 [build]
-# Nixpacks builder (Railpack is newer but Nixpacks is stable for Python)
-builder = "NIXPACKS"
-nixpacksConfigPath = "nixpacks.toml"
+# Railpack is Railway's default builder (auto-detects Python/Django)
+builder = "RAILPACK"
 
 [deploy]
 # Run migrations before each deployment
 preDeployCommand = "python manage.py migrate --noinput"
 
-# Start command for web service (can be overridden per-service in Railway dashboard)
+# Start command (Railpack auto-detects gunicorn for Django, but we customize workers)
 startCommand = "gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100"
 
 # Health check endpoint

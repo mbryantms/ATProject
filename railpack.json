@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "buildAptPackages": [
+    "ffmpeg",
+    "pandoc",
+    "libjpeg-dev",
+    "zlib1g-dev",
+    "libfreetype6-dev",
+    "liblcms2-dev",
+    "libopenjp2-7-dev",
+    "libtiff5-dev",
+    "libwebp-dev"
+  ],
+  "deploy": {
+    "aptPackages": [
+      "ffmpeg",
+      "pandoc",
+      "libjpeg62-turbo",
+      "zlib1g",
+      "libfreetype6",
+      "liblcms2-2",
+      "libopenjp2-7",
+      "libtiff6",
+      "libwebp7"
+    ]
+  }
+}
