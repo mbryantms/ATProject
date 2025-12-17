@@ -170,9 +170,14 @@ WSGI_APPLICATION = "ATProject.wsgi.application"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # PostgreSQL Database Configuration
-# You can override these with environment variables for different environments
-# Supports both DATABASE_URL (Railway/Neon) and individual env vars
-DATABASES = {"default": env.db()}
+# Requires DATABASE_URL environment variable (Railway/Neon format)
+# Example: postgresql://user:password@host:5432/dbname?sslmode=require
+if not env("DATABASE_URL", default=None):
+    raise environ.ImproperlyConfigured(
+        "DATABASE_URL environment variable is required. "
+        "Set it in Railway dashboard or .env file."
+    )
+DATABASES = {"default": env.db("DATABASE_URL")}
 
 # ---- Recommended tweaks ----
 db = DATABASES["default"]
