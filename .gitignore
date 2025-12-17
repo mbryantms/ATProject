@@ -302,6 +302,8 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
+!static/css/dist/
+!static/js/dist/
 .output
 
 # Gatsby files
