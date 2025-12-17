@@ -79,6 +79,9 @@ RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default=None)
 if RAILWAY_PUBLIC_DOMAIN:
     ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
 
+# Railway health checks use this host
+ALLOWED_HOSTS.append("healthcheck.railway.app")
+
 # CSRF trusted origins for Railway and custom domains
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 if RAILWAY_PUBLIC_DOMAIN:
