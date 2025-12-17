@@ -2,6 +2,8 @@
   "$schema": "https://schema.railpack.com",
   "buildAptPackages": [
     "ffmpeg",
+    "nodejs",
+    "npm",
     "libjpeg-dev",
     "zlib1g-dev",
     "libfreetype6-dev",
@@ -10,6 +12,14 @@
     "libtiff5-dev",
     "libwebp-dev"
   ],
+  "steps": {
+    "npm-build": {
+      "commands": [
+        { "cmd": "npm install" },
+        { "cmd": "npm run build" }
+      ]
+    }
+  },
   "deploy": {
     "aptPackages": [
       "ffmpeg",
