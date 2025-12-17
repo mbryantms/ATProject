@@ -1,11 +1,43 @@
-FROM python:3.13-slim
+# ==============================================================================
+# Stage 1: Builder
+#
+# This stage installs all Python dependencies into a virtual environment.
+# It's kept separate to leverage Docker caching and keep the final image small.
+# ==============================================================================
+FROM python:3.13-slim as builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies for Pillow, SQLite, and other libraries
-RUN apt-get update && apt-get install -y \
-    gcc \
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -s /bin/bash appuser
+RUN mkdir -p /home/appuser && chown -R appuser:appuser /home/appuser /app
+
+# Install uv for fast dependency management
+RUN pip install uv
+
+# Copy dependency files
+COPY --chown=appuser:appuser pyproject.toml uv.lock* ./
+
+# Install dependencies into a virtual environment
+# This is owned by the appuser to avoid permission issues
+USER appuser
+RUN uv venv
+RUN . .venv/bin/activate && uv pip install --no-cache -r pyproject.toml
+
+# ==============================================================================
+# Stage 2: Final Image
+#
+# This stage copies the pre-built virtual environment and application code
+# into a clean image, resulting in a smaller and more secure final artifact.
+# ==============================================================================
+FROM python:3.13-slim
+
+# Create the same non-root user as in the builder stage
+RUN groupadd -r appuser && useradd -r -g appuser -d /home/appuser -s /bin/bash appuser
+RUN mkdir -p /home/appuser && chown -R appuser:appuser /home/appuser
+
+# Install system dependencies required at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-dev \
     zlib1g-dev \
     libfreetype6-dev \
@@ -17,52 +49,27 @@ RUN apt-get update && apt-get install -y \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml uv.lock* ./
+# Set working directory
+WORKDIR /app
+RUN chown appuser:appuser /app
 
-# Install uv for fast dependency management
-RUN pip install uv
+# Copy the virtual environment from the builder stage
+COPY --from=builder --chown=appuser:appuser /app/.venv ./.venv
 
-# Install Python dependencies
-RUN uv pip install --system -r pyproject.toml
-
-# Copy application code
-COPY . .
-
-# Set Python path
-ENV PYTHONPATH=/app
+# Set path to use the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Create entrypoint script to handle permissions and verify database
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-echo "=== Celery Worker Starting ==="\n\
-echo "Working directory: $(pwd)"\n\
-echo "Database file check:"\n\
-if [ -f "/app/db.sqlite3" ]; then\n\
-    echo "✓ Database file exists at /app/db.sqlite3"\n\
-    ls -lh /app/db.sqlite3\n\
-    # Set permissions\n\
-    chmod 666 /app/db.sqlite3 2>/dev/null || echo "⚠ Could not change db.sqlite3 permissions"\n\
-    chmod 666 /app/db.sqlite3-wal 2>/dev/null || echo "ℹ No WAL file yet"\n\
-    chmod 666 /app/db.sqlite3-shm 2>/dev/null || echo "ℹ No SHM file yet"\n\
-else\n\
-    echo "✗ Database file NOT found at /app/db.sqlite3"\n\
-    echo "Available files in /app:"\n\
-    ls -la /app/ | head -20\n\
-    echo ""\n\
-    echo "ERROR: Database not found. Please ensure:"\n\
-    echo "  1. You have run migrations on the host"\n\
-    echo "  2. The volume mount is correct in docker-compose.yml"\n\
-    echo "  3. The database file exists on the host"\n\
-    exit 1\n\
-fi\n\
-\n\
-echo "=== Starting Celery ==="\n\
-exec "$@"\n' > /entrypoint.sh && chmod +x /entrypoint.sh
+# Copy the entrypoint script
+COPY --chown=appuser:appuser docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
+# Switch to the non-root user
+USER appuser
+
+# Copy application code as the non-root user
+COPY --chown=appuser:appuser . .
+
+# Set entrypoint and default command
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Default command (can be overridden in docker-compose)
-CMD ["celery", "-A", "celery_app", "worker", "-l", "info", "--pool=solo"]
+CMD ["celery", "-A", "ATProject.celery", "worker", "-l", "info", "--pool=solo"]

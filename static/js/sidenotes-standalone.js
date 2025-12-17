@@ -69,8 +69,25 @@
 		/* Utilities.
 		 */
 
-		log: (message, level = 1) => {
-			if (console && level <= 1) {
+		/**
+		 * Log messages with level filtering.
+		 * Levels: 0 = error, 1 = warn, 2+ = debug (development only)
+		 * Production shows levels 0-1 only. Set DEBUG = true for development logging.
+		 */
+		DEBUG: false, // DEV: Set to true for development logging
+
+		log: (message, level = 2) => {
+			if (!console) return;
+
+			const maxLevel = SidenotesStandalone.DEBUG ? 99 : 1;
+			if (level > maxLevel) return;
+
+			if (level === 0) {
+				console.error(`[Sidenotes] ${message}`);
+			} else if (level === 1) {
+				console.warn(`[Sidenotes] ${message}`);
+			} else {
+				// DEV: Debug logging (only when DEBUG = true)
 				console.log(`[Sidenotes] ${message}`);
 			}
 		},
@@ -186,7 +203,7 @@
 		},
 
 		updateSidenotePositions: () => {
-			SidenotesStandalone.log("updateSidenotePositions");
+			SidenotesStandalone.log("updateSidenotePositions", 2); // DEV: Debug - called frequently
 
 			const config = SidenotesStandalone.config;
 
@@ -313,7 +330,7 @@
 				);
 
 				if (fittingLayoutCells.length == 0) {
-					SidenotesStandalone.log("Too many sidenotes - cannot fit all");
+					SidenotesStandalone.log("Too many sidenotes - cannot fit all", 1); // PROD: Warning
 					SidenotesStandalone.sidenotes.forEach(sn => sn.remove());
 					return;
 				}
@@ -524,7 +541,7 @@
 		 */
 
 		deconstructSidenotes: () => {
-			SidenotesStandalone.log("deconstructSidenotes");
+			SidenotesStandalone.log("deconstructSidenotes", 2); // DEV: Debug - lifecycle
 
 			SidenotesStandalone.sidenotes = null;
 			SidenotesStandalone.citations = null;
@@ -541,13 +558,13 @@
 		},
 
 		constructSidenotes: () => {
-			SidenotesStandalone.log("constructSidenotes");
+			SidenotesStandalone.log("constructSidenotes", 2); // DEV: Debug - lifecycle
 
 			const config = SidenotesStandalone.config;
 			const container = document.querySelector(config.containerSelector);
 
 			if (!container) {
-				SidenotesStandalone.log("Container not found: " + config.containerSelector);
+				SidenotesStandalone.log("Container not found: " + config.containerSelector, 0); // PROD: Error
 				return;
 			}
 
@@ -600,7 +617,7 @@
 				const footnote = document.getElementById(footnoteId);
 
 				if (!footnote) {
-					SidenotesStandalone.log(`Footnote ${footnoteId} not found for citation`);
+					SidenotesStandalone.log(`Footnote ${footnoteId} not found for citation`, 1); // PROD: Warning
 					return;
 				}
 
@@ -745,7 +762,7 @@
 		},
 
 		setup: () => {
-			SidenotesStandalone.log("setup");
+			SidenotesStandalone.log("setup", 2); // DEV: Debug - lifecycle
 
 			const config = SidenotesStandalone.config;
 
@@ -802,7 +819,7 @@
 				}, 150);
 			}, {passive: true});
 
-			SidenotesStandalone.log("setup complete");
+			SidenotesStandalone.log("setup complete", 2); // DEV: Debug - lifecycle
 		},
 
 		init: (customConfig = {}) => {

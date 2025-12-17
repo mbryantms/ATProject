@@ -10,7 +10,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.template.defaultfilters import slugify
 
@@ -511,25 +511,10 @@ class Asset(TimeStampedModel, SoftDeleteModel):
 
         # Trigger async metadata extraction for new assets
         if is_new and self.file:
-            metadata_enqueued = False
-            try:
-                from engine.tasks import extract_metadata_async
+            from engine.tasks import extract_metadata_async
 
-                try:
-                    extract_metadata_async.delay(self.pk)
-                    metadata_enqueued = True
-                except Exception as exc:
-                    print(f"Celery unavailable for metadata extraction, running sync: {exc}")
-            except ImportError:
-                pass
-
-            if not metadata_enqueued:
-                try:
-                    from engine.metadata_extractor import extract_all_metadata
-
-                    extract_all_metadata(self)
-                except Exception as exc:
-                    print(f"Error extracting metadata synchronously for {self.pk}: {exc}")
+            # Always queue the task asynchronously. Let Celery handle broker errors.
+            transaction.on_commit(lambda: extract_metadata_async.delay(self.pk))
 
     def detect_asset_type(self):
         """Detect asset type from file extension."""

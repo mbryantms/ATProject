@@ -35,6 +35,9 @@ from .post import (
     PostQuerySet,
 )
 
+# Page model
+from .page import Page, PageFeaturedTag
+
 # Asset models
 from .asset import (
     Asset,
@@ -70,6 +73,9 @@ __all__ = [
     "PostQuerySet",
     "PostManager",
     "InternalLink",
+    # Page
+    "Page",
+    "PageFeaturedTag",
     # Asset
     "Asset",
     "AssetQuerySet",

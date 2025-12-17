@@ -47,12 +47,30 @@ class AssetFolder(TimeStampedModel):
         return self.path
 
     def save(self, *args, **kwargs):
-        """Auto-compute path on save."""
+        """Auto-compute path and recursively update children on save."""
+        is_new = self.pk is None
+        old_path = None
+        if not is_new:
+            try:
+                original = AssetFolder.objects.get(pk=self.pk)
+                old_path = original.path
+            except AssetFolder.DoesNotExist:
+                is_new = True
+
+        # Generate the new path
         if self.parent:
             self.path = f"{self.parent.path}/{self.name}"
         else:
             self.path = self.name
+
         super().save(*args, **kwargs)
+
+        # After saving, if the path has changed, update all children.
+        if old_path is not None and old_path != self.path:
+            # The .children related_name gives us direct children.
+            # Calling save() on them will trigger this same logic recursively.
+            for child in self.children.all():
+                child.save()  # This recursive call will update the child's path
 
 
 class AssetTag(models.Model):

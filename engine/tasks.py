@@ -216,6 +216,100 @@ def bulk_generate_renditions(asset_ids, widths=None, formats=None):
     return results
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=5,
+    retry_kwargs={"max_retries": 3},
+)
+def update_post_derived_content(self, post_id: int):
+    """
+    Renders markdown and extracts TOC for a Post asynchronously.
+
+    This is called after a Post is saved to offload slow processing.
+    Also updates the search vector for full-text search.
+    """
+    from django.contrib.postgres.search import SearchVector
+
+    from .markdown.extensions.toc_extractor import extract_toc_from_html
+    from .markdown.renderer import render_markdown
+    from .models import Post
+
+    try:
+        post = Post.objects.get(pk=post_id)
+    except Post.DoesNotExist:
+        return {"success": False, "error": f"Post {post_id} not found."}
+
+    try:
+        html = render_markdown(post.content_markdown or "")
+        toc = extract_toc_from_html(html)
+
+        # Build search vector with weighted fields:
+        # A = highest weight (title)
+        # B = high weight (subtitle, description)
+        # C = medium weight (abstract)
+        # D = lowest weight (content)
+        search_vector = (
+            SearchVector("title", weight="A", config="english")
+            + SearchVector("subtitle", weight="B", config="english")
+            + SearchVector("description", weight="B", config="english")
+            + SearchVector("abstract", weight="C", config="english")
+            + SearchVector("content_markdown", weight="D", config="english")
+        )
+
+        # Update fields directly to avoid re-triggering save() signals
+        Post.objects.filter(pk=post_id).update(
+            table_of_contents=toc,
+            search_vector=search_vector,
+        )
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "message": "TOC and search vector updated successfully.",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "post_id": post_id,
+            "error": str(e),
+        }
+
+
+@shared_task
+def rebuild_search_vectors():
+    """
+    Rebuild search vectors for all posts.
+
+    Useful after migrations or bulk imports. Run via:
+        python manage.py shell -c "from engine.tasks import rebuild_search_vectors; rebuild_search_vectors.delay()"
+
+    Returns:
+        Dict with rebuild results
+    """
+    from django.contrib.postgres.search import SearchVector
+
+    from .models import Post
+
+    # Build search vector with weighted fields
+    search_vector = (
+        SearchVector("title", weight="A", config="english")
+        + SearchVector("subtitle", weight="B", config="english")
+        + SearchVector("description", weight="B", config="english")
+        + SearchVector("abstract", weight="C", config="english")
+        + SearchVector("content_markdown", weight="D", config="english")
+    )
+
+    # Update all posts
+    updated = Post.all_objects.update(search_vector=search_vector)
+
+    return {
+        "success": True,
+        "posts_updated": updated,
+        "message": f"Rebuilt search vectors for {updated} posts.",
+    }
+
+
 # Helper functions
 
 

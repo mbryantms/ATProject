@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load tooltip_tags %}
+
+{% block title %}{{ tag.name }} - Tag Archive - Architextual{% endblock %}
+
+{% block page_title %}{{ tag.name }}{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  {# Tag metadata section - matching post detail page structure #}
+  <div class="markdownBody" id="page-metadata">
+    {# Hierarchy breadcrumb - displayed like tags on post detail #}
+    {% if ancestors %}
+      <div class="link-tags">
+        <p>
+          {% for ancestor in ancestors reversed %}
+            <a href="{% url 'tag-archive' slug=ancestor.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               rel="tag"
+               title="View posts tagged '{{ ancestor.name }}'">{{ ancestor.name }}</a>
+            <span class="breadcrumb-separator">&gt;</span>
+          {% endfor %}
+          <span class="tag-current">{{ tag.name }}</span>
+        </p>
+      </div>
+    {% endif %}
+
+    {# Tag description #}
+    {% if tag.description %}
+      <div class="page-description">
+        <p>{{ tag.description }}</p>
+      </div>
+    {% endif %}
+
+    {# Tag aliases - show alternative names for this tag #}
+    {% if aliases %}
+      <div class="tag-aliases">
+        <p>
+          <span class="tag-aliases-label">Also known as:</span>
+          {% for alias in aliases %}{{ alias.alias }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </p>
+      </div>
+    {% endif %}
+
+    {# Metadata fields row #}
+    <div class="page-metadata-fields">
+      {# Post count #}
+      <span class="page-post-count">
+        {% tooltip position="top" theme="dark" %}
+        <span>{{ total_posts }} post{{ total_posts|pluralize }}</span>
+        {% tooltip_content %}
+        {{ total_posts }} post{{ total_posts|pluralize }} tagged with "{{ tag.name }}".
+        {% endtooltip %}
+      </span>
+
+      {# Namespace if present #}
+      {% if tag.namespace %}
+        <span class="page-namespace">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ tag.namespace }}</span>
+          {% tooltip_content %}
+          This tag belongs to the "{{ tag.namespace }}" namespace.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+
+      {# Child tags count #}
+      {% if children %}
+        <span class="page-subtags">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ children|length }} subtag{{ children|length|pluralize }}</span>
+          {% tooltip_content %}
+          This tag has {{ children|length }} subtag{{ children|length|pluralize }}.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+
+      {# Sibling tags count #}
+      {% if siblings %}
+        <span class="page-related">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ siblings|length }} related</span>
+          {% tooltip_content %}
+          {{ siblings|length }} related tag{{ siblings|length|pluralize }} at the same level.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+    </div>
+
+    {# Subtags list #}
+    {% if children %}
+      <div class="link-tags tag-subtags">
+        <p>
+          <span class="tag-nav-label">Subtags:</span>
+          {% for child in children %}
+            <a href="{% url 'tag-archive' slug=child.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               rel="tag"
+               title="View posts tagged '{{ child.name }}'">{{ child.name }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
+
+    {# Related/sibling tags list #}
+    {% if siblings %}
+      <div class="link-tags tag-related">
+        <p>
+          <span class="tag-nav-label">Related:</span>
+          {% for sibling in siblings %}
+            <a href="{% url 'tag-archive' slug=sibling.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               rel="tag"
+               title="View posts tagged '{{ sibling.name }}'">{{ sibling.name }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Posts grouped by year #}
+  {% if posts_by_year %}
+    {% for year, posts in posts_by_year.items %}
+    <section class="archive-year">
+      <h2>{{ year }}</h2>
+      <ul class="archive-list list list-level-1 block">
+        {% for post in posts %}
+        <li class="in-list">
+          <span class="archive-date">{{ post.published_at|date:"m-d" }}:</span>
+          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  {% else %}
+    <p>No posts with this tag yet.</p>
+  {% endif %}
+</div>
+{% endblock content %}

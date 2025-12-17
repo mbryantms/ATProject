@@ -23,18 +23,21 @@ from math import gcd
 
 from bs4 import BeautifulSoup, NavigableString
 
+from .utils import get_shared_soup, soup_to_html
+
 
 def enhance_video_assets(html: str, context: dict) -> str:
     """
     Enhance video assets with HTML5 video player and responsive features.
 
     Creates structure matching asset_image_enhancer for consistency.
+    Uses shared soup caching for efficiency.
     """
     # Lazy import to avoid circular import
-    from engine.models import Asset
     from engine.markdown.renderer import render_markdown
+    from engine.models import Asset
 
-    soup = BeautifulSoup(html, "html.parser")
+    soup = get_shared_soup(html, context)
 
     # Find all images AND videos with asset metadata
     # Pandoc may create <video> tags directly for .mov, .mp4, etc. extensions
@@ -393,7 +396,7 @@ def enhance_video_assets(html: str, context: dict) -> str:
                 # Insert where element was
                 element_parent.insert(element_index, figure)
 
-    return str(soup)
+    return soup_to_html(context, soup)
 
 
 def asset_video_enhancer_default(html: str, context: dict) -> str:

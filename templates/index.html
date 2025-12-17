@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Architextual{% endblock %}
+
+{% block page_title %}Architextual{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  {% if intro_html %}
+  <section class="index-intro">
+    {{ intro_html|safe }}
+  </section>
+  {% endif %}
+
+  <hr class="index-divider">
+
+  <section class="index-sections">
+    <div class="index-column">
+      <h2><a href="{% url 'post-archive' %}">Newest</a></h2>
+      {% if newest_posts %}
+      <ul class="index-post-list list list-level-1 block">
+        {% for post in newest_posts %}
+        <li class="in-list">
+          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+          {% if post.published_at %}
+          <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>No posts yet.</p>
+      {% endif %}
+    </div>
+
+    {% for section in tag_sections %}
+    <div class="index-column">
+      <h2><a href="{% url 'tag-archive' section.tag.slug %}">{{ section.title }}</a></h2>
+      {% if section.posts %}
+      <ul class="index-post-list list list-level-1 block">
+        {% for post in section.posts %}
+        <li class="in-list">
+          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+          {% if post.published_at %}
+          <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>No posts yet.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock content %}

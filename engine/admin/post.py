@@ -810,11 +810,17 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 # --------------------------
 @admin.register(InternalLink)
 class InternalLinkAdmin(admin.ModelAdmin):
-    """Admin for internal links between posts."""
+    """
+    Read-only admin for viewing internal links between posts.
+
+    These links are automatically generated when posts are saved by parsing
+    markdown content. Manual creation/editing is disabled since these must
+    stay in sync with actual post content.
+    """
 
     list_display = (
         "link_display",
-        "link_text_preview",
+        "link_count",
         "link_type_badge",
         "created_at",
     )
@@ -827,10 +833,17 @@ class InternalLinkAdmin(admin.ModelAdmin):
         "source_post__slug",
         "target_post__title",
         "target_post__slug",
-        "link_text",
     )
     list_select_related = ("source_post", "target_post")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = (
+        "source_post",
+        "target_post",
+        "link_count",
+        "created_at",
+        "updated_at",
+        "is_deleted",
+        "deleted_at",
+    )
     list_per_page = 100
 
     fieldsets = (
@@ -841,7 +854,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
                     ("source_post", "target_post"),
                     "link_count",
                 ),
-                "classes": [],
+                "description": "Auto-generated from post content. Links are created when a post references another post's slug.",
             },
         ),
         (
@@ -860,6 +873,14 @@ class InternalLinkAdmin(admin.ModelAdmin):
         ),
     )
 
+    def has_add_permission(self, request):
+        """Disable manual creation - links are auto-generated from post content."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Disable editing - links must stay in sync with post content."""
+        return False
+
     @admin.display(description="Link", ordering="source_post__title")
     def link_display(self, obj):
         """Display the link relationship."""
@@ -873,16 +894,6 @@ class InternalLinkAdmin(admin.ModelAdmin):
             obj.source_post.title[:40],
             obj.target_post.pk,
             obj.target_post.title[:40],
-        )
-
-    @admin.display(description="Link Text")
-    def link_text_preview(self, obj):
-        """Display truncated link text."""
-        if not obj.link_text:
-            return format_html('<span style="color: #999;">—</span>')
-        text = obj.link_text[:60] + "..." if len(obj.link_text) > 60 else obj.link_text
-        return format_html(
-            '<span style="font-size: 11px; color: #666;">"<em>{}</em>"</span>', text
         )
 
     @admin.display(description="Type")

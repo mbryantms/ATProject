@@ -7,7 +7,7 @@
     "build:css": "postcss static/css/src/*.css --dir static/css/dist/",
     "build:js": "npm-run-all --parallel build:js:*",
     "build:js:standalone": "esbuild static/js/image-focus.js static/js/sidenotes-standalone.js static/js/marginnotes-standalone.js static/js/fullwidth-standalone.js static/js/tablesorter-standalone.js --bundle --minify --target=es2017 --outdir=static/js/dist --legal-comments=none",
-    "build:js:main": "esbuild static/js/tooltip.js --bundle --minify --target=es2017 --outfile=static/js/dist/main.js --legal-comments=none",
+    "build:js:main": "esbuild static/js/main-entry.js --bundle --minify --target=es2017 --outfile=static/js/dist/main.js --legal-comments=none",
     "build:js:math": "esbuild static/js/math-copy.js --bundle --minify --target=es2017 --outfile=static/js/dist/math-copy.js --legal-comments=none",
     "dev": "npm-run-all --parallel watch:css watch:js:*",
     "watch:css": "postcss static/css/src/*.css --dir static/css/dist/ --watch",

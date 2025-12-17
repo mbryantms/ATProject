@@ -31,6 +31,7 @@ from .asset import (
     AssetTagAdmin,
 )
 from .mixins import SoftDeleteAdminMixin
+from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin
 from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
 
@@ -46,6 +47,8 @@ __all__ = [
     # Post
     "PostAdmin",
     "InternalLinkAdmin",
+    # Page
+    "PageAdmin",
     # Asset
     "AssetAdmin",
     "AssetMetadataAdmin",

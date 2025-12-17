@@ -72,9 +72,47 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 
-ADMINS = env.list("ADMINS")
+# Railway provides RAILWAY_PUBLIC_DOMAIN for the app's domain
+RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default=None)
+if RAILWAY_PUBLIC_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+# CSRF trusted origins for Railway and custom domains
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if RAILWAY_PUBLIC_DOMAIN:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RAILWAY_PUBLIC_DOMAIN}")
+
+ADMINS = env.list("ADMINS", default=[])
+
+# ==============================================================================
+# SECURITY SETTINGS (PRODUCTION)
+# ==============================================================================
+
+if not DEBUG:
+    # --- SSL / HTTPS ---
+    SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
+    SESSION_COOKIE_SECURE = env.bool("DJANGO_SESSION_COOKIE_SECURE", default=True)
+    CSRF_COOKIE_SECURE = env.bool("DJANGO_CSRF_COOKIE_SECURE", default=True)
+
+    # --- HSTS (HTTP Strict Transport Security) ---
+    # Manually enable this after confirming your site works perfectly over HTTPS.
+    # Start with a small value (e.g., 3600) and gradually increase.
+    SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=0)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
+        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
+    )
+    SECURE_HSTS_PRELOAD = env.bool("DJANGO_SECURE_HSTS_PRELOAD", default=True)
+
+    # --- Other Security Headers ---
+    # Modern browsers have deprecated XSS protection in favor of strong Content
+    # Security Policy (CSP), which should be configured separately.
+    # SECURE_BROWSER_XSS_FILTER is True by default in Django 5 but will be removed.
+    SECURE_CONTENT_TYPE_NOSNIFF = env.bool(
+        "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", default=True
+    )
+
 
 # Application definition
 
@@ -133,12 +171,14 @@ WSGI_APPLICATION = "ATProject.wsgi.application"
 
 # PostgreSQL Database Configuration
 # You can override these with environment variables for different environments
+# Supports both DATABASE_URL (Railway/Neon) and individual env vars
 DATABASES = {"default": env.db()}
 
 # ---- Recommended tweaks ----
 db = DATABASES["default"]
 
 # 1) Connection reuse & health
+# For Neon serverless: use shorter CONN_MAX_AGE (0-60s) as connections may be recycled
 db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # e.g. 60s in prod, 0 in dev/tests
 db["CONN_HEALTH_CHECKS"] = env.bool(
     "DB_HEALTH_CHECKS"
@@ -147,7 +187,11 @@ db["CONN_HEALTH_CHECKS"] = env.bool(
 # 2) Safety/ergonomics per request
 db["ATOMIC_REQUESTS"] = env.bool("DB_USE_ATOMIC_REQUESTS")  # see notes below
 
-# 3) Driver / libpq options
+# 3) Neon serverless / PgBouncer compatibility
+# When using Neon's pooled connection endpoint (-pooler), disable server-side cursors
+db["DISABLE_SERVER_SIDE_CURSORS"] = env.bool("DB_DISABLE_SERVER_SIDE_CURSORS")
+
+# 4) Driver / libpq options
 db.setdefault("OPTIONS", {})
 db["OPTIONS"].update(
     {
@@ -158,6 +202,12 @@ db["OPTIONS"].update(
         "target_session_attrs": env.str("DB_TARGET_SESSION_ATTRS"),
     }
 )
+
+# 5) Neon-specific: Add endpoint ID for SNI routing if provided
+# This is required for Neon's pooled connections
+NEON_ENDPOINT_ID = env("NEON_ENDPOINT_ID", default=None)
+if NEON_ENDPOINT_ID:
+    db["OPTIONS"]["options"] = f"-c endpoint={NEON_ENDPOINT_ID}"
 
 
 # Password validation

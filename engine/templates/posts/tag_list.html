@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Tags - Architextual{% endblock %}
+
+{% block page_title %}Tags{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  {# Page header with stats #}
+  <div id="page-metadata">
+    <div class="page-metadata-fields">
+      <span class="page-tag-count">{{ total_tags }} tag{{ total_tags|pluralize }}</span>
+      <span class="page-post-count">{{ total_posts }} post{{ total_posts|pluralize }}</span>
+    </div>
+
+    {# Display controls #}
+    <div class="tag-list-controls">
+      {# Sort options #}
+      <span class="control-group">
+        <span class="control-label">Sort:</span>
+        <a href="?sort=name{% if current_group %}&group={{ current_group }}{% endif %}{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
+           class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
+        <a href="?sort=count{% if current_group %}&group={{ current_group }}{% endif %}{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
+           class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
+        <a href="?sort=rank{% if current_group %}&group={{ current_group }}{% endif %}{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
+           class="control-option{% if current_sort == 'rank' %} active{% endif %}">Rank</a>
+      </span>
+
+      {# Group options #}
+      <span class="control-group">
+        <span class="control-label">Group:</span>
+        <a href="?sort={{ current_sort }}{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
+           class="control-option{% if not current_group %} active{% endif %}">None</a>
+        <a href="?sort={{ current_sort }}&group=namespace{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
+           class="control-option{% if current_group == 'namespace' %} active{% endif %}">Namespace</a>
+      </span>
+
+      {# Show options - toggle each independently #}
+      <span class="control-group">
+        <span class="control-label">Show:</span>
+        {% if show_description %}
+        <a href="{{ base_url }}&show={% for opt in current_show %}{% if opt != 'description' %}{{ opt }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}"
+           class="control-option active">Description</a>
+        {% else %}
+        <a href="{{ base_url }}&show=description{% if current_show %},{{ current_show|join:',' }}{% endif %}"
+           class="control-option">Description</a>
+        {% endif %}
+        {% if show_color %}
+        <a href="{{ base_url }}&show={% for opt in current_show %}{% if opt != 'color' %}{{ opt }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}"
+           class="control-option active">Color</a>
+        {% else %}
+        <a href="{{ base_url }}&show=color{% if current_show %},{{ current_show|join:',' }}{% endif %}"
+           class="control-option">Color</a>
+        {% endif %}
+        {% if show_icon %}
+        <a href="{{ base_url }}&show={% for opt in current_show %}{% if opt != 'icon' %}{{ opt }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}"
+           class="control-option active">Icon</a>
+        {% else %}
+        <a href="{{ base_url }}&show=icon{% if current_show %},{{ current_show|join:',' }}{% endif %}"
+           class="control-option">Icon</a>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  {# Tag listing #}
+  {% if grouped %}
+    {# Grouped by namespace #}
+    {% for namespace, namespace_tags in tags_by_namespace.items %}
+    <section class="tag-list-section">
+      <h2>{% if namespace %}{{ namespace }}{% else %}General{% endif %}</h2>
+      <ul class="tag-list list list-level-1 block">
+        {% for tag in namespace_tags %}
+        <li class="in-list tag-list-item{% if show_any_extra %} tag-list-item-expanded{% endif %}">
+          <div class="tag-list-main">
+            {% if show_color and tag.color %}
+            <span class="tag-color-dot" style="background-color: {{ tag.color }};"></span>
+            {% endif %}
+            {% if show_icon and tag.icon %}
+            <span class="tag-icon">{{ tag.icon }}</span>
+            {% endif %}
+            <a href="{% url 'tag-archive' slug=tag.slug %}" class="tag-name">{{ tag.name }}</a>
+            <span class="tag-count">({{ tag.post_count }})</span>
+            {% if show_hierarchy and tag.parent %}
+            <span class="tag-parent">
+              &larr; <a href="{% url 'tag-archive' slug=tag.parent.slug %}">{{ tag.parent.name }}</a>
+            </span>
+            {% endif %}
+          </div>
+          {% if show_description and tag.description %}
+          <div class="tag-description">{{ tag.description }}</div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% empty %}
+    <p>No tags found.</p>
+    {% endfor %}
+  {% else %}
+    {# Flat list #}
+    {% if tags %}
+    <ul class="tag-list list list-level-1 block">
+      {% for tag in tags %}
+      <li class="in-list tag-list-item{% if show_any_extra %} tag-list-item-expanded{% endif %}">
+        <div class="tag-list-main">
+          {% if show_color and tag.color %}
+          <span class="tag-color-dot" style="background-color: {{ tag.color }};"></span>
+          {% endif %}
+          {% if show_icon and tag.icon %}
+          <span class="tag-icon">{{ tag.icon }}</span>
+          {% endif %}
+          {% if show_namespace and tag.namespace %}
+          <span class="tag-namespace">{{ tag.namespace }}:</span>
+          {% endif %}
+          <a href="{% url 'tag-archive' slug=tag.slug %}" class="tag-name">{{ tag.name }}</a>
+          <span class="tag-count">({{ tag.post_count }})</span>
+          {% if show_hierarchy and tag.parent %}
+          <span class="tag-parent">
+            &larr; <a href="{% url 'tag-archive' slug=tag.parent.slug %}">{{ tag.parent.name }}</a>
+          </span>
+          {% endif %}
+        </div>
+        {% if show_description and tag.description %}
+        <div class="tag-description">{{ tag.description }}</div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No tags found.</p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock content %}

@@ -7,10 +7,10 @@ Includes Tag (with hierarchical support and aliases), Category, and Series model
 import re
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, connection
 from django.template.defaultfilters import slugify
 
-from .base import TimeStampedModel
+from .base import TimeStampedModel, UniqueSlugMixin
 
 
 class TagQuerySet(models.QuerySet):
@@ -64,7 +64,7 @@ class TagManager(models.Manager):
             return tag, True
 
 
-class Tag(TimeStampedModel):
+class Tag(TimeStampedModel, UniqueSlugMixin):
     """
     Hierarchical tagging system with namespaces, aliases, and rich metadata.
 
@@ -238,15 +238,6 @@ class Tag(TimeStampedModel):
 
         super().save(*args, **kwargs)
 
-    def _unique_slug(self, base: str) -> str:
-        """Generate unique slug."""
-        slug = base
-        i = 2
-        while Tag.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base}-{i}"
-            i += 1
-        return slug
-
     def clean(self):
         """Validate tag data."""
         super().clean()
@@ -271,36 +262,58 @@ class Tag(TimeStampedModel):
 
     def get_descendants(self, include_self=False):
         """
-        Get all descendant tags recursively.
-        Returns queryset of all children, grandchildren, etc.
+        Get all descendant tags using a recursive CTE for efficiency.
+        Returns a queryset of all children, grandchildren, etc.
         """
-        descendants = []
-        if include_self:
-            descendants.append(self.pk)
+        query = """
+            WITH RECURSIVE "descendants" (id, level) AS (
+                SELECT id, 0 as level FROM engine_tag WHERE id = %s
+                UNION ALL
+                SELECT t.id, d.level + 1 FROM engine_tag t JOIN descendants d ON t.parent_id = d.id
+            )
+            SELECT id FROM descendants ORDER BY level;
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query, [self.pk])
+            descendant_ids = [row[0] for row in cursor.fetchall()]
 
-        def collect_children(tag):
-            for child in tag.children.all():
-                descendants.append(child.pk)
-                collect_children(child)
+        if not include_self:
+            descendant_ids = descendant_ids[1:]
 
-        collect_children(self)
-        return Tag.objects.filter(pk__in=descendants)
+        # Return a queryset that preserves the order from the CTE
+        preserved_order = models.Case(
+            *[models.When(pk=pk, then=pos) for pos, pk in enumerate(descendant_ids)]
+        )
+        return Tag.objects.filter(pk__in=descendant_ids).order_by(preserved_order)
 
     def get_ancestors(self, include_self=False):
         """
-        Get all ancestor tags up the hierarchy.
-        Returns list of tags from immediate parent to root.
+        Get all ancestor tags up the hierarchy using a recursive CTE.
+        Returns a list of tags from immediate parent to root.
         """
-        ancestors = []
-        if include_self:
-            ancestors.append(self)
+        query = """
+            WITH RECURSIVE "ancestors" (id, parent_id, level) AS (
+                SELECT id, parent_id, 0 as level FROM engine_tag WHERE id = %s
+                UNION ALL
+                SELECT t.id, t.parent_id, a.level + 1 FROM engine_tag t JOIN ancestors a ON t.id = a.parent_id
+            )
+            SELECT id FROM ancestors ORDER BY level;
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query, [self.pk])
+            # The first ID is self (level 0), the next is the parent, and so on.
+            ancestor_ids = [row[0] for row in cursor.fetchall()]
 
-        current = self.parent
-        while current:
-            ancestors.append(current)
-            current = current.parent
+        # Exclude self if not requested
+        start_index = 1 if not include_self else 0
+        ids_to_fetch = ancestor_ids[start_index:]
 
-        return ancestors
+        if not ids_to_fetch:
+            return []
+
+        # Fetch all objects in one query and order them correctly based on the CTE result
+        id_map = {tag.pk: tag for tag in Tag.objects.filter(pk__in=ids_to_fetch)}
+        return [id_map[pk] for pk in ids_to_fetch if pk in id_map]
 
     def update_usage_count(self):
         """Update the cached usage count from actual relationships."""
@@ -308,7 +321,7 @@ class Tag(TimeStampedModel):
         self.save(update_fields=["usage_count"])
 
 
-class TagAlias(TimeStampedModel):
+class TagAlias(TimeStampedModel, UniqueSlugMixin):
     """
     Tag aliases for handling synonyms and alternative names.
 
@@ -362,15 +375,6 @@ class TagAlias(TimeStampedModel):
 
         super().save(*args, **kwargs)
 
-    def _unique_slug(self, base: str) -> str:
-        """Generate unique slug."""
-        slug = base
-        i = 2
-        while TagAlias.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base}-{i}"
-            i += 1
-        return slug
-
     def clean(self):
         """Validate alias doesn't conflict with existing tag names."""
         super().clean()
@@ -382,7 +386,7 @@ class TagAlias(TimeStampedModel):
             )
 
 
-class Category(TimeStampedModel):
+class Category(TimeStampedModel, UniqueSlugMixin):
     """Hierarchical category (optional parent)."""
 
     name = models.CharField(max_length=64, unique=True)
@@ -409,16 +413,8 @@ class Category(TimeStampedModel):
             self.slug = self._unique_slug(base)
         super().save(*args, **kwargs)
 
-    def _unique_slug(self, base: str) -> str:
-        slug = base
-        i = 2
-        while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base}-{i}"
-            i += 1
-        return slug
 
-
-class Series(TimeStampedModel):
+class Series(TimeStampedModel, UniqueSlugMixin):
     """Optional grouping for multipart posts."""
 
     title = models.CharField(max_length=200, unique=True)
@@ -437,11 +433,3 @@ class Series(TimeStampedModel):
             base = slugify(self.title) or "series"
             self.slug = self._unique_slug(base)
         super().save(*args, **kwargs)
-
-    def _unique_slug(self, base: str) -> str:
-        slug = base
-        i = 2
-        while Series.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base}-{i}"
-            i += 1
-        return slug

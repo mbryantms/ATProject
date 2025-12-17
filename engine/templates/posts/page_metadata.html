@@ -6,7 +6,7 @@
       <div class="link-tags">
         <p>
           {% for tag in post.tags.all %}
-            <a href="#"
+            <a href="{% url 'tag-archive' slug=tag.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
                rel="tag"
                title="Link to {{ tag.name }} tag index">{{ tag.name }}</a>

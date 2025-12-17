@@ -67,3 +67,31 @@ class SoftDeleteModel(models.Model):
             self.save(update_fields=update_fields)
         else:
             super().delete(using=using, keep_parents=keep_parents)
+
+
+class UniqueSlugMixin:
+    """
+    Mixin that provides a method to generate a unique slug for a model.
+
+    Expects the model to have a 'slug' field.
+    """
+
+    def _unique_slug(self, base: str) -> str:
+        """
+        Generate a unique slug, appending a counter if needed.
+
+        This method checks for slug uniqueness across all objects, including
+        soft-deleted ones if the model supports it, to prevent future collisions.
+        """
+        slug = base
+        counter = 2
+
+        # Use 'all_objects' manager if it exists, otherwise default to 'objects'
+        # This ensures uniqueness check includes soft-deleted items to prevent collisions.
+        manager = getattr(self.__class__, "all_objects", self.__class__.objects)
+
+        while manager.filter(slug=slug).exclude(pk=self.pk).exists():
+            slug = f"{base}-{counter}"
+            counter += 1
+
+        return slug

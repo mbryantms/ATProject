@@ -17,11 +17,22 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 
+
+def health_check(request):
+    """
+    Health check endpoint for Railway/load balancers.
+    Returns 200 OK if the application is running.
+    """
+    return JsonResponse({"status": "ok"}, status=200)
+
+
 urlpatterns = [
+    path("health/", health_check, name="health_check"),
     path("", include("engine.urls")),
-    path('admin/', admin.site.urls),
+    path("admin/", admin.site.urls),
 ]
 
 # Serve media files in development

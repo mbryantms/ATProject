@@ -1,0 +1,30 @@
+# railway.toml - Railway deployment configuration
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+# Use Nixpacks builder (Railway's default)
+builder = "nixpacks"
+
+# Install system dependencies needed for the project
+nixpacksConfigPath = "nixpacks.toml"
+
+[build.env]
+# Ensure pip doesn't use cache during build
+PIP_NO_CACHE_DIR = "1"
+
+[deploy]
+# Number of instances (scale up as needed)
+numReplicas = 1
+
+# Health check configuration
+healthcheckPath = "/health/"
+healthcheckTimeout = 300
+
+# Restart policy
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[deploy.env]
+# These will be overridden by Railway service variables
+DJANGO_SETTINGS_MODULE = "ATProject.settings"
+PYTHONUNBUFFERED = "1"

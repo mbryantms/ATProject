@@ -1,0 +1,35 @@
+# nixpacks.toml - Nixpacks build configuration for Railway
+# https://nixpacks.com/docs/configuration/file
+
+[phases.setup]
+# System packages needed for the application
+nixPkgs = [
+    "python313",
+    "postgresql",
+    "zlib",
+    "libjpeg",
+    "libwebp",
+    "freetype",
+    "lcms2",
+    "openjpeg",
+    "libtiff",
+    "ffmpeg",
+    "pandoc",
+]
+
+[phases.install]
+# Install Python dependencies
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt",
+]
+
+[phases.build]
+# Collect static files during build
+cmds = [
+    "python manage.py collectstatic --noinput",
+]
+
+[start]
+# Default start command (overridden by Procfile for multiple services)
+cmd = "gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT"

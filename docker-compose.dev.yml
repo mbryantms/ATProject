@@ -1,5 +1,4 @@
 # docker-compose.dev.yml
-version: "3.8"
 services:
   postgres:
     image: postgres:16-alpine
@@ -32,7 +31,36 @@ services:
 
   celery-worker:
     build: .
-    command: celery -A celery_app worker -l info
+    command: celery -A ATProject worker --pool=solo -l info
+    # For Linux hosts, to avoid permission issues with the volume mount,
+    # you may need to uncomment the following line and ensure your UID/GID are set.
+    # user: "${UID:-1000}:${GID:-1000}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - DJANGO_SETTINGS_MODULE=ATProject.settings
+      - POSTGRES_DB=${POSTGRES_DB:-atproject}
+      - POSTGRES_USER=${POSTGRES_USER:-atproject}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-atproject_dev_password}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    working_dir: /app
+
+  celery-beat:
+    build: .
+    command: celery -A ATProject beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # For Linux hosts, to avoid permission issues with the volume mount,
+    # you may need to uncomment the following line and ensure your UID/GID are set.
+    # user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       redis:
         condition: service_healthy
@@ -55,7 +83,7 @@ services:
 
   flower:
     image: mher/flower:2.0.1
-    command: [ "celery", "--broker=redis://redis:6379/0", "flower", "--port=5555" ]
+    command: [ "celery", "-A", "ATProject", "flower", "--port=5555" ]
     depends_on:
       redis:
         condition: service_healthy

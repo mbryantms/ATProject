@@ -319,6 +319,20 @@
     imageInFocus: null,
 
     savedHash: null,
+    
+    _dragStartMouseX: 0, // Added for drag event refactoring
+    _dragStartMouseY: 0, // Added for drag event refactoring
+    _dragStartImageX: 0, // Added for drag event refactoring
+    _dragStartImageY: 0, // Added for drag event refactoring
+
+    // Define the mousemove handler as a property of ImageFocus
+    dragImageMouseMoveHandler: (moveEvent) => {
+        ImageFocus.imageInFocus.style.filter = 'none';
+        ImageFocus.imageInFocus.style.left =
+            ImageFocus._dragStartImageX + moveEvent.clientX - ImageFocus._dragStartMouseX + 'px';
+        ImageFocus.imageInFocus.style.top =
+            ImageFocus._dragStartImageY + moveEvent.clientY - ImageFocus._dragStartMouseY + 'px';
+    },
 
     setup: () => {
       GWLog('ImageFocus.setup', 'image-focus.js', 1);
@@ -1010,8 +1024,14 @@
 
       if (ImageFocus.imageInFocus == null) return;
 
-      const imageWasBeingDragged = window.onmousemove != null;
-      window.onmousemove = null;
+      const imageWasBeingDragged = ImageFocus._dragStartMouseX !== 0 || ImageFocus._dragStartMouseY !== 0;
+      window.removeEventListener('mousemove', ImageFocus.dragImageMouseMoveHandler);
+
+      // Reset drag start coordinates
+      ImageFocus._dragStartMouseX = 0;
+      ImageFocus._dragStartMouseY = 0;
+      ImageFocus._dragStartImageX = 0;
+      ImageFocus._dragStartImageY = 0;
 
       if (imageWasBeingDragged) {
         ImageFocus.imageInFocus.style.filter = ImageFocus.imageInFocus.savedFilter;
@@ -1043,22 +1063,18 @@
         ImageFocus.imageInFocus.height >= window.innerHeight ||
         ImageFocus.imageInFocus.width >= window.innerWidth
       ) {
-        const mouseCoordX = event.clientX;
-        const mouseCoordY = event.clientY;
+        // Store initial positions to calculate drag offset
+        ImageFocus._dragStartMouseX = event.clientX;
+        ImageFocus._dragStartMouseY = event.clientY;
 
         const computedStyle = getComputedStyle(ImageFocus.imageInFocus);
-        const imageCoordX = parseInt(computedStyle.left, 10) || 0;
-        const imageCoordY = parseInt(computedStyle.top, 10) || 0;
+        ImageFocus._dragStartImageX = parseInt(computedStyle.left, 10) || 0;
+        ImageFocus._dragStartImageY = parseInt(computedStyle.top, 10) || 0;
 
         ImageFocus.imageInFocus.savedFilter = ImageFocus.imageInFocus.style.filter;
 
-        window.onmousemove = (moveEvent) => {
-          ImageFocus.imageInFocus.style.filter = 'none';
-          ImageFocus.imageInFocus.style.left =
-            imageCoordX + moveEvent.clientX - mouseCoordX + 'px';
-          ImageFocus.imageInFocus.style.top =
-            imageCoordY + moveEvent.clientY - mouseCoordY + 'px';
-        };
+        // Attach event listener instead of direct assignment
+        window.addEventListener('mousemove', ImageFocus.dragImageMouseMoveHandler);
       }
     },
 

@@ -8,8 +8,10 @@ import copy
 import re
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.template.defaultfilters import slugify
 from django.urls import NoReverseMatch, reverse
@@ -18,12 +20,17 @@ from django.utils.functional import cached_property
 
 from engine.markdown.extensions.toc_extractor import (
     HeadingNode,
-    extract_toc_from_html,
     normalize_toc_structure,
 )
-from engine.markdown.renderer import render_markdown
+from engine.tasks import update_post_derived_content
 
-from .base import SoftDeleteManager, SoftDeleteModel, SoftDeleteQuerySet, TimeStampedModel
+from .base import (
+    SoftDeleteManager,
+    SoftDeleteModel,
+    SoftDeleteQuerySet,
+    TimeStampedModel,
+    UniqueSlugMixin,
+)
 
 
 class PostQuerySet(SoftDeleteQuerySet):
@@ -64,7 +71,7 @@ class PostManager(SoftDeleteManager):
         return PostQuerySet(self.model, using=self._db).alive()
 
 
-class Post(TimeStampedModel, SoftDeleteModel):
+class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
     """
     Authoring is Markdown only.
     Rendering to HTML happens OUTSIDE the model (service/template filter),
@@ -227,6 +234,13 @@ class Post(TimeStampedModel, SoftDeleteModel):
     extras = models.JSONField(blank=True, null=True)
     table_of_contents = models.JSONField(blank=True, null=True)
 
+    # --- Full-Text Search ---
+    search_vector = SearchVectorField(
+        null=True,
+        blank=True,
+        help_text="Populated automatically for full-text search. Combines title, subtitle, description, abstract, and content.",
+    )
+
     # Managers
     objects = PostManager()
     all_objects = models.Manager()
@@ -237,6 +251,7 @@ class Post(TimeStampedModel, SoftDeleteModel):
             models.Index(fields=["status", "published_at"]),
             models.Index(fields=["visibility", "published_at"]),
             models.Index(fields=["completion_status"]),
+            GinIndex(fields=["search_vector"], name="post_search_vector_gin"),
         ]
         constraints = [
             models.CheckConstraint(
@@ -257,12 +272,34 @@ class Post(TimeStampedModel, SoftDeleteModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = self._unique_slug(slugify(self.title) or "post")
-        # Update derived stats from Markdown only (no rendering here)
+
+        # --- Check for content changes to trigger async tasks ---
+        run_async_tasks = False
+        is_new = self.pk is None
+        if is_new:
+            run_async_tasks = True
+        else:
+            try:
+                # Fetch the original object from DB
+                original = Post.objects.get(pk=self.pk)
+                if original.content_markdown != self.content_markdown:
+                    run_async_tasks = True
+                    # Clear stale content that will be regenerated
+                    self.table_of_contents = []
+            except Post.DoesNotExist:
+                # This case is unlikely but good to handle
+                run_async_tasks = True
+
+        # --- Update fast-running derived stats synchronously ---
         self.word_count = self._compute_word_count(self.content_markdown or "")
         self.reading_time_minutes = max(1, round(self.word_count / 225.0 + 0.0001))
-        html = render_markdown(self.content_markdown or "")
-        self.table_of_contents = extract_toc_from_html(html)
+
+        # --- Save the model ---
         super().save(*args, **kwargs)
+
+        # --- Schedule slow tasks after transaction commits ---
+        if run_async_tasks:
+            transaction.on_commit(lambda: update_post_derived_content.delay(self.pk))
 
     def clean(self):
         if self.expire_at and self.published_at and self.expire_at <= self.published_at:
@@ -394,14 +431,6 @@ class Post(TimeStampedModel, SoftDeleteModel):
             min_score=threshold,
             allow_private=include_private,
         )
-
-    def _unique_slug(self, base: str) -> str:
-        slug = base
-        i = 2
-        while Post.all_objects.filter(slug=slug).exclude(pk=self.pk).exists():
-            slug = f"{base}-{i}"
-            i += 1
-        return slug
 
     @staticmethod
     def _compute_word_count(text: str) -> int:

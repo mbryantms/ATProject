@@ -1,4 +1,14 @@
 # engine/markdown/postprocessors/__init__.py
+"""
+Markdown postprocessor pipeline.
+
+Postprocessors run after Pandoc converts markdown to HTML. They enhance
+the HTML with additional features like responsive images, link icons,
+typography improvements, etc.
+
+IMPORTANT: Order matters - they run sequentially.
+Use shared soup caching (get_shared_soup/soup_to_html from utils) for efficiency.
+"""
 
 from .admonition_enhancer import admonition_enhancer_default
 from .asset_document_enhancer import asset_document_enhancer_default
@@ -15,15 +25,10 @@ from .horizontal_rule_enhancer import horizontal_rule_enhancer_default
 from .link_decorator import link_decorator_default
 from .list_enhancer import list_enhancer_default
 from .math_copy_button import math_copy_button_default
-from .modify_external_links import modify_external_links
-
-# from .embed_handler import handle_embeds
 from .sanitizer import sanitize_html
 from .table_enhancer import table_enhancer_default
 from .typography_enhancer import typography_enhancer_default
 from .utils import clear_shared_soup
-
-# Import other postprocessors
 
 POSTPROCESSORS = [
     sanitize_html,
@@ -42,12 +47,8 @@ POSTPROCESSORS = [
     footnote_enhancer_default,  # Enhance footnotes with self-links and structure
     block_marker_default,  # Mark discrete content blocks with "block" class
     first_paragraph_marker_default,  # Mark first paragraph in each section
-    link_decorator_default,  # Add icon data attributes to links
-    modify_external_links,
+    link_decorator_default,  # Unified link handling: external attrs + icon decoration
     math_copy_button_default,  # Add copy buttons to display block math equations
-    # handle_embeds,
-    # optimize_images,
-    # Order matters - they run sequentially
 ]
 
 

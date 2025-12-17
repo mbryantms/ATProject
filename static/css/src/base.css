@@ -421,6 +421,202 @@ header h1 em {
   }
 }
 
+/**********************/
+/* TAG ARCHIVE STYLES */
+/**********************/
+
+/*  Breadcrumb separator in tag hierarchy.
+ */
+#page-metadata .link-tags .breadcrumb-separator {
+  color: var(--AT-body-text-secondary-color, #666);
+  margin: 0 0.25em;
+  font-style: normal;
+}
+
+/*  Current tag in breadcrumb (not a link).
+ */
+#page-metadata .link-tags .tag-current {
+  font-weight: bold;
+  font-style: normal;
+}
+
+/*  Labels for subtags/related tags sections.
+ */
+#page-metadata .tag-nav-label {
+  font-style: normal;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-right: 0.25em;
+}
+
+/*  Subtags and related tags lists.
+ */
+#page-metadata .tag-subtags,
+#page-metadata .tag-related {
+  font-size: 0.95em;
+}
+
+/*  Tag aliases ("Also known as") section.
+ */
+#page-metadata .tag-aliases {
+  font-size: 0.9em;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-top: 0.25em;
+}
+
+#page-metadata .tag-aliases-label {
+  font-style: italic;
+}
+
+/******************/
+/* ARCHIVE STYLES */
+/******************/
+
+.archive-year h2 {
+  margin-bottom: 0.5em;
+}
+
+.archive-list {
+  margin-bottom: 1.5em;
+}
+
+.archive-date {
+  font-family: var(--AT-monospaced-font-stack);
+  font-size: 0.9em;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-right: 0.5em;
+}
+
+/*******************/
+/* TAG LIST STYLES */
+/*******************/
+
+/*  Controls for sorting, grouping, and display options.
+ */
+.tag-list-controls {
+  margin-top: 0.75em;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
+  font-size: 0.85em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+
+.tag-list-controls .control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.tag-list-controls .control-label {
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-right: 0.25em;
+}
+
+.tag-list-controls .control-option {
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  text-decoration: none;
+  color: var(--AT-body-text-secondary-color, #666);
+  transition: background-color 0.15s ease;
+  /* Override Tufte-style link underline styling */
+  text-shadow: none;
+  background-image: none;
+}
+
+.tag-list-controls .control-option:hover {
+  background-color: var(--AT-body-text-faint-color, #f0f0f0);
+  color: var(--AT-body-text-primary-color, #333);
+}
+
+.tag-list-controls .control-option.active {
+  background-color: var(--AT-body-text-secondary-color, #666);
+  color: var(--AT-body-background-color, #fff);
+}
+
+/*  Tag list section headers (when grouped).
+ */
+.tag-list-section h2 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.tag-list-section:first-of-type h2 {
+  margin-top: 0;
+}
+
+/*  Tag list items.
+ */
+.tag-list {
+  margin-bottom: 1.5em;
+}
+
+.tag-list-item {
+  margin-bottom: 0.25em;
+}
+
+.tag-list-item-expanded {
+  margin-bottom: 0.75em;
+}
+
+.tag-list-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25em;
+}
+
+.tag-list-main .tag-name {
+  font-weight: 500;
+}
+
+.tag-list-main .tag-count {
+  color: var(--AT-body-text-secondary-color, #666);
+  font-size: 0.9em;
+}
+
+.tag-list-main .tag-namespace {
+  color: var(--AT-body-text-secondary-color, #666);
+  font-size: 0.85em;
+}
+
+.tag-list-main .tag-parent {
+  color: var(--AT-body-text-secondary-color, #666);
+  font-size: 0.85em;
+  margin-left: 0.5em;
+}
+
+.tag-list-main .tag-parent a {
+  color: var(--AT-body-text-secondary-color, #666);
+}
+
+/*  Color indicator dot.
+ */
+.tag-color-dot {
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/*  Icon display.
+ */
+.tag-icon {
+  font-size: 1em;
+  margin-right: 0.1em;
+}
+
+/*  Tag description (optional).
+ */
+.tag-description {
+  font-size: 0.85em;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-top: 0.15em;
+  margin-left: 1em;
+  line-height: 1.4;
+}
+
 /****************/
 /* MAIN CONTENT */
 /****************/
@@ -3206,6 +3402,105 @@ script {
 @supports (-moz-appearance: none) {
   .markdownBody .columns.figures figcaption {
     line-height: initial;
+  }
+}
+
+/**************/
+/* INDEX PAGE */
+/**************/
+
+.index-intro {
+  margin-bottom: 1.5em;
+}
+
+.index-intro p:last-child {
+  margin-bottom: 0;
+}
+
+.index-divider {
+  border: none;
+  border-top: 1px solid var(--AT-horizontal-rule-stroke-color, currentColor);
+  opacity: 0.3;
+  margin: 2em 0;
+}
+
+.index-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2em;
+}
+
+.index-column {
+  flex: 1 1 calc(50% - 1em);
+  min-width: 250px;
+  max-width: calc(50% - 1em);
+}
+
+.index-column h2 {
+  font-size: 1.25em;
+  margin: 0 0 0.75em 0;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.02em;
+}
+
+.index-column h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.index-column h2 a:hover {
+  text-decoration: underline;
+}
+
+.index-post-list {
+  margin: 0;
+  padding: 0;
+}
+
+.index-post-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.index-post-list li a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.index-post-date {
+  font-size: 0.85em;
+  color: var(--AT-body-text-color);
+  opacity: 0.6;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.index-more {
+  margin-top: 0.75em;
+  font-size: 0.9em;
+}
+
+.index-more a {
+  font-style: italic;
+}
+
+@media all and (max-width: 549px) {
+  .index-sections {
+    flex-direction: column;
+    gap: 1.5em;
+  }
+
+  .index-column {
+    flex: 1 1 100%;
+  }
+
+  .index-column h2 {
+    font-size: 1.15em;
   }
 }
 
