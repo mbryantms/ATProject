@@ -209,9 +209,11 @@ db["OPTIONS"].update(
 )
 
 # 5) Neon-specific: Add endpoint ID for SNI routing if provided
-# This is required for Neon's pooled connections
+# Only needed for DIRECT connections (not pooler URLs which have -pooler in hostname)
+# Pooler URLs already include endpoint info in the hostname
 NEON_ENDPOINT_ID = env("NEON_ENDPOINT_ID", default=None)
-if NEON_ENDPOINT_ID:
+DATABASE_URL = env("DATABASE_URL", default="")
+if NEON_ENDPOINT_ID and "-pooler" not in DATABASE_URL:
     db["OPTIONS"]["options"] = f"-c endpoint={NEON_ENDPOINT_ID}"
 
 
