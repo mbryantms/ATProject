@@ -1,15 +1,12 @@
-{#<a class="logo" rel="home me contents" href="/index" accesskey="\" title="Homepage: categorized list of articles index">#}
-{#  <svg class="logo-image" viewbox="0 0 64 75">#}
-{#    <use href="/static/img/logo/logo-smooth.svg#logo"></use>#}
-{#  </svg>#}
-{#</a>#}
-<div class="sidebar-links">
-  <a class="site link-page link-annotated" href="/about"
-     title="Site ideals, source, content, traffic, examples, license" rel="author">Site</a>
-  <a class="me link-page link-annotated" href="/me"
-     title="Who am I online, what have I done, what am I like? Contact information; sites I use; things I've worked on"
-     rel="author">Me</a>
-  <a class="new link-page link-annotated" href="/changelog" title="Changelog of what’s new or updated">New</a>
-  <a class="blog link-page" href="/blog/index" title="Shortform Gwern writings">Blog</a>
-  <a class="links link-page" href="/doc/newest/index" title="Most recent link annotations">Links</a>
+<div class="sidebar-content">
+  <a class="sidebar-logo" href="/" title="Home">Architextual</a>
+  <div class="sidebar-nav">
+    <a class="sidebar-link{% if request.path == '/' %} active{% endif %}" href="/">Home</a>
+    <a class="sidebar-link{% if '/tags' in request.path %} active{% endif %}" href="/tags">Tags</a>
+    <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts">Posts</a>
+    <span class="sidebar-separator"></span>
+    <a class="sidebar-link{% if '/library' in request.path %} active{% endif %}" href="/library">Library</a>
+    <span class="sidebar-version">v1.0</span>
+    <a class="sidebar-link{% if '/about' in request.path %} active{% endif %}" href="/about">About</a>
+  </div>
 </div>

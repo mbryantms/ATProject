@@ -2,56 +2,72 @@
 
 {% block title %}Architextual{% endblock %}
 
-{% block page_title %}Architextual{% endblock %}
+{% block page_title %}{% endblock %}
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">
-  {% if intro_html %}
+
+  {# Enhanced Intro Section #}
   <section class="index-intro">
-    {{ intro_html|safe }}
+    {% if intro_html %}
+      {{ intro_html|safe }}
+    {% else %}
+      <p class="intro-lead block first-graf">
+        <span class="smallcaps">Welcome</span> to <strong>Architextual</strong>, a space for essays, notes, and explorations across technology, design, and ideas worth examining closely.
+      </p>
+      <p class="intro-description">
+        This site collects writings on software architecture, interface design, and the intersection of craft and computation. Navigate by topic below, browse the <a href="{% url 'post-archive' %}">archive</a>, or explore by <a href="/tags">tag</a>.
+      </p>
+    {% endif %}
   </section>
-  {% endif %}
 
-  <hr class="index-divider">
+  <hr class="index-divider index-divider-decorated">
 
+  {# Multi-column Sections #}
   <section class="index-sections">
-    <div class="index-column">
+    {# Newest Posts Column #}
+    <div class="index-column index-column-featured">
       <h2><a href="{% url 'post-archive' %}">Newest</a></h2>
       {% if newest_posts %}
-      <ul class="index-post-list list list-level-1 block">
+      <ul class="index-post-list list-level-1 list block">
         {% for post in newest_posts %}
-        <li class="in-list">
-          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        <li class="index-post-item in-list">
+          <a href="{{ post.get_absolute_url }}" class="index-post-link">{{ post.title }}</a>
           {% if post.published_at %}
           <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
           {% endif %}
+
         </li>
         {% endfor %}
       </ul>
+      <p class="index-more"><a href="{% url 'post-archive' %}">View all posts &rarr;</a></p>
       {% else %}
-      <p>No posts yet.</p>
+      <p class="index-empty">No posts yet.</p>
       {% endif %}
     </div>
 
+    {# Tag Section Columns #}
     {% for section in tag_sections %}
     <div class="index-column">
       <h2><a href="{% url 'tag-archive' section.tag.slug %}">{{ section.title }}</a></h2>
       {% if section.posts %}
-      <ul class="index-post-list list list-level-1 block">
+      <ul class="index-post-list list-level-1 list block">
         {% for post in section.posts %}
-        <li class="in-list">
-          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        <li class="index-post-item in-list">
+          <a href="{{ post.get_absolute_url }}" class="index-post-link">{{ post.title }}</a>
           {% if post.published_at %}
           <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
           {% endif %}
         </li>
         {% endfor %}
       </ul>
+      <p class="index-more"><a href="{% url 'tag-archive' section.tag.slug %}">More in {{ section.title }} &rarr;</a></p>
       {% else %}
-      <p>No posts yet.</p>
+      <p class="index-empty">No posts yet.</p>
       {% endif %}
     </div>
     {% endfor %}
   </section>
+
 </div>
 {% endblock content %}
