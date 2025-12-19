@@ -27,8 +27,9 @@ RUN SECRET_KEY=build-placeholder \
     REDIS_URL=redis://placeholder:6379 \
     python manage.py collectstatic --noinput
 
-# Expose port
-EXPOSE 8000
+# Railway uses dynamic PORT env var
+ENV PORT=8000
+EXPOSE $PORT
 
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "ATProject.wsgi:application"]
+# Run gunicorn (shell form to expand $PORT)
+CMD gunicorn --bind 0.0.0.0:$PORT ATProject.wsgi:application
