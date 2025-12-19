@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from django.core.cache import cache
 from django.db.models import Count, F, Q
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -350,7 +351,8 @@ class PostDetailView(DetailView):
 
     def get_queryset(self):
         qs = Post.all_objects.select_related("author", "series").prefetch_related(
-            "categories", "tags", "co_authors", "related_posts"
+            "categories", "tags", "co_authors", "related_posts",
+            "post_assets__asset",  # Prefetch for asset resolution in markdown
         )
         user = self.request.user
         now = timezone.now()
@@ -393,7 +395,12 @@ class PostDetailView(DetailView):
         context['backlinks'] = backlinks
         context['backlinks_count'] = backlinks.count()
 
-        similar_posts = list(post.get_similar_posts(limit=6))
+        # Cache similar posts for 1 hour (expensive computation)
+        cache_key = f"similar_posts:{post.pk}"
+        similar_posts = cache.get(cache_key)
+        if similar_posts is None:
+            similar_posts = list(post.get_similar_posts(limit=6))
+            cache.set(cache_key, similar_posts, 3600)  # 1 hour
         context['similar_posts'] = similar_posts
         context['similar_posts_count'] = len(similar_posts)
 

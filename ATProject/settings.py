@@ -385,8 +385,34 @@ CELERY_TASK_SOFT_TIME_LIMIT = 60 * 4
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_EXPIRES = 60 * 60  # 1 hour
-CELERY_ENABLE_UTC = True  # Celery reads Django’s TZ too
+CELERY_ENABLE_UTC = True  # Celery reads Django's TZ too
 CELERY_RESULT_EXTENDED = True  # Store meta information for admin inspection
+
+
+# ==============================================================================
+# CACHING (Redis)
+# ==============================================================================
+# Use Redis for caching (same instance as Celery broker)
+REDIS_URL = env("REDIS_URL", default=None)
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": "architextual",
+        }
+    }
+else:
+    # Fallback to local memory cache for development without Redis
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+        }
+    }
 
 
 # ==============================================================================

@@ -17,7 +17,11 @@
         {{ post.abstract|markdown_abstract }}
       </blockquote>
     {% endif %}
-    {% markdown_with_context post.content_markdown %}
+    {% if post.content_html_cached %}
+      {{ post.content_html_cached|safe }}
+    {% else %}
+      {% markdown_with_context post.content_markdown %}
+    {% endif %}
     {% include "posts/backlinks.html" %}
     {% include "posts/similar_posts.html" %}
   </div>

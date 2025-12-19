@@ -297,7 +297,7 @@ def get_backlinks_for_post(post, published_only=True, public_only=True):
     queryset = InternalLink.objects.filter(
         target_post=post,
         is_deleted=False
-    ).select_related('source_post')
+    ).select_related('source_post', 'source_post__author')
 
     if published_only:
         queryset = queryset.filter(

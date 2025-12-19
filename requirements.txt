@@ -18,4 +18,5 @@ pygments>=2.18.0
 pypandoc-binary>=1.14
 python-dateutil>=2.9.0
 redis>=5.2.0
+django-redis>=5.4.0
 whitenoise[brotli]>=6.8.0
