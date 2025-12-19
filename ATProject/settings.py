@@ -127,37 +127,27 @@ if not DEBUG:
 _CSP_IMG_SRC = ["'self'", "data:"]
 _CSP_MEDIA_SRC = ["'self'"]
 
+# Shared CSP directives
+_CSP_DIRECTIVES = {
+    "default-src": ["'self'"],
+    # MathJax requires 'unsafe-inline' for dynamic script creation
+    "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
+    # MathJax requires 'unsafe-inline' for dynamic styles
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "font-src": ["'self'"],
+    "img-src": _CSP_IMG_SRC,
+    "media-src": _CSP_MEDIA_SRC,
+    "connect-src": ["'self'", "https://cloudflareinsights.com"],
+    "form-action": ["'self'"],
+    "frame-ancestors": ["'self'"],
+    "base-uri": ["'self'"],
+}
+
 # Enforced policy (production) or report-only (development)
 if DEBUG:
-    CONTENT_SECURITY_POLICY_REPORT_ONLY = {
-        "DIRECTIVES": {
-            "default-src": ["'self'"],
-            "script-src": ["'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
-            "style-src": ["'self'"],
-            "font-src": ["'self'"],
-            "img-src": _CSP_IMG_SRC,
-            "media-src": _CSP_MEDIA_SRC,
-            "connect-src": ["'self'", "https://cloudflareinsights.com"],
-            "form-action": ["'self'"],
-            "frame-ancestors": ["'self'"],
-            "base-uri": ["'self'"],
-        }
-    }
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": _CSP_DIRECTIVES}
 else:
-    CONTENT_SECURITY_POLICY = {
-        "DIRECTIVES": {
-            "default-src": ["'self'"],
-            "script-src": ["'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
-            "style-src": ["'self'"],
-            "font-src": ["'self'"],
-            "img-src": _CSP_IMG_SRC,
-            "media-src": _CSP_MEDIA_SRC,
-            "connect-src": ["'self'", "https://cloudflareinsights.com"],
-            "form-action": ["'self'"],
-            "frame-ancestors": ["'self'"],
-            "base-uri": ["'self'"],
-        }
-    }
+    CONTENT_SECURITY_POLICY = {"DIRECTIVES": _CSP_DIRECTIVES}
 
 
 # Application definition
