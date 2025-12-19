@@ -117,40 +117,45 @@ if not DEBUG:
     )
 
 # ==============================================================================
-# CONTENT SECURITY POLICY (django-csp)
+# CONTENT SECURITY POLICY (django-csp 4.0+)
+# https://django-csp.readthedocs.io/en/latest/configuration.html
 # ==============================================================================
-# Start in report-only mode during development, enforce in production
-CSP_REPORT_ONLY = DEBUG
 
-# Default: only allow resources from same origin
-CSP_DEFAULT_SRC = ("'self'",)
+# Base CSP directives (R2 domain added dynamically below)
+_CSP_IMG_SRC = ["'self'", "data:"]
+_CSP_MEDIA_SRC = ["'self'"]
 
-# Scripts: self + MathJax CDN + Cloudflare Web Analytics (auto-injected by CF proxy)
-CSP_SCRIPT_SRC = ("'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com")
-
-# Styles: self only (all styles are local)
-CSP_STYLE_SRC = ("'self'",)
-
-# Fonts: self only (all fonts are local)
-CSP_FONT_SRC = ("'self'",)
-
-# Images: self + data URIs (for inline SVGs) + R2 domain (added dynamically below)
-CSP_IMG_SRC = ["'self'", "data:"]
-
-# Media (video/audio): self + R2 domain (added dynamically below)
-CSP_MEDIA_SRC = ["'self'"]
-
-# XHR/fetch/WebSocket connections: self + Cloudflare Analytics beacon
-CSP_CONNECT_SRC = ("'self'", "https://cloudflareinsights.com")
-
-# Form submissions: self only
-CSP_FORM_ACTION = ("'self'",)
-
-# Embedding this site in frames: self only (replaces X-Frame-Options)
-CSP_FRAME_ANCESTORS = ("'self'",)
-
-# Base URI restriction
-CSP_BASE_URI = ("'self'",)
+# Enforced policy (production) or report-only (development)
+if DEBUG:
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {
+        "DIRECTIVES": {
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
+            "style-src": ["'self'"],
+            "font-src": ["'self'"],
+            "img-src": _CSP_IMG_SRC,
+            "media-src": _CSP_MEDIA_SRC,
+            "connect-src": ["'self'", "https://cloudflareinsights.com"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'self'"],
+            "base-uri": ["'self'"],
+        }
+    }
+else:
+    CONTENT_SECURITY_POLICY = {
+        "DIRECTIVES": {
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
+            "style-src": ["'self'"],
+            "font-src": ["'self'"],
+            "img-src": _CSP_IMG_SRC,
+            "media-src": _CSP_MEDIA_SRC,
+            "connect-src": ["'self'", "https://cloudflareinsights.com"],
+            "form-action": ["'self'"],
+            "frame-ancestors": ["'self'"],
+            "base-uri": ["'self'"],
+        }
+    }
 
 
 # Application definition
@@ -347,13 +352,13 @@ AWS_S3_OBJECT_PARAMETERS = {"CacheControl": env("R2_CACHE_CONTROL")}
 if AWS_S3_CUSTOM_DOMAIN:
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN.rstrip('/')}/"
     # Add R2 custom domain to CSP for images and media
-    CSP_IMG_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
-    CSP_MEDIA_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
+    _CSP_IMG_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
+    _CSP_MEDIA_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
 elif AWS_S3_ENDPOINT_URL:
     MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
     # Add R2 endpoint to CSP for images and media (signed URLs)
-    CSP_IMG_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
-    CSP_MEDIA_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
+    _CSP_IMG_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
+    _CSP_MEDIA_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
 else:
     MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
 
