@@ -135,7 +135,7 @@
   opacity: 0;
 }
 
-/* On mobile, adjust close button size and hide help overlay (keybinds not useful) */
+/* On mobile, adjust close button size */
 @media (max-width: 649px) {
   #image-focus-overlay .close-button {
     width: 2.25em;
@@ -143,10 +143,6 @@
     font-size: 1.25rem;
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.7);
-  }
-
-  #image-focus-overlay .help-overlay {
-    display: none;
   }
 }
 
@@ -497,6 +493,14 @@
   #image-focus-overlay .help-overlay.hidden {
     bottom: unset;
     top: -2.25em;
+  }
+}
+
+/* Hide help overlay on mobile - keyboard shortcuts not useful there */
+@media all and (max-width: 649px) {
+  #image-focus-overlay .help-overlay,
+  #image-focus-overlay .help-overlay::after {
+    display: none;
   }
 }
 
