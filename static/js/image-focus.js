@@ -302,6 +302,7 @@
       '.help-overlay',
       '.image-number',
       '.caption',
+      '.close-button',
     ].join(', '),
 
     focusableImagesSelector: null,
@@ -338,6 +339,7 @@
       GWLog('ImageFocus.setup', 'image-focus.js', 1);
 
       ImageFocus.overlay = addUIElement(`<div id="image-focus-overlay">
+            <button type="button" class="close-button" tabindex="0" title="Close (Escape)">&times;</button>
             <div class="help-overlay">
                 <p class="slideshow-help-text"><strong>Arrow keys:</strong> Next/previous image</p>
                 <p><strong>Escape</strong> or <strong>click</strong>: Hide zoomed image</p>
@@ -374,6 +376,23 @@
           ImageFocus.cancelImageFocusHideUITimer();
           event.target.blur();
         });
+      });
+
+      // Close button handler
+      const closeButton = ImageFocus.overlay.querySelector('.close-button');
+      closeButton.addActivateEvent((event) => {
+        GWLog('ImageFocus.closeButtonClicked', 'image-focus.js', 2);
+        event.stopPropagation();
+        ImageFocus.exitImageFocus();
+      });
+
+      // Click outside image to close (on overlay background)
+      ImageFocus.overlay.addEventListener('click', (event) => {
+        // Only close if clicking directly on the overlay background, not on UI elements
+        if (event.target === ImageFocus.overlay) {
+          GWLog('ImageFocus.overlayBackgroundClicked', 'image-focus.js', 2);
+          ImageFocus.exitImageFocus();
+        }
       });
 
       const helpOverlay = ImageFocus.overlay.querySelector('.help-overlay');
