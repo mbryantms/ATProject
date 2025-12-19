@@ -67,8 +67,37 @@ class PostQuerySet(SoftDeleteQuerySet):
 
 
 class PostManager(SoftDeleteManager):
+    """
+    Custom manager for Post model that properly exposes PostQuerySet methods.
+
+    Django's automatic manager method proxying from QuerySet doesn't always work
+    reliably, especially during app initialization. Explicitly defining these
+    methods ensures they're always available on Post.objects.
+    """
+
     def get_queryset(self):
         return PostQuerySet(self.model, using=self._db).alive()
+
+    def public(self):
+        return self.get_queryset().public()
+
+    def unlisted(self):
+        return self.get_queryset().unlisted()
+
+    def private(self):
+        return self.get_queryset().private()
+
+    def published(self):
+        return self.get_queryset().published()
+
+    def scheduled(self):
+        return self.get_queryset().scheduled()
+
+    def drafts(self):
+        return self.get_queryset().drafts()
+
+    def featured(self):
+        return self.get_queryset().featured()
 
 
 class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
