@@ -1,4 +1,0 @@
-# Run collectstatic after pip install (nixpacks auto-detects Python/Django)
-[phases.build]
-dependsOn = ["setup", "install"]
-cmds = ["python manage.py collectstatic --noinput"]
