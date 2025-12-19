@@ -132,8 +132,8 @@
   --AT-table-scrollbar-border-color: #000;
   --AT-table-column-heading-hover-background-color: #e2f0f2;
   --AT-table-sorted-column-heading-background-color: #8bd0ed;
-  --AT-table-sorted-column-heading-text-color: #fff;
-  --AT-table-sorted-column-heading-text-shadow-color: #000;
+  --AT-table-sorted-column-heading-text-color: #1a3d4d;
+  --AT-table-sorted-column-heading-text-shadow-color: rgba(255, 255, 255, 0.6);
   --AT-table-zebra-stripe-alternate-row-background-color: #f6f6f6;
   --AT-table-row-hover-outline-color: #000;
 
