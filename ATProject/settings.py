@@ -134,7 +134,8 @@ _CSP_DIRECTIVES = {
     "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
     # MathJax requires 'unsafe-inline' for dynamic styles
     "style-src": ["'self'", "'unsafe-inline'"],
-    "font-src": ["'self'"],
+    # MathJax loads fonts from jsdelivr CDN
+    "font-src": ["'self'", "https://cdn.jsdelivr.net"],
     "img-src": _CSP_IMG_SRC,
     "media-src": _CSP_MEDIA_SRC,
     "connect-src": ["'self'", "https://cloudflareinsights.com"],
