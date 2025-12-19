@@ -116,6 +116,42 @@ if not DEBUG:
         "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", default=True
     )
 
+# ==============================================================================
+# CONTENT SECURITY POLICY (django-csp)
+# ==============================================================================
+# Start in report-only mode during development, enforce in production
+CSP_REPORT_ONLY = DEBUG
+
+# Default: only allow resources from same origin
+CSP_DEFAULT_SRC = ("'self'",)
+
+# Scripts: self + MathJax CDN
+CSP_SCRIPT_SRC = ("'self'", "https://cdn.jsdelivr.net")
+
+# Styles: self only (all styles are local)
+CSP_STYLE_SRC = ("'self'",)
+
+# Fonts: self only (all fonts are local)
+CSP_FONT_SRC = ("'self'",)
+
+# Images: self + data URIs (for inline SVGs) + R2 domain (added dynamically below)
+CSP_IMG_SRC = ["'self'", "data:"]
+
+# Media (video/audio): self + R2 domain (added dynamically below)
+CSP_MEDIA_SRC = ["'self'"]
+
+# XHR/fetch/WebSocket connections: self only
+CSP_CONNECT_SRC = ("'self'",)
+
+# Form submissions: self only
+CSP_FORM_ACTION = ("'self'",)
+
+# Embedding this site in frames: self only (replaces X-Frame-Options)
+CSP_FRAME_ANCESTORS = ("'self'",)
+
+# Base URI restriction
+CSP_BASE_URI = ("'self'",)
+
 
 # Application definition
 
@@ -139,6 +175,7 @@ INSTALLED_APPS += [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -309,8 +346,14 @@ AWS_S3_OBJECT_PARAMETERS = {"CacheControl": env("R2_CACHE_CONTROL")}
 # - Private: MEDIA_URL is a placeholder; actual URLs are signed when calling file.url
 if AWS_S3_CUSTOM_DOMAIN:
     MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN.rstrip('/')}/"
+    # Add R2 custom domain to CSP for images and media
+    CSP_IMG_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
+    CSP_MEDIA_SRC.append(f"https://{AWS_S3_CUSTOM_DOMAIN}")
 elif AWS_S3_ENDPOINT_URL:
     MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
+    # Add R2 endpoint to CSP for images and media (signed URLs)
+    CSP_IMG_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
+    CSP_MEDIA_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
 else:
     MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
 

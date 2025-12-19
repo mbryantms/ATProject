@@ -11,6 +11,7 @@ dependencies = [
     "django>=5.1.0",
     "django-celery-beat>=2.7.0",
     "django-celery-results>=2.5.0",
+    "django-csp>=4.0",
     "django-environ>=0.11.0",
     "django-storages>=1.14.0",
     "gunicorn>=23.0.0",
