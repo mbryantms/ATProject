@@ -261,12 +261,13 @@ def update_post_derived_content(self, post_id: int):
         Post.objects.filter(pk=post_id).update(
             table_of_contents=toc,
             search_vector=search_vector,
+            content_html_cached=html,
         )
 
         return {
             "success": True,
             "post_id": post_id,
-            "message": "TOC and search vector updated successfully.",
+            "message": "TOC, search vector, and cached HTML updated successfully.",
         }
     except Exception as e:
         return {
