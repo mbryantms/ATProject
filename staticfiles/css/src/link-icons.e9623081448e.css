@@ -1,0 +1,347 @@
+/**************/
+/* LINK ICONS */
+/**************/
+
+/*******************************************************************************/
+/*  Link icons provide additional information in a compact iconic form without
+    interrupting the text. They denote the logical source, topic, file format,
+    or other information inferred from URL patterns.
+
+    Icons are applied via data attributes added by the link_decorator postprocessor:
+    - data-link-icon: The icon name or Unicode character
+    - data-link-icon-type: How to render (svg, text, text+modifiers)
+
+    This CSS uses these attributes to display icons using ::after pseudo-elements.
+ */
+
+/*=================*/
+/*= COMMON STYLES =*/
+/*=================*/
+
+a[data-link-icon] {
+  margin-right: 0.1em;
+}
+
+/*******************/
+/*  Graphical (SVG) icons.
+ */
+a[data-link-icon-type*='svg'] {
+  --link-icon-size-default: 0.55em;
+  --link-icon-offset-x-default: 0.2em;
+  --link-icon-offset-y-default: 0.15em;
+  --link-icon-opacity-default: 0.55;
+}
+
+a[data-link-icon-type*='svg']::after {
+  content: '';
+  position: relative;
+  bottom: var(--link-icon-offset-y, var(--link-icon-offset-y-default));
+  padding: 0 var(--link-icon-size, var(--link-icon-size-default)) 0 0;
+  margin: 0 0 0 var(--link-icon-offset-x, var(--link-icon-offset-x-default));
+  background-image: var(--link-icon-url);
+  background-size: var(--link-icon-size, var(--link-icon-size-default));
+  background-position-x: center;
+  background-position-y: 1ex;
+  background-repeat: no-repeat;
+  opacity: var(--link-icon-opacity, var(--link-icon-opacity-default));
+}
+
+a[data-link-icon-type*='svg']:hover::after {
+  opacity: calc(var(--link-icon-opacity, var(--link-icon-opacity-default)) * 0.55);
+}
+
+/*  Quad-letter SVG icons (rendered as images of text).
+ */
+a[data-link-icon-type*='svg'][data-link-icon-type*='quad'] {
+  --link-icon-size-default: 0.75em;
+  --link-icon-offset-x-default: 0.15em;
+  --link-icon-offset-y-default: 0.3em;
+  --link-icon-opacity-default: 0.8;
+}
+
+a[data-link-icon-type*='svg'][data-link-icon-type*='quad']::after {
+  background-position-y: 0.75ex;
+}
+
+/*  Quad-letter SVG icons in a sans-serif font.
+ */
+a[data-link-icon-type*='svg'][data-link-icon-type*='quad'][data-link-icon-type*='sans'] {
+  --link-icon-size-default: 0.8em;
+}
+
+/*****************/
+/*  Textual (Unicode/typographic) icons.
+ */
+a[data-link-icon-type*='text'] {
+  --link-icon-size-default: 0.75em;
+  --link-icon-offset-x-default: 0.12em;
+  --link-icon-offset-y-default: 0.25em;
+  --link-icon-opacity-default: 0.83;
+  --link-icon-font-default: Noto Emoji, Quivira, var(--AT-serif-font-stack);
+  --link-icon-font-weight-default: 600;
+  --link-icon-font-style-default: normal;
+  --link-icon-text-decoration-default: none;
+}
+
+a[data-link-icon-type*='text']::after {
+  content: attr(data-link-icon);
+  font-size: var(--link-icon-size, var(--link-icon-size-default));
+  font-weight: var(--link-icon-font-weight, var(--link-icon-font-weight-default));
+  font-style: var(--link-icon-font-style, var(--link-icon-font-style-default));
+  font-family: var(--link-icon-font, var(--link-icon-font-default));
+  text-decoration: var(
+    --link-icon-text-decoration,
+    var(--link-icon-text-decoration-default)
+  );
+  margin: 0 0 0 var(--link-icon-offset-x, var(--link-icon-offset-x-default));
+  vertical-align: baseline;
+  position: relative;
+  bottom: var(--link-icon-offset-y, var(--link-icon-offset-y-default));
+  opacity: var(--link-icon-opacity, var(--link-icon-opacity-default));
+  padding: 0;
+  background-image: none;
+  background-size: unset;
+  line-height: 1;
+  overflow-wrap: normal;
+}
+
+a[data-link-icon-type*='sans'] {
+  --link-icon-font-default: Noto Emoji, Quivira, var(--AT-sans-serif-font-stack);
+}
+
+a[data-link-icon-type*='mono'] {
+  --link-icon-opacity-default: 0.7;
+  --link-icon-font-default: Noto Emoji, Quivira, var(--AT-monospaced-font-stack);
+}
+
+a[data-link-icon-type*='bold'] {
+  --link-icon-font-weight-default: 700;
+}
+
+a[data-link-icon-type*='italic'] {
+  --link-icon-size-default: 0.8em;
+  --link-icon-offset-x-default: 0.1em;
+  --link-icon-font-style-default: italic;
+}
+
+a[data-link-icon-type*='overline'] {
+  --link-icon-offset-y-default: 0.2em;
+  --link-icon-text-decoration-default: overline;
+}
+
+/*  Quad-letter square icons (text rendered in 2x2 grid).
+ */
+a[data-link-icon-type*='text'][data-link-icon-type*='quad']::after {
+  text-indent: 0;
+  overflow-wrap: break-word;
+  display: inline-block;
+  text-align: center;
+  left: 0;
+  bottom: 0.3em;
+  font-size: 0.52em;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  line-height: 0.85;
+  width: 1.7em;
+  opacity: 0.83;
+}
+
+a[data-link-icon-type*='text'][data-link-icon-type*='quad'][data-link-icon-type*='mono']::after {
+  line-height: 0.9;
+}
+
+/*===========================================*/
+/*= SPECIFIC ICON CUSTOMIZATIONS: BY TARGET =*/
+/*===========================================*/
+
+/*  ArXiv */
+a[data-link-icon='𝛘'] {
+  --link-icon-size: 0.7em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.6em;
+  --link-icon-opacity: 0.7;
+}
+
+/*=================*/
+/*= SVG ICON URLs =*/
+/*=================*/
+
+/*  File type icons */
+a[data-link-icon='pdf'] {
+  --link-icon-url: url("/static/img/icon/pdf.417affebacc1.svg");
+  --link-icon-size: 0.45em;
+  --link-icon-offset-x: 0.1em;
+  --link-icon-opacity: 0.5;
+}
+
+a[data-link-icon='txt'] {
+  --link-icon-url: url("/static/img/icon/txt.ce7a496c9f52.svg");
+}
+
+a[data-link-icon='code'] {
+  --link-icon-url: url("/static/img/icon/code.89972a85489e.svg");
+}
+
+a[data-link-icon='worddoc'] {
+  --link-icon-url: url("/static/img/icon/word-doc.99f494090fb3.svg");
+}
+
+a[data-link-icon='spreadsheet'] {
+  --link-icon-url: url("/static/img/icon/spreadsheet.2a5528dc7676.svg");
+}
+
+a[data-link-icon='csv'] {
+  --link-icon-url: url("/static/img/icon/csv.60cbf309348d.svg");
+}
+
+a[data-link-icon='image'] {
+  --link-icon-url: url("/static/img/icon/image.f8d28c3e5758.svg");
+}
+
+a[data-link-icon='audio'] {
+  --link-icon-url: url("/static/img/icon/audio.9db9c0346c16.svg");
+}
+
+a[data-link-icon='file-video'] {
+  --link-icon-url: url("/static/img/icon/file-video.ab3f6eb31bd5.svg");
+}
+
+a[data-link-icon='archive'] {
+  --link-icon-url: url("/static/img/icon/archive.2ac59528eac7.svg");
+}
+
+a[data-link-icon='misc'] {
+  --link-icon-url: url("/static/img/icon/misc.248c4289beab.svg");
+}
+
+/*  Domain icons */
+a[data-link-icon='github'] {
+  --link-icon-url: url("/static/img/icon/github.5dfcca46f187.svg");
+  --link-icon-size: 0.75em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.2em;
+  --link-icon-opacity: 0.65;
+}
+
+a[data-link-icon='wikipedia'] {
+  --link-icon-url: url("/static/img/icon/wikipedia.c0f83952e1b6.svg");
+  --link-icon-size: 0.6em;
+  --link-icon-offset-x: 0.12em;
+  --link-icon-offset-y: -0.05em;
+  --link-icon-opacity: 0.65;
+}
+
+a[data-link-icon='google-scholar'] {
+  --link-icon-url: url("/static/img/icon/google-scholar.d2ced56fbdbc.svg");
+  --link-icon-size: 0.8em;
+  --link-icon-offset-x: 0.1em;
+  --link-icon-opacity: 0.6;
+}
+
+a[data-link-icon='nlm-ncbi'] {
+  --link-icon-url: url("/static/img/icon/nlm-ncbi.d5933773c3cb.svg");
+  --link-icon-size: 0.6em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.2em;
+  --link-icon-opacity: 0.9;
+}
+
+a[data-link-icon='plos'] {
+  --link-icon-url: url("/static/img/icon/plos.5e7504e94543.svg");
+  --link-icon-size: 0.8em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.1em;
+  --link-icon-opacity: 0.8;
+}
+
+a[data-link-icon='chi-dna'] {
+  --link-icon-url: url("/static/img/icon/chi-dna.d06ff03969e1.svg");
+  --link-icon-size: 0.58em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-opacity: 0.85;
+}
+
+a[data-link-icon='reddit'] {
+  --link-icon-url: url("/static/img/icon/reddit.b549f00be0ad.svg");
+  --link-icon-size: 0.8em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.25em;
+  --link-icon-opacity: 0.5;
+}
+
+a[data-link-icon='twitter'] {
+  --link-icon-url: url("/static/img/icon/twitter.928360b5a268.svg");
+  --link-icon-size: 0.75em;
+  --link-icon-offset-x: 0.2em;
+  --link-icon-offset-y: 0.2em;
+  --link-icon-opacity: 0.5;
+}
+
+a[data-link-icon='youtube'] {
+  --link-icon-url: url("/static/img/icon/youtube.6950ba0b12c3.svg");
+  --link-icon-size: 0.88em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-opacity: 0.5;
+}
+
+a[data-link-icon='new-york-times'] {
+  --link-icon-url: url("/static/img/icon/new-york-times.3b3e5d56f33f.svg");
+  --link-icon-size: 0.65em;
+  --link-icon-offset-x: 0.1em;
+  --link-icon-offset-y: 0.15em;
+  --link-icon-opacity: 0.6;
+}
+
+a[data-link-icon='the-guardian'] {
+  --link-icon-url: url("/static/img/icon/the-guardian.2517ea9408c3.svg");
+  --link-icon-size: 0.8em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.25em;
+  --link-icon-opacity: 0.55;
+}
+
+a[data-link-icon='wired'] {
+  --link-icon-url: url("/static/img/icon/wired.7513a0242dd7.svg");
+  --link-icon-size: 0.75em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.2em;
+  --link-icon-opacity: 0.55;
+}
+
+a[data-link-icon='internet-archive'] {
+  --link-icon-url: url("/static/img/icon/internet-archive.cf00feaf6432.svg");
+  --link-icon-size: 0.55em;
+  --link-icon-opacity: 0.6;
+}
+
+a[data-link-icon='amazon'] {
+  --link-icon-url: url("/static/img/icon/amazon.6c2684b8e214.svg");
+  --link-icon-size: 0.75em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0.2em;
+  --link-icon-opacity: 0.65;
+}
+
+a[data-link-icon='stack-exchange'] {
+  --link-icon-url: url("/static/img/icon/stack-exchange.7ea29a089d13.svg");
+  --link-icon-size: 0.6em;
+  --link-icon-offset-x: 0.2em;
+  --link-icon-offset-y: 0.25em;
+  --link-icon-opacity: 0.55;
+}
+
+a[data-link-icon='arrows-pointing-inwards-to-dot'] {
+  /* bl backlinks ‘implosion’ */
+  --link-icon-size: 0.9em;
+  --link-icon-offset-y: 0.22em;
+  --link-icon-offset-y: 0.25em;
+  --link-icon-opacity: 0.7;
+}
+
+a[data-link-icon='≈'] {
+  /* similar-links (ALMOST EQUAL TO) */
+  --link-icon-size: 1em;
+  --link-icon-offset-x: 0.15em;
+  --link-icon-offset-y: 0em;
+  --link-icon-opacity: 0.75;
+}

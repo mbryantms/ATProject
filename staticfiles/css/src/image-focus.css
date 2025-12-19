@@ -1,0 +1,628 @@
+/***************/
+/* IMAGE FOCUS */
+/***************/
+
+/*=--------=*/
+/*= Colors =*/
+/*=--------=*/
+
+:root {
+  --SA-image-focus-sans-serif-font-stack: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+  --SA-image-focus-image-background-color: #ffffff;
+
+  --SA-image-focus-image-hover-drop-shadow-color: rgba(0, 0, 0, 0.4);
+  --SA-image-focus-image-hover-tooltip-background-color: rgba(0, 0, 0, 0.75);
+  --SA-image-focus-image-hover-tooltip-text-color: #ffffff;
+  --SA-image-focus-image-hover-tooltip-inverted-background-color: rgba(
+    255,
+    255,
+    255,
+    0.6
+  );
+
+  --SA-image-focus-overlay-background-color: rgba(0, 0, 0, 0.9);
+  --SA-image-focus-overlay-image-caption-background-color: rgba(0, 0, 0, 0.75);
+  --SA-image-focus-overlay-image-caption-text-color: #ffffff;
+  --SA-image-focus-overlay-image-caption-link-color: #d1d1d1;
+  --SA-image-focus-overlay-image-caption-link-hover-color: #f0f0f0;
+  --SA-image-focus-overlay-image-caption-separator-color: rgba(255, 255, 255, 0.25);
+  --SA-image-focus-overlay-help-box-background-color: rgba(0, 0, 0, 0.85);
+  --SA-image-focus-overlay-help-box-text-color: #ffffff;
+  --SA-image-focus-overlay-info-icon-drop-shadow-color: rgba(0, 0, 0, 0.7);
+  --SA-image-focus-overlay-image-number-text-color: #ffffff;
+  --SA-image-focus-overlay-image-number-text-shadow-color: rgba(0, 0, 0, 0.9);
+  --SA-image-focus-overlay-image-url-copy-icon-color: #c5c5c5;
+  --SA-image-focus-overlay-slideshow-button-color: #ececec;
+  --SA-image-focus-overlay-slideshow-button-hover-background-color: rgba(
+    255,
+    255,
+    255,
+    0.08
+  );
+  --SA-image-focus-overlay-slideshow-button-hover-color: #f7f7f7;
+  --SA-image-focus-overlay-slideshow-button-hover-drop-shadow-color: rgba(
+    0,
+    0,
+    0,
+    0.65
+  );
+  --SA-image-focus-overlay-slideshow-button-active-color: #b5b5b5;
+  --SA-image-focus-overlay-slideshow-button-disabled-color: rgba(255, 255, 255, 0.4);
+}
+
+/*=--------------=*/
+/*= Hover styles =*/
+/*=--------------=*/
+
+.markdownBody img.focusable:hover {
+  /*     filter: drop-shadow(0 0 3px var(--SA-image-focus-image-hover-drop-shadow-color)); */
+  cursor: zoom-in;
+  box-shadow: 0 0 10px 0 var(--SA-image-focus-image-hover-drop-shadow-color);
+}
+.markdownBody img.focusable:active {
+  transform: scale(0.975);
+}
+
+/*=---------=*/
+/*= Overlay =*/
+/*=---------=*/
+
+#image-focus-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 9999;
+  display: none;
+  cursor: zoom-out;
+}
+#image-focus-overlay::before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--SA-image-focus-overlay-background-color);
+  opacity: 0.9;
+  z-index: -1;
+}
+#image-focus-overlay.engaged {
+  display: initial;
+}
+
+#image-focus-overlay .image-in-focus {
+  margin: auto;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  width: auto;
+  height: auto;
+  max-height: unset;
+  background-color: var(--SA-image-focus-image-background-color);
+}
+
+#image-focus-overlay .image-in-focus.loading {
+  box-shadow: 0 0 0 1px var(--SA-image-focus-overlay-image-caption-separator-color)
+    inset;
+  background-color: transparent;
+}
+#image-focus-overlay .loading-spinner {
+  visibility: hidden;
+  color: var(--SA-image-focus-overlay-image-caption-separator-color);
+  width: 40vw;
+  height: fit-content;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: -1;
+}
+#image-focus-overlay .loading-spinner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 20vh;
+  animation: fa-spin 2s infinite linear;
+}
+#image-focus-overlay .image-in-focus.loading + .loading-spinner {
+  visibility: visible;
+}
+
+/*=-------------------=*/
+/*= Single-image mode =*/
+/*=-------------------=*/
+
+#image-focus-overlay:not(.slideshow) .image-number,
+#image-focus-overlay:not(.slideshow) .slideshow-buttons,
+#image-focus-overlay:not(.slideshow) .slideshow-help-text {
+  display: none;
+}
+
+/*=---------=*/
+/*= Caption =*/
+/*=---------=*/
+
+#image-focus-overlay .caption {
+  position: absolute;
+  bottom: 0.25em;
+  left: 4.5em;
+  right: 4.5em;
+  margin: auto;
+  max-width: calc(100% - 9em);
+  width: fit-content;
+  text-align: center;
+  font-family: var(--SA-image-focus-sans-serif-font-stack);
+  cursor: auto;
+  z-index: 1;
+  transition: bottom 0.15s ease;
+}
+@media all and (max-width: 1179px) {
+  #image-focus-overlay .caption {
+    max-width: calc(100% - 2em);
+    left: 1em;
+    right: 1em;
+  }
+}
+@media (min-width: 650px) and (orientation: portrait),
+  (min-height: 650px) and (orientation: landscape) {
+  #image-focus-overlay .caption {
+    font-size: 2vmin;
+  }
+}
+
+#image-focus-overlay .caption.hidden:not(.locked) {
+  bottom: -50%;
+  transition: bottom 0.5s ease-in;
+}
+
+/*  Necessary so that mouse hover at bottom of screen to the left or right of
+    a narrow caption still counts as “hovering over the caption” for the purpose
+    of preventing the caption from hiding.
+ */
+#image-focus-overlay .caption:not(:empty)::before {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 100vw;
+  height: calc(100% + 1.5em);
+  z-index: -1;
+  top: -0.75em;
+  left: calc(-50vw + 50%);
+}
+
+#image-focus-overlay .caption .caption-text-wrapper {
+  background-color: var(--SA-image-focus-overlay-image-caption-background-color);
+  padding: 0.125em 1.25em 1px 1.25em;
+  border-radius: 8px;
+}
+@media (max-width: 649px) and (orientation: portrait),
+  (max-height: 649px) and (orientation: landscape) {
+  #image-focus-overlay .caption .caption-text-wrapper {
+    font-size: 0.9em;
+    padding: 0.125em 0.75em 0.25em 0.75em;
+  }
+}
+#image-focus-overlay .caption .caption-text-wrapper:empty {
+  display: none;
+}
+
+/*  Caption contents.
+ */
+
+#image-focus-overlay .caption p {
+  margin: 0.875em 0;
+  color: var(--SA-image-focus-overlay-image-caption-text-color);
+}
+#image-focus-overlay .caption p + p {
+  padding-top: 0.75em;
+  border-top: 1px dotted var(--SA-image-focus-overlay-image-caption-separator-color);
+  font-size: 0.9em;
+}
+@media (max-width: 649px) and (orientation: portrait),
+  (max-height: 649px) and (orientation: landscape) {
+  #image-focus-overlay .caption p + p {
+    display: none;
+  }
+}
+
+#image-focus-overlay .caption code {
+  background-color: inherit;
+  border: none;
+  font-size: 1em;
+}
+
+#image-focus-overlay .caption a {
+  color: var(--SA-image-focus-overlay-image-caption-link-color);
+  margin: 0;
+  padding: 0;
+}
+#image-focus-overlay .caption a:hover {
+  color: var(--SA-image-focus-overlay-image-caption-link-hover-color);
+}
+#image-focus-overlay .caption a .indicator-hook,
+#image-focus-overlay .caption a .link-icon-hook {
+  display: none;
+}
+
+/*  Image URL in caption.
+ */
+
+#image-focus-overlay .caption .image-url {
+  position: relative;
+  margin: 0;
+  padding: 0.625em 2em 0.875em 1.25em;
+  border-radius: 8px;
+  background-color: var(--SA-image-focus-overlay-image-caption-background-color);
+  cursor: copy;
+  user-select: none;
+  transition: background-color 0.15s ease-out;
+}
+#image-focus-overlay .caption .caption-text-wrapper:not(:empty) + .image-url::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 1.25em;
+  right: 1.25em;
+  border-top: 1px dotted var(--SA-image-focus-overlay-image-caption-separator-color);
+}
+@media (max-width: 649px) and (orientation: portrait),
+  (max-height: 649px) and (orientation: landscape) {
+  #image-focus-overlay .caption .image-url {
+    display: none;
+  }
+}
+
+#image-focus-overlay .caption .image-url.flash {
+  background-color: var(--SA-image-focus-overlay-image-caption-link-color);
+  transition: background-color 0.1s ease-out;
+}
+
+#image-focus-overlay .caption .image-url .url {
+  font-size: 0.8em;
+  color: var(--SA-image-focus-overlay-image-caption-link-color);
+}
+@media (max-width: 649px) and (orientation: portrait) {
+  #image-focus-overlay .caption .image-url .url {
+    font-size: 0.75em;
+  }
+}
+@media (max-height: 649px) and (orientation: landscape) {
+  #image-focus-overlay .caption .image-url .url {
+    font-size: 0.7em;
+  }
+}
+#image-focus-overlay .caption .image-url:hover .url {
+  color: var(--SA-image-focus-overlay-image-caption-text-color);
+}
+
+#image-focus-overlay .caption .image-url .icon-container {
+  display: block;
+  position: absolute;
+  width: 0.95em;
+  height: 0.95em;
+  right: 0.55em;
+  top: 0.9em;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#image-focus-overlay .caption .image-url .icon {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  color: var(--SA-image-focus-overlay-image-url-copy-icon-color);
+  transition: opacity 2s ease-in;
+}
+#image-focus-overlay .caption .image-url:hover .icon {
+  color: currentColor;
+}
+#image-focus-overlay .caption .image-url.copied .icon {
+  transition:
+    left 0.15s ease,
+    opacity 0.15s ease;
+}
+#image-focus-overlay .caption .image-url .icon.normal {
+  left: 0;
+  opacity: 1;
+}
+#image-focus-overlay .caption .image-url.copied .icon.normal {
+  left: -100%;
+  opacity: 0;
+}
+#image-focus-overlay .caption .image-url .icon.copied {
+  left: 100%;
+  opacity: 0;
+}
+#image-focus-overlay .caption .image-url.copied .icon.copied {
+  left: 0;
+  opacity: 1;
+}
+
+#image-focus-overlay .caption .image-url .icon svg {
+  display: block;
+  height: 100%;
+}
+
+/*=--------------=*/
+/*= Help overlay =*/
+/*=--------------=*/
+
+#image-focus-overlay .help-overlay {
+  position: absolute;
+  display: flex;
+  flex-flow: column;
+  z-index: 3;
+  font-family: var(--SA-image-focus-sans-serif-font-stack);
+  font-size: 1.25rem;
+  padding: 1em;
+  border-radius: 10px;
+  bottom: 1em;
+  right: 1em;
+  max-width: calc(100vw - 4em);
+  overflow: hidden;
+  color: transparent;
+  cursor: help;
+  visibility: hidden;
+  transition:
+    visibility 1s ease,
+    color 1s ease,
+    background-color 1s ease,
+    bottom 0.15s ease;
+}
+#image-focus-overlay .help-overlay.open {
+  width: fit-content;
+  background-color: var(--SA-image-focus-overlay-help-box-background-color);
+  color: var(--SA-image-focus-overlay-help-box-text-color);
+  visibility: visible;
+  transition:
+    visibility 0.2s ease 0.3s,
+    color 0.2s ease 0.3s,
+    background-color 0.2s ease 0.3s;
+}
+
+#image-focus-overlay .help-overlay::after {
+  content: '';
+  background-image: url('/static/img/icon/icons.svg?v=1754602014#question');
+  background-origin: content-box;
+  background-clip: content-box;
+  position: absolute;
+  width: 1em;
+  height: 1.5em;
+  right: 0;
+  bottom: 0;
+  padding: 10px;
+  filter: invert(1)
+    drop-shadow(0 0 4px var(--SA-image-focus-overlay-info-icon-drop-shadow-color));
+  visibility: visible;
+  opacity: 0.85;
+  transition: visibility 1s ease;
+}
+#image-focus-overlay .help-overlay.open::after {
+  visibility: hidden;
+  transition: visibility 0.2s ease 0.3s;
+}
+
+#image-focus-overlay .help-overlay p {
+  margin: 0 0 0.75em 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  max-width: 100%;
+  overflow: hidden;
+}
+#image-focus-overlay .help-overlay p:last-of-type {
+  margin: 0;
+}
+#image-focus-overlay .help-overlay.hidden {
+  bottom: -2.25em;
+}
+
+@media all and (max-width: 1179px) {
+  #image-focus-overlay .help-overlay {
+    bottom: unset;
+    top: 1em;
+  }
+  #image-focus-overlay .help-overlay::after {
+    bottom: unset;
+    top: 0;
+  }
+  #image-focus-overlay .help-overlay.hidden {
+    bottom: unset;
+    top: -2.25em;
+  }
+}
+
+/*=--------------=*/
+/*= Slide number =*/
+/*=--------------=*/
+
+#image-focus-overlay .image-number {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--SA-image-focus-sans-serif-font-stack);
+  font-size: 1.5rem;
+  left: 1em;
+  top: 1em;
+  font-weight: 600;
+  color: var(--SA-image-focus-overlay-image-number-text-color);
+  text-shadow:
+    0 0 2px var(--SA-image-focus-overlay-image-number-text-shadow-color),
+    0 0 4px var(--SA-image-focus-overlay-image-number-text-shadow-color),
+    0 0 6px var(--SA-image-focus-overlay-image-number-text-shadow-color),
+    0 0 10px var(--SA-image-focus-overlay-image-number-text-shadow-color);
+  width: 1.5em;
+  text-align: right;
+  white-space: nowrap;
+  cursor: default;
+  transition: top 0.3s ease;
+}
+#image-focus-overlay .image-number::before {
+  content: '#';
+  opacity: 0.3;
+}
+#image-focus-overlay .image-number::after {
+  content: ' of ' attr(data-number-of-images);
+  opacity: 0.3;
+}
+#image-focus-overlay .image-number:hover::before,
+#image-focus-overlay .image-number:hover::after {
+  opacity: 1;
+}
+#image-focus-overlay .image-number.hidden {
+  top: -1.25em;
+}
+
+/*=-------------------=*/
+/*= Slideshow buttons =*/
+/*=-------------------=*/
+
+#image-focus-overlay .slideshow-buttons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+#image-focus-overlay .slideshow-buttons button {
+  font-size: 3rem;
+  color: var(--SA-image-focus-overlay-slideshow-button-color);
+  border: none;
+  background-color: transparent;
+  position: relative;
+  left: 0;
+  transition: left 0.3s ease;
+  pointer-events: auto;
+  cursor: pointer;
+  width: 4rem;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-origin: content-box;
+}
+#image-focus-overlay .slideshow-buttons button.next {
+  padding: 0.25em 0.25em 0.25em 0.375em;
+}
+#image-focus-overlay .slideshow-buttons button.previous {
+  padding: 0.25em 0.375em 0.25em 0.25em;
+}
+
+#image-focus-overlay .slideshow-buttons button svg {
+  pointer-events: none;
+  fill: currentColor;
+}
+
+#image-focus-overlay .slideshow-buttons button::selection {
+  background-color: transparent;
+}
+
+@media all and (hover: hover) {
+  #image-focus-overlay .slideshow-buttons button:hover {
+    background-color: var(
+      --SA-image-focus-overlay-slideshow-button-hover-background-color
+    );
+    color: var(--SA-image-focus-overlay-slideshow-button-hover-color);
+  }
+  #image-focus-overlay .slideshow-buttons button:not(:disabled):hover svg {
+    filter: drop-shadow(
+        0 0 1px var(--SA-image-focus-overlay-slideshow-button-hover-drop-shadow-color)
+      )
+      drop-shadow(
+        0 0 3px var(--SA-image-focus-overlay-slideshow-button-hover-drop-shadow-color)
+      );
+  }
+}
+@media all and (hover: none) {
+  #image-focus-overlay .slideshow-buttons button:not(:disabled) {
+    background-color: var(
+      --SA-image-focus-overlay-slideshow-button-hover-background-color
+    );
+    color: var(--SA-image-focus-overlay-slideshow-button-hover-color);
+  }
+  #image-focus-overlay .slideshow-buttons button:not(:disabled) svg {
+    filter: drop-shadow(
+        0 0 1px var(--SA-image-focus-overlay-slideshow-button-hover-drop-shadow-color)
+      )
+      drop-shadow(
+        0 0 3px var(--SA-image-focus-overlay-slideshow-button-hover-drop-shadow-color)
+      );
+  }
+}
+#image-focus-overlay .slideshow-buttons button:active {
+  transform: none;
+  color: var(--SA-image-focus-overlay-slideshow-button-active-color);
+}
+#image-focus-overlay .slideshow-buttons button:disabled {
+  text-shadow: none;
+  background-color: transparent;
+  color: var(--SA-image-focus-overlay-slideshow-button-disabled-color);
+  cursor: default;
+  opacity: 0.4;
+}
+
+#image-focus-overlay .slideshow-button.previous.hidden {
+  left: -1.75em;
+}
+#image-focus-overlay .slideshow-button.next.hidden {
+  left: 1.75em;
+}
+
+/*=---------=*/
+/*= Tooltip =*/
+/*=---------=*/
+
+.image-wrapper.focusable::after {
+  content: 'Click to enlarge';
+  display: block;
+  position: absolute;
+  margin: auto;
+  left: 0;
+  right: 0;
+  bottom: 0.5em;
+  padding: 0.3em 0.75em 0.35em 0.75em;
+  font-size: 1rem;
+  font-family: var(--SA-image-focus-sans-serif-font-stack);
+  background-color: var(--SA-image-focus-image-hover-tooltip-background-color);
+  color: var(--SA-image-focus-image-hover-tooltip-text-color);
+  border-radius: 0.25em;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.image-wrapper.focusable.small-image::after {
+  content: '';
+  background-color: var(--SA-image-focus-image-hover-tooltip-inverted-background-color);
+  background-image: url('/static/img/icon/icons.svg?v=1754602014#magnifying-glass-plus-light');
+  background-size: 56px 56px;
+  background-origin: content-box;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: invert(1);
+  bottom: 0;
+  height: 100%;
+  width: 100%;
+  padding: 0.5em;
+  box-sizing: border-box;
+  border-radius: 0;
+}
+.image-wrapper::after {
+  width: fit-content;
+}
+.image-wrapper.focusable:hover::after {
+  opacity: 1;
+}

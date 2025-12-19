@@ -125,8 +125,8 @@ CSP_REPORT_ONLY = DEBUG
 # Default: only allow resources from same origin
 CSP_DEFAULT_SRC = ("'self'",)
 
-# Scripts: self + MathJax CDN
-CSP_SCRIPT_SRC = ("'self'", "https://cdn.jsdelivr.net")
+# Scripts: self + MathJax CDN + Cloudflare Web Analytics (auto-injected by CF proxy)
+CSP_SCRIPT_SRC = ("'self'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com")
 
 # Styles: self only (all styles are local)
 CSP_STYLE_SRC = ("'self'",)
@@ -140,8 +140,8 @@ CSP_IMG_SRC = ["'self'", "data:"]
 # Media (video/audio): self + R2 domain (added dynamically below)
 CSP_MEDIA_SRC = ["'self'"]
 
-# XHR/fetch/WebSocket connections: self only
-CSP_CONNECT_SRC = ("'self'",)
+# XHR/fetch/WebSocket connections: self + Cloudflare Analytics beacon
+CSP_CONNECT_SRC = ("'self'", "https://cloudflareinsights.com")
 
 # Form submissions: self only
 CSP_FORM_ACTION = ("'self'",)
