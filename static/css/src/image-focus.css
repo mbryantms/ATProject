@@ -135,14 +135,18 @@
   opacity: 0;
 }
 
-/* On mobile, make close button larger and always more visible */
+/* On mobile, adjust close button size and hide help overlay (keybinds not useful) */
 @media (max-width: 649px) {
   #image-focus-overlay .close-button {
-    width: 3em;
-    height: 3em;
-    font-size: 1.75rem;
+    width: 2.25em;
+    height: 2.25em;
+    font-size: 1.25rem;
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.7);
+  }
+
+  #image-focus-overlay .help-overlay {
+    display: none;
   }
 }
 
