@@ -3849,9 +3849,44 @@ script {
   }
 }
 
-@media all and (min-width: 1800px) {
-  .index-sections {
+/*  Wider layout for index page on large screens.
+    The intro section stays at normal width and centered,
+    the sidebar stays at normal width, but the multi-column
+    sections break out and expand (max 3 columns).
+ */
+.page-index .index-intro {
+  max-width: var(--AT-body-max-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.page-index .index-intro p {
+  margin-top: 0;
+}
+
+.page-index .index-intro p:first-child {
+  text-indent: 0;
+}
+
+@media all and (min-width: 1200px) {
+  .page-index .index-sections {
+    --expand-width: calc((1100px - var(--AT-body-max-width)) / 2);
+    width: calc(100% + var(--expand-width) * 2);
+    margin-left: calc(-1 * var(--expand-width));
+    margin-right: calc(-1 * var(--expand-width));
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media all and (min-width: 1400px) {
+  .page-index .index-sections {
+    --expand-width: calc((1300px - var(--AT-body-max-width)) / 2);
+  }
+}
+
+@media all and (min-width: 1800px) {
+  .page-index .index-sections {
+    --expand-width: calc((1500px - var(--AT-body-max-width)) / 2);
   }
 }
 

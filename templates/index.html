@@ -2,24 +2,19 @@
 
 {% block title %}Architextual{% endblock %}
 
+{% block body_class %} class="page-index"{% endblock %}
+
 {% block page_title %}{% endblock %}
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">
 
-  {# Enhanced Intro Section #}
+  {# Intro Section - editable via Page model with slug 'home-intro' #}
+  {% if intro_html %}
   <section class="index-intro">
-    {% if intro_html %}
-      {{ intro_html|safe }}
-    {% else %}
-      <p class="intro-lead block first-graf">
-        <span class="smallcaps">Welcome</span> to <strong>Architextual</strong>, a space for essays, notes, and explorations across technology, design, and ideas worth examining closely.
-      </p>
-      <p class="intro-description">
-        This site collects writings on software architecture, interface design, and the intersection of craft and computation. Navigate by topic below, browse the <a href="{% url 'post-archive' %}">archive</a>, or explore by <a href="/tags">tag</a>.
-      </p>
-    {% endif %}
+    {{ intro_html|safe }}
   </section>
+  {% endif %}
 
   <hr class="index-divider index-divider-decorated">
 

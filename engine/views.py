@@ -337,6 +337,35 @@ def links(request):
     return render(request, "delete/links.html", {"page_title": "Links"})
 
 
+class PageView(TemplateView):
+    """
+    Render a static page from the Page model.
+
+    Used for editable pages like About, etc.
+    """
+
+    template_name = "page.html"
+    page_slug = None  # Set in URL config or subclass
+
+    def get_page_slug(self):
+        """Get the page slug from URL kwargs or class attribute."""
+        return self.kwargs.get("slug") or self.page_slug
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        slug = self.get_page_slug()
+
+        try:
+            page = Page.objects.get(slug=slug, is_active=True)
+            context["page"] = page
+            context["page_title"] = page.title
+            context["content_html"] = page.content_html
+        except Page.DoesNotExist:
+            raise Http404(f"Page '{slug}' not found")
+
+        return context
+
+
 class PostDetailView(DetailView):
     """
     Shows a single post. Anonymous users can see only published+visible posts.

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }} - Architextual{% endblock %}
+
+{% block page_title %}{{ page.title }}{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  {{ content_html|safe }}
+</div>
+{% endblock content %}
