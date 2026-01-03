@@ -392,7 +392,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("view_count", "like_count", "rating"),
                     ("reading_time_minutes", "word_count"),
                 ),
-                "classes": ["collapse"],
+                "classes": [],
                 "description": "User engagement metrics and reading statistics",
             },
         ),

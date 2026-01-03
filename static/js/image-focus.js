@@ -850,7 +850,6 @@
       const figure = ImageFocus.currentlyFocusedImage.closest('figure');
       const figcaption = figure ? figure.querySelector('figcaption') : null;
       const title = ImageFocus.currentlyFocusedImage.getAttribute('title');
-      const alt = ImageFocus.currentlyFocusedImage.getAttribute('alt');
 
       const appendParagraph = (content, { allowHTML = false } = {}) => {
         if (!content) return;
@@ -862,7 +861,6 @@
 
       if (figcaption) appendParagraph(figcaption.innerHTML, { allowHTML: true });
       appendParagraph(title);
-      appendParagraph(alt && alt !== title ? alt : null);
 
       if (wrapper.children.length > 0) captionContainer.appendChild(wrapper);
 
