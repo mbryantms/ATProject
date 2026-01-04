@@ -3,6 +3,26 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+      // Theme initialization - MUST run before CSS to prevent flash
+      (function() {
+        var theme = 'auto';
+        try {
+          theme = localStorage.getItem('architextual-theme') || 'auto';
+          if (!['auto', 'light', 'dark'].includes(theme)) theme = 'auto';
+        } catch(e) {}
+        document.documentElement.dataset.theme = theme;
+
+        // Set color-scheme meta for native controls
+        var colorScheme = theme === 'dark' ? 'dark' :
+                          theme === 'light' ? 'light' :
+                          (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        var meta = document.createElement('meta');
+        meta.name = 'color-scheme';
+        meta.content = colorScheme;
+        document.head.appendChild(meta);
+      })();
+    </script>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="icon" type="image/png" href="/static/img/favicon.png">
     <link rel="stylesheet" href="/static/css/dist/base.css">

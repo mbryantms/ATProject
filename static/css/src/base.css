@@ -1,5 +1,6 @@
 @charset "UTF-8";
 @import './colors.css';
+@import './dark-mode.css';
 @import './fonts.css';
 @import './link-icons.css';
 @import './fullwidth.css';
@@ -211,6 +212,49 @@ div.sans-serif {
   font-size: 0.8em;
   color: var(--AT-body-text-color);
   opacity: 0.5;
+}
+
+/*  Theme toggle button.
+ */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75em;
+  height: 1.75em;
+  padding: 0.25em;
+  margin-left: auto;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--AT-body-text-color);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.theme-toggle:hover {
+  opacity: 1;
+  background-color: var(--AT-TOC-link-hover-background-color, #ececec);
+}
+
+.theme-toggle svg {
+  width: 1.1em;
+  height: 1.1em;
+  display: none;
+}
+
+html[data-theme="auto"] .theme-toggle .theme-icon-auto,
+html:not([data-theme]) .theme-toggle .theme-icon-auto {
+  display: block;
+}
+
+html[data-theme="light"] .theme-toggle .theme-icon-light {
+  display: block;
+}
+
+html[data-theme="dark"] .theme-toggle .theme-icon-dark {
+  display: block;
 }
 
 @media all and (max-width: 649px) {
@@ -2556,7 +2600,7 @@ pre::-webkit-scrollbar-thumb:hover {
   width: 1.15em;
   height: 1.15em;
   box-sizing: border-box;
-  background-color: var(--AT-body-background-color);
+  background-color: transparent;
   cursor: pointer;
   overflow: hidden;
 }

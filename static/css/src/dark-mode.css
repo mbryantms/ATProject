@@ -1,0 +1,638 @@
+/*=============================================================================*/
+/*  DARK MODE                                                                  */
+/*=============================================================================*/
+
+/*  Dark mode via data-theme attribute.
+    Applied when user explicitly selects dark mode.
+ */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /*  General.
+      Adjusted background to #161616 to prevent OLED pixels from turning off
+      (causes scrolling jank). Text dialed back from pure white for better
+      contrast in dark environments.
+   */
+  --AT-body-background-color: #161616;
+  --AT-body-text-color: #f1f1f1;
+
+  /*  Selection.
+   */
+  --AT-text-selection-background-color: #dcdcdc;
+  --AT-text-selection-color: #000;
+
+  /*  Links.
+   */
+  --AT-body-link-color: #dcdcdc;
+  --AT-body-link-hover-color: #999;
+  --AT-body-link-visited-color: #b4b4b4;
+
+  /*  Blockquotes.
+   */
+  --AT-blockquote-border-color-level-one: #5c5c5c;
+  --AT-blockquote-border-color-level-two: #646464;
+  --AT-blockquote-border-color-level-three: #747474;
+  --AT-blockquote-border-color-level-four: #7f7f7f;
+  --AT-blockquote-background-color-level-one: #212121;
+  --AT-blockquote-background-color-level-two: #3e3e3e;
+  --AT-blockquote-background-color-level-three: #4f4f4f;
+
+  /*  Abstracts.
+   */
+  --AT-abstract-border-color: #6c6c6c;
+
+  /*  Block context highlighting.
+   */
+  --AT-block-context-span-highlight-color: #494949;
+
+  /*  Table of contents.
+   */
+  --AT-TOC-border-color: #5c5c5c;
+  --AT-TOC-background-color: #212121;
+  --AT-TOC-collapse-button-text-color: #5c5c5c;
+  --AT-TOC-collapse-button-text-hover-color: #000;
+  --AT-TOC-collapse-button-color: rgba(33, 33, 33, 0.8);
+  --AT-TOC-collapse-button-hover-color: #494949;
+  --AT-TOC-collapse-button-border-hover-color: #fff;
+  --AT-TOC-link-hover-background-color: #363636;
+  --AT-TOC-link-hover-color: #fff;
+  --AT-TOC-link-hover-indicator-bar-color: #5c5c5c;
+  --AT-TOC-number-color: #929292;
+  --AT-TOC-number-hover-color: #ddd;
+
+  /*  Collapse blocks.
+   */
+  --AT-collapse-abstract-blockquote-hover-color: #333;
+  --AT-collapse-disclosure-button-color: #333;
+  --AT-collapse-disclosure-button-hover-color: #494949;
+  --AT-collapse-in-blockquote-disclosure-button-color: #494949;
+  --AT-collapse-in-blockquote-disclosure-button-hover-color: #5c5c5c;
+  --AT-collapse-disclosure-button-text-color: #6c6c6c;
+  --AT-collapse-disclosure-button-text-hover-color: #000;
+  --AT-collapse-in-blockquote-disclosure-button-text-color: #8b8b8b;
+  --AT-collapse-in-blockquote-disclosure-button-text-hover-color: #999;
+
+  /*  Headings.
+   */
+  --AT-H1-border-color: #999;
+  --AT-H2-border-color: #999;
+
+  /*  Lists.
+   */
+  --AT-bulleted-list-marker-color: #9f9f9f;
+
+  /*  Figures.
+   */
+  --AT-figure-outline-color: #999;
+  --AT-figure-caption-outline-color: #999;
+
+  /*  Embeds.
+   */
+  --AT-embed-border-color: #494949;
+
+  /*  Epigraphs.
+   */
+  --AT-epigraph-quotation-mark-color: #9f9f9f;
+
+  /*  Footnotes.
+   */
+  --AT-footnote-border-color: #7c7c7c;
+  --AT-footnote-highlighted-border-color: #7c7c7c;
+  --AT-footnotes-section-top-rule-color: #5c5c5c;
+  --AT-footnote-backlink-border-color: #fff;
+  --AT-footnote-backlink-border-hover-color: #8b8b8b;
+
+  /*  Footnote references.
+   */
+  --AT-highlighted-link-outline-color: #8b8b8b;
+
+  /*  Sidenotes.
+   */
+  --AT-sidenote-highlight-box-shadow-color: #7c7c7c;
+  --AT-sidenote-border-color: #7c7c7c;
+  --AT-sidenote-scrollbar-thumb-color: #7c7c7c;
+  --AT-sidenote-scrollbar-thumb-hover-color: #8b8b8b;
+  --AT-sidenote-self-link-border-color: #7c7c7c;
+
+  /*  Annotations.
+   */
+  --AT-section-highlighted-border-color: #b4b4b4;
+
+  /*  Tables.
+   */
+  --AT-table-border-color: #fff;
+  --AT-table-caption-border-color: #fff;
+  --AT-table-row-horizontal-border-color: #fff;
+  --AT-table-scrollbar-thumb-color: #7c7c7c;
+  --AT-table-scrollbar-thumb-hover-color: #8b8b8b;
+  --AT-table-scrollbar-border-color: #fff;
+  --AT-table-column-heading-hover-background-color: #2b3637;
+  --AT-table-sorted-column-heading-background-color: #216983;
+  --AT-table-sorted-column-heading-text-color: #000;
+  --AT-table-sorted-column-heading-text-shadow-color: #fff;
+  --AT-table-zebra-stripe-alternate-row-background-color: #252525;
+  --AT-table-row-hover-outline-color: #fff;
+
+  /*  Code blocks.
+   */
+  --AT-code-element-border-color: #606060;
+  --AT-code-element-background-color: #1d1d1d;
+  --AT-pre-element-border-color: #606060;
+  --AT-pre-element-background-color: #1d1d1d;
+  --AT-pre-element-scrollbar-track-color: #1d1d1d;
+  --AT-pre-element-scrollbar-thumb-color: #5c5c5c;
+  --AT-pre-element-scrollbar-thumb-hover-color: #8b8b8b;
+  --AT-code-block-line-highlight-background-color: #171600;
+  --AT-code-block-line-highlight-border-color: #494949;
+  --AT-code-block-line-number-color: #7c7c7c;
+  --AT-code-block-line-number-divider-color: #5c5c5c;
+
+  /*  Syntax highlight theme (VS Code Dark+ inspired).
+   */
+  --AT-syntax-highlight-color-normal: #d4d4d4;
+  --AT-syntax-highlight-color-attribute: #9cdcfe;
+  --AT-syntax-highlight-color-data-type: #4ec9b0;
+  --AT-syntax-highlight-color-variable: #9cdcfe;
+  --AT-syntax-highlight-color-other: #d4d4d4;
+  --AT-syntax-highlight-color-preprocessor: #c586c0;
+  --AT-syntax-highlight-color-extension: #9cdcfe;
+  --AT-syntax-highlight-color-comment: #6a9955;
+  --AT-syntax-highlight-color-control-flow: #c586c0;
+  --AT-syntax-highlight-color-keyword: #569cd6;
+  --AT-syntax-highlight-color-operator: #d4d4d4;
+  --AT-syntax-highlight-color-special-char: #ce9178;
+  --AT-syntax-highlight-color-built-in: #4ec9b0;
+  --AT-syntax-highlight-color-function: #dcdcaa;
+  --AT-syntax-highlight-color-constant: #4fc1ff;
+  --AT-syntax-highlight-color-base-n: #b5cea8;
+  --AT-syntax-highlight-color-dec-val: #b5cea8;
+  --AT-syntax-highlight-color-float: #b5cea8;
+  --AT-syntax-highlight-color-information: #9cdcfe;
+  --AT-syntax-highlight-color-char: #ce9178;
+  --AT-syntax-highlight-color-string: #ce9178;
+  --AT-syntax-highlight-color-verbatim-string: #ce9178;
+  --AT-syntax-highlight-color-alert: #f44747;
+  --AT-syntax-highlight-color-error: #f44747;
+  --AT-syntax-highlight-color-import: #c586c0;
+  --AT-syntax-highlight-color-special-string: #ce9178;
+
+  /*  Math.
+   */
+  --AT-math-block-background-color: #252525;
+  --AT-math-block-background-color-flash: #000;
+  --AT-math-block-scrollbar-border-color: #5c5c5c;
+  --AT-math-block-scrollbar-thumb-color: #5c5c5c;
+  --AT-math-block-scrollbar-thumb-hover-color: #8b8b8b;
+
+  /*  Admonitions.
+   */
+  --AT-admonition-note-left-border-color: #929292;
+  --AT-admonition-note-background-color: #4f4f4f;
+  --AT-admonition-tip-left-border-color: #4f4f4f;
+  --AT-admonition-tip-background-color: #303030;
+  --AT-admonition-warning-left-border-color: #bdbdbd;
+  --AT-admonition-warning-background-color: #8a8a8a;
+  --AT-admonition-warning-text-color: #000;
+  --AT-admonition-error-left-border-color: #e1e1e1;
+  --AT-admonition-error-background-color: #bdbdbd;
+  --AT-admonition-error-text-color: #000;
+  --AT-admonition-reversed-link-color: #494949;
+  --AT-admonition-reversed-link-color-hover: #5c5c5c;
+  --AT-admonition-reversed-link-underline-gradient-line-color: #5c5c5c;
+  --AT-admonition-reversed-link-underline-gradient-line-color-hover: #6c6c6c;
+
+  /*  Footer.
+   */
+  --AT-bottom-ornament-line-color: #fff;
+
+  /*  Image focus.
+   */
+  --AT-image-focus-image-hover-drop-shadow-color: #a6a6a6;
+
+  /*  Page toolbar.
+   */
+  --AT-page-toolbar-border-color: #7c7c7c;
+  --AT-page-toolbar-control-button-color: #7c7c7c;
+  --AT-page-toolbar-control-button-active-color: #fff;
+
+  /*  Page toolbar widgets.
+   */
+  --AT-page-toolbar-button-icon-color: #7c7c7c;
+  --AT-page-toolbar-button-selectable-icon-color: #404040;
+  --AT-page-toolbar-button-selected-icon-color: #a6a6a6;
+  --AT-page-toolbar-button-text-color: #b4b4b4;
+  --AT-page-toolbar-button-disabled-text-color: #5c5c5c;
+  --AT-page-toolbar-button-highlighted-text-color: #fff;
+
+  /*  "Back to top" link.
+   */
+  --AT-back-to-top-link-color: #5c5c5c;
+  --AT-back-to-top-link-hover-color: #8b8b8b;
+
+  /*  Mobile floating header.
+   */
+  --AT-floating-header-box-shadow-color: #5c5c5c;
+  --AT-floating-header-scroll-indicator-color: #8b8b8b;
+
+  /*  "Skip to content" accessibility link.
+   */
+  --AT-skip-to-content-text-color: #000;
+  --AT-skip-to-content-border-color: #000;
+  --AT-skip-to-content-background-color: #ff847b;
+
+  /*  Nav header.
+   */
+  --AT-nav-header-link-color: #999;
+  --AT-nav-header-link-hover-color: #fff;
+
+  /*  X of the day.
+   */
+  --AT-x-of-the-day-border-color: #5c5c5c;
+
+  /*  Horizontal rule.
+   */
+  --AT-horizontal-rule-stroke-color: #5c5c5c;
+}
+
+/*  Auto mode: respect system preference.
+    Applied when user is on 'auto' and system prefers dark.
+ */
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] {
+    color-scheme: dark;
+
+    /*  General.
+     */
+    --AT-body-background-color: #161616;
+    --AT-body-text-color: #f1f1f1;
+
+    /*  Selection.
+     */
+    --AT-text-selection-background-color: #dcdcdc;
+    --AT-text-selection-color: #000;
+
+    /*  Links.
+     */
+    --AT-body-link-color: #dcdcdc;
+    --AT-body-link-hover-color: #999;
+    --AT-body-link-visited-color: #b4b4b4;
+
+    /*  Blockquotes.
+     */
+    --AT-blockquote-border-color-level-one: #5c5c5c;
+    --AT-blockquote-border-color-level-two: #646464;
+    --AT-blockquote-border-color-level-three: #747474;
+    --AT-blockquote-border-color-level-four: #7f7f7f;
+    --AT-blockquote-background-color-level-one: #212121;
+    --AT-blockquote-background-color-level-two: #3e3e3e;
+    --AT-blockquote-background-color-level-three: #4f4f4f;
+
+    /*  Abstracts.
+     */
+    --AT-abstract-border-color: #6c6c6c;
+
+    /*  Block context highlighting.
+     */
+    --AT-block-context-span-highlight-color: #494949;
+
+    /*  Table of contents.
+     */
+    --AT-TOC-border-color: #5c5c5c;
+    --AT-TOC-background-color: #212121;
+    --AT-TOC-collapse-button-text-color: #5c5c5c;
+    --AT-TOC-collapse-button-text-hover-color: #000;
+    --AT-TOC-collapse-button-color: rgba(33, 33, 33, 0.8);
+    --AT-TOC-collapse-button-hover-color: #494949;
+    --AT-TOC-collapse-button-border-hover-color: #fff;
+    --AT-TOC-link-hover-background-color: #363636;
+    --AT-TOC-link-hover-color: #fff;
+    --AT-TOC-link-hover-indicator-bar-color: #5c5c5c;
+    --AT-TOC-number-color: #929292;
+    --AT-TOC-number-hover-color: #ddd;
+
+    /*  Collapse blocks.
+     */
+    --AT-collapse-abstract-blockquote-hover-color: #333;
+    --AT-collapse-disclosure-button-color: #333;
+    --AT-collapse-disclosure-button-hover-color: #494949;
+    --AT-collapse-in-blockquote-disclosure-button-color: #494949;
+    --AT-collapse-in-blockquote-disclosure-button-hover-color: #5c5c5c;
+    --AT-collapse-disclosure-button-text-color: #6c6c6c;
+    --AT-collapse-disclosure-button-text-hover-color: #000;
+    --AT-collapse-in-blockquote-disclosure-button-text-color: #8b8b8b;
+    --AT-collapse-in-blockquote-disclosure-button-text-hover-color: #999;
+
+    /*  Headings.
+     */
+    --AT-H1-border-color: #999;
+    --AT-H2-border-color: #999;
+
+    /*  Lists.
+     */
+    --AT-bulleted-list-marker-color: #9f9f9f;
+
+    /*  Figures.
+     */
+    --AT-figure-outline-color: #999;
+    --AT-figure-caption-outline-color: #999;
+
+    /*  Embeds.
+     */
+    --AT-embed-border-color: #494949;
+
+    /*  Epigraphs.
+     */
+    --AT-epigraph-quotation-mark-color: #9f9f9f;
+
+    /*  Footnotes.
+     */
+    --AT-footnote-border-color: #7c7c7c;
+    --AT-footnote-highlighted-border-color: #7c7c7c;
+    --AT-footnotes-section-top-rule-color: #5c5c5c;
+    --AT-footnote-backlink-border-color: #fff;
+    --AT-footnote-backlink-border-hover-color: #8b8b8b;
+
+    /*  Footnote references.
+     */
+    --AT-highlighted-link-outline-color: #8b8b8b;
+
+    /*  Sidenotes.
+     */
+    --AT-sidenote-highlight-box-shadow-color: #7c7c7c;
+    --AT-sidenote-border-color: #7c7c7c;
+    --AT-sidenote-scrollbar-thumb-color: #7c7c7c;
+    --AT-sidenote-scrollbar-thumb-hover-color: #8b8b8b;
+    --AT-sidenote-self-link-border-color: #7c7c7c;
+
+    /*  Annotations.
+     */
+    --AT-section-highlighted-border-color: #b4b4b4;
+
+    /*  Tables.
+     */
+    --AT-table-border-color: #fff;
+    --AT-table-caption-border-color: #fff;
+    --AT-table-row-horizontal-border-color: #fff;
+    --AT-table-scrollbar-thumb-color: #7c7c7c;
+    --AT-table-scrollbar-thumb-hover-color: #8b8b8b;
+    --AT-table-scrollbar-border-color: #fff;
+    --AT-table-column-heading-hover-background-color: #2b3637;
+    --AT-table-sorted-column-heading-background-color: #216983;
+    --AT-table-sorted-column-heading-text-color: #000;
+    --AT-table-sorted-column-heading-text-shadow-color: #fff;
+    --AT-table-zebra-stripe-alternate-row-background-color: #252525;
+    --AT-table-row-hover-outline-color: #fff;
+
+    /*  Code blocks.
+     */
+    --AT-code-element-border-color: #606060;
+    --AT-code-element-background-color: #1d1d1d;
+    --AT-pre-element-border-color: #606060;
+    --AT-pre-element-background-color: #1d1d1d;
+    --AT-pre-element-scrollbar-track-color: #1d1d1d;
+    --AT-pre-element-scrollbar-thumb-color: #5c5c5c;
+    --AT-pre-element-scrollbar-thumb-hover-color: #8b8b8b;
+    --AT-code-block-line-highlight-background-color: #171600;
+    --AT-code-block-line-highlight-border-color: #494949;
+    --AT-code-block-line-number-color: #7c7c7c;
+    --AT-code-block-line-number-divider-color: #5c5c5c;
+
+    /*  Syntax highlight theme (VS Code Dark+ inspired).
+     */
+    --AT-syntax-highlight-color-normal: #d4d4d4;
+    --AT-syntax-highlight-color-attribute: #9cdcfe;
+    --AT-syntax-highlight-color-data-type: #4ec9b0;
+    --AT-syntax-highlight-color-variable: #9cdcfe;
+    --AT-syntax-highlight-color-other: #d4d4d4;
+    --AT-syntax-highlight-color-preprocessor: #c586c0;
+    --AT-syntax-highlight-color-extension: #9cdcfe;
+    --AT-syntax-highlight-color-comment: #6a9955;
+    --AT-syntax-highlight-color-control-flow: #c586c0;
+    --AT-syntax-highlight-color-keyword: #569cd6;
+    --AT-syntax-highlight-color-operator: #d4d4d4;
+    --AT-syntax-highlight-color-special-char: #ce9178;
+    --AT-syntax-highlight-color-built-in: #4ec9b0;
+    --AT-syntax-highlight-color-function: #dcdcaa;
+    --AT-syntax-highlight-color-constant: #4fc1ff;
+    --AT-syntax-highlight-color-base-n: #b5cea8;
+    --AT-syntax-highlight-color-dec-val: #b5cea8;
+    --AT-syntax-highlight-color-float: #b5cea8;
+    --AT-syntax-highlight-color-information: #9cdcfe;
+    --AT-syntax-highlight-color-char: #ce9178;
+    --AT-syntax-highlight-color-string: #ce9178;
+    --AT-syntax-highlight-color-verbatim-string: #ce9178;
+    --AT-syntax-highlight-color-alert: #f44747;
+    --AT-syntax-highlight-color-error: #f44747;
+    --AT-syntax-highlight-color-import: #c586c0;
+    --AT-syntax-highlight-color-special-string: #ce9178;
+
+    /*  Math.
+     */
+    --AT-math-block-background-color: #252525;
+    --AT-math-block-background-color-flash: #000;
+    --AT-math-block-scrollbar-border-color: #5c5c5c;
+    --AT-math-block-scrollbar-thumb-color: #5c5c5c;
+    --AT-math-block-scrollbar-thumb-hover-color: #8b8b8b;
+
+    /*  Admonitions.
+     */
+    --AT-admonition-note-left-border-color: #929292;
+    --AT-admonition-note-background-color: #4f4f4f;
+    --AT-admonition-tip-left-border-color: #4f4f4f;
+    --AT-admonition-tip-background-color: #303030;
+    --AT-admonition-warning-left-border-color: #bdbdbd;
+    --AT-admonition-warning-background-color: #8a8a8a;
+    --AT-admonition-warning-text-color: #000;
+    --AT-admonition-error-left-border-color: #e1e1e1;
+    --AT-admonition-error-background-color: #bdbdbd;
+    --AT-admonition-error-text-color: #000;
+    --AT-admonition-reversed-link-color: #494949;
+    --AT-admonition-reversed-link-color-hover: #5c5c5c;
+    --AT-admonition-reversed-link-underline-gradient-line-color: #5c5c5c;
+    --AT-admonition-reversed-link-underline-gradient-line-color-hover: #6c6c6c;
+
+    /*  Footer.
+     */
+    --AT-bottom-ornament-line-color: #fff;
+
+    /*  Image focus.
+     */
+    --AT-image-focus-image-hover-drop-shadow-color: #a6a6a6;
+
+    /*  Page toolbar.
+     */
+    --AT-page-toolbar-border-color: #7c7c7c;
+    --AT-page-toolbar-control-button-color: #7c7c7c;
+    --AT-page-toolbar-control-button-active-color: #fff;
+
+    /*  Page toolbar widgets.
+     */
+    --AT-page-toolbar-button-icon-color: #7c7c7c;
+    --AT-page-toolbar-button-selectable-icon-color: #404040;
+    --AT-page-toolbar-button-selected-icon-color: #a6a6a6;
+    --AT-page-toolbar-button-text-color: #b4b4b4;
+    --AT-page-toolbar-button-disabled-text-color: #5c5c5c;
+    --AT-page-toolbar-button-highlighted-text-color: #fff;
+
+    /*  "Back to top" link.
+     */
+    --AT-back-to-top-link-color: #5c5c5c;
+    --AT-back-to-top-link-hover-color: #8b8b8b;
+
+    /*  Mobile floating header.
+     */
+    --AT-floating-header-box-shadow-color: #5c5c5c;
+    --AT-floating-header-scroll-indicator-color: #8b8b8b;
+
+    /*  "Skip to content" accessibility link.
+     */
+    --AT-skip-to-content-text-color: #000;
+    --AT-skip-to-content-border-color: #000;
+    --AT-skip-to-content-background-color: #ff847b;
+
+    /*  Nav header.
+     */
+    --AT-nav-header-link-color: #999;
+    --AT-nav-header-link-hover-color: #fff;
+
+    /*  X of the day.
+     */
+    --AT-x-of-the-day-border-color: #5c5c5c;
+
+    /*  Horizontal rule.
+     */
+    --AT-horizontal-rule-stroke-color: #5c5c5c;
+  }
+}
+
+/*=============================================================================*/
+/*  DARK MODE CSS RULES                                                        */
+/*=============================================================================*/
+
+/*  For sortable table column headings, use dark versions of the up/down/both
+    arrow icons.
+ */
+html[data-theme="dark"] table th.tablesorter-header {
+  background-image: url('/static/img/tablesorter/tablesorter-bg-dark.gif');
+}
+html[data-theme="dark"] table th.tablesorter-headerAsc {
+  background-image: url('/static/img/tablesorter/tablesorter-asc-dark.gif');
+}
+html[data-theme="dark"] table th.tablesorter-headerDesc {
+  background-image: url('/static/img/tablesorter/tablesorter-desc-dark.gif');
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] table th.tablesorter-header {
+    background-image: url('/static/img/tablesorter/tablesorter-bg-dark.gif');
+  }
+  html[data-theme="auto"] table th.tablesorter-headerAsc {
+    background-image: url('/static/img/tablesorter/tablesorter-asc-dark.gif');
+  }
+  html[data-theme="auto"] table th.tablesorter-headerDesc {
+    background-image: url('/static/img/tablesorter/tablesorter-desc-dark.gif');
+  }
+}
+
+/*  Bulleted list markers: invert for dark mode.
+    The star icons are black SVGs, so we invert them to white.
+ */
+html[data-theme="dark"] ul > li::before {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] ul > li::before {
+    filter: invert(1);
+  }
+}
+
+/*  Horizontal rules: invert icons for dark mode.
+    The decorative HR icons are black, so we invert them to white.
+    Note: HR icons use ::after pseudo-element with background-image.
+ */
+html[data-theme="dark"] hr::after {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] hr::after {
+    filter: invert(1);
+  }
+}
+
+/*  Inline icons (metadata icons like backlinks, similar posts, etc.)
+    These use ::before pseudo-element with background-image.
+ */
+html[data-theme="dark"] .inline-icon::before {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] .inline-icon::before {
+    filter: invert(1);
+  }
+}
+
+/*  Link icons (SVG icons after links like backlinks, similar posts, etc.)
+    These use ::after pseudo-element with background-image.
+ */
+html[data-theme="dark"] a[data-link-icon-type*='svg']::after {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] a[data-link-icon-type*='svg']::after {
+    filter: invert(1);
+  }
+}
+
+/*  Admonition icons.
+    In dark mode, warning and error admonitions have LIGHT backgrounds with
+    dark text (to maintain their "alert" nature), so their icons need to be
+    dark (not inverted). Tip needs inversion since it has a dark background.
+ */
+html[data-theme="dark"] .admonition.tip::before {
+  filter: invert(1);
+}
+html[data-theme="dark"] .admonition.warning::before,
+html[data-theme="dark"] .admonition.error::before {
+  filter: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] .admonition.tip::before {
+    filter: invert(1);
+  }
+  html[data-theme="auto"] .admonition.warning::before,
+  html[data-theme="auto"] .admonition.error::before {
+    filter: none;
+  }
+}
+
+/*  Image handling in dark mode.
+    Default: dim color images slightly.
+    .dark-mode-invert: invert black-on-white diagrams/charts.
+    .no-dark-filter: leave unchanged (already dark, or stylistic choice).
+ */
+html[data-theme="dark"] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
+html[data-theme="dark"] .markdownBody figure img:not(.dark-mode-invert):not(.no-dark-filter) {
+  filter: brightness(0.85) saturate(0.9);
+}
+
+html[data-theme="dark"] .markdownBody img.dark-mode-invert,
+html[data-theme="dark"] .markdownBody figure img.dark-mode-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
+  html[data-theme="auto"] .markdownBody figure img:not(.dark-mode-invert):not(.no-dark-filter) {
+    filter: brightness(0.85) saturate(0.9);
+  }
+
+  html[data-theme="auto"] .markdownBody img.dark-mode-invert,
+  html[data-theme="auto"] .markdownBody figure img.dark-mode-invert {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
