@@ -561,6 +561,27 @@ html[data-theme="dark"] hr::after {
   }
 }
 
+/*  Index page decorated divider: the icon is on the element itself (not ::after),
+    so we invert the whole element and counter-invert the pseudo-element lines.
+ */
+html[data-theme="dark"] hr.index-divider-decorated {
+  filter: invert(1);
+}
+html[data-theme="dark"] hr.index-divider-decorated::before,
+html[data-theme="dark"] hr.index-divider-decorated::after {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] hr.index-divider-decorated {
+    filter: invert(1);
+  }
+  html[data-theme="auto"] hr.index-divider-decorated::before,
+  html[data-theme="auto"] hr.index-divider-decorated::after {
+    filter: invert(1);
+  }
+}
+
 /*  Inline icons (metadata icons like backlinks, similar posts, etc.)
     These use ::before pseudo-element with background-image.
  */
