@@ -436,13 +436,13 @@ PRESIGNED_UPLOAD_EXPIRY_SECONDS = env.int("PRESIGNED_UPLOAD_EXPIRY", default=360
 # If not set, only session-based authentication will work
 PRESIGNED_UPLOAD_API_TOKEN = env("PRESIGNED_UPLOAD_API_TOKEN", default=None)
 
-# Maximum file sizes per asset type (for direct uploads)
+# Maximum file sizes per asset type (for direct presigned uploads)
 # These are larger than proxy limits since files go directly to R2
 ASSET_MAX_SIZES = {
-    "image": 100 * 1024 * 1024,         # 100MB
+    "image": 1 * 1024 * 1024 * 1024,    # 1GB (large RAW/TIFF files)
     "video": 5 * 1024 * 1024 * 1024,    # 5GB
     "audio": 500 * 1024 * 1024,         # 500MB
-    "document": 100 * 1024 * 1024,      # 100MB
-    "archive": 1 * 1024 * 1024 * 1024,  # 1GB
-    "other": 100 * 1024 * 1024,         # 100MB
+    "document": 500 * 1024 * 1024,      # 500MB
+    "archive": 2 * 1024 * 1024 * 1024,  # 2GB
+    "other": 500 * 1024 * 1024,         # 500MB
 }

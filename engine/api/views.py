@@ -25,15 +25,38 @@ from .presigned import (
 )
 
 
+def get_asset_type_from_content_type(content_type):
+    """Detect asset type from MIME content type."""
+    if not content_type:
+        return None
+
+    content_type = content_type.lower().split(";")[0].strip()
+
+    if content_type.startswith("image/"):
+        return "image"
+    elif content_type.startswith("video/"):
+        return "video"
+    elif content_type.startswith("audio/"):
+        return "audio"
+    elif content_type in ["application/pdf", "application/epub+zip",
+                          "application/msword", "text/plain", "text/markdown",
+                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        return "document"
+    elif content_type in ["application/zip", "application/x-tar", "application/gzip",
+                          "application/x-7z-compressed", "application/x-rar-compressed"]:
+        return "archive"
+    return None
+
+
 def get_asset_type_from_extension(filename):
     """Detect asset type from file extension."""
     ext = os.path.splitext(filename)[1].lower()
 
-    image_exts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico"]
-    video_exts = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v"]
-    audio_exts = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"]
-    document_exts = [".pdf", ".epub", ".doc", ".docx", ".txt", ".md"]
-    archive_exts = [".zip", ".tar", ".gz", ".bz2", ".7z", ".rar"]
+    image_exts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico", ".tiff", ".tif", ".raw", ".heic", ".heif"]
+    video_exts = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v", ".wmv", ".flv", ".mpg", ".mpeg", ".3gp"]
+    audio_exts = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma", ".aiff"]
+    document_exts = [".pdf", ".epub", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt"]
+    archive_exts = [".zip", ".tar", ".gz", ".bz2", ".7z", ".rar", ".tgz", ".tar.gz"]
 
     if ext in image_exts:
         return "image"
@@ -46,6 +69,21 @@ def get_asset_type_from_extension(filename):
     elif ext in archive_exts:
         return "archive"
     return "other"
+
+
+def get_asset_type(filename, content_type=None):
+    """
+    Detect asset type using content_type first, then fall back to extension.
+    Content-type is more reliable as it comes from the browser's detection.
+    """
+    # Try content-type first (more reliable)
+    if content_type:
+        asset_type = get_asset_type_from_content_type(content_type)
+        if asset_type:
+            return asset_type
+
+    # Fall back to extension
+    return get_asset_type_from_extension(filename)
 
 
 def validate_file_size(file_size, asset_type):
@@ -129,8 +167,8 @@ def request_presigned_upload(request):
     except (ValueError, TypeError):
         return JsonResponse({"error": "file_size must be an integer"}, status=400)
 
-    # Detect asset type from filename
-    asset_type = get_asset_type_from_extension(filename)
+    # Detect asset type from content_type (preferred) or filename extension
+    asset_type = get_asset_type(filename, content_type)
 
     # Validate file size
     is_valid, error = validate_file_size(file_size, asset_type)
