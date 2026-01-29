@@ -126,6 +126,7 @@ if not DEBUG:
 # Base CSP directives (R2 domain added dynamically below)
 _CSP_IMG_SRC = ["'self'", "data:"]
 _CSP_MEDIA_SRC = ["'self'"]
+_CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 
 # Shared CSP directives
 _CSP_DIRECTIVES = {
@@ -138,7 +139,7 @@ _CSP_DIRECTIVES = {
     "font-src": ["'self'", "https://cdn.jsdelivr.net"],
     "img-src": _CSP_IMG_SRC,
     "media-src": _CSP_MEDIA_SRC,
-    "connect-src": ["'self'", "https://cloudflareinsights.com"],
+    "connect-src": _CSP_CONNECT_SRC,
     "form-action": ["'self'"],
     "frame-ancestors": ["'self'"],
     "base-uri": ["'self'"],
@@ -354,6 +355,10 @@ elif AWS_S3_ENDPOINT_URL:
     _CSP_MEDIA_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
 else:
     MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
+
+# Add R2 endpoint to connect-src for presigned uploads (always uses raw endpoint, not custom domain)
+if AWS_S3_ENDPOINT_URL:
+    _CSP_CONNECT_SRC.append(AWS_S3_ENDPOINT_URL.rstrip("/"))
 
 # # Dev ergonomics: keep media local if you prefer
 # if DEBUG and env.bool("USE_LOCAL_MEDIA_IN_DEV", default=False):
