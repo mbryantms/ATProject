@@ -135,6 +135,10 @@ def populate_asset_metadata(sender, instance, created, **kwargs):
     if not instance.file:
         return
 
+    # Skip for presigned uploads - file doesn't exist yet
+    if instance.status == "uploading" and instance.upload_token:
+        return
+
     needs_save = False
 
     # Populate MIME type if missing

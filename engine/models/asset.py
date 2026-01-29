@@ -482,6 +482,9 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         return f"{base_key}-{timestamp}"
 
     def save(self, *args, **kwargs):
+        # Skip file operations for presigned uploads (file doesn't exist yet)
+        is_presigned_upload = self.status == "uploading" and self.upload_token
+
         # Store original filename if not already set
         if self.file and not self.original_filename:
             import os
@@ -504,21 +507,23 @@ class Asset(TimeStampedModel, SoftDeleteModel):
             base_slug = slugify(self.title) or "asset"
             self.key = self._generate_unique_key(base_slug)
 
-        # Calculate file hash for deduplication
-        if self.file and not self.file_hash:
-            import hashlib
+        # Skip file reading operations for presigned uploads
+        if not is_presigned_upload:
+            # Calculate file hash for deduplication
+            if self.file and not self.file_hash:
+                import hashlib
 
-            try:
-                self.file.seek(0)
-                file_hash = hashlib.sha256(self.file.read()).hexdigest()
-                self.file_hash = file_hash
-                self.file.seek(0)
-            except Exception:
-                pass  # Skip if file can't be read
+                try:
+                    self.file.seek(0)
+                    file_hash = hashlib.sha256(self.file.read()).hexdigest()
+                    self.file_hash = file_hash
+                    self.file.seek(0)
+                except Exception:
+                    pass  # Skip if file can't be read
 
-        # Auto-populate file metadata
-        if self.file:
-            self.populate_file_metadata()
+            # Auto-populate file metadata
+            if self.file:
+                self.populate_file_metadata()
 
         # Determine if this is a new asset
         is_new = self.pk is None
