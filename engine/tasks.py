@@ -311,6 +311,279 @@ def rebuild_search_vectors():
     }
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=5,
+    retry_kwargs={"max_retries": 3},
+)
+def finalize_presigned_upload(self, asset_id):
+    """
+    Process a directly-uploaded file after presigned upload confirmation.
+
+    This task:
+    - Verifies file exists in R2
+    - Extracts dimensions (PIL for images, ffprobe for video)
+    - Calculates file hash for deduplication
+    - Calls extract_all_metadata()
+    - Generates renditions for images
+    - Sets status to 'ready'
+
+    Args:
+        asset_id: Primary key of the Asset instance
+
+    Returns:
+        Dict with processing results
+    """
+    from .metadata_extractor import extract_all_metadata
+    from .models import Asset
+    from .utils import generate_asset_renditions
+
+    try:
+        asset = Asset.all_objects.get(pk=asset_id)
+    except Asset.DoesNotExist:
+        return {"success": False, "error": f"Asset {asset_id} not found"}
+
+    if asset.status != "processing":
+        return {
+            "success": False,
+            "error": f"Asset {asset_id} is not in processing state (current: {asset.status})",
+        }
+
+    try:
+        # Verify file exists in R2
+        from .api.presigned import verify_object_exists
+
+        result = verify_object_exists(asset.file.name)
+        if not result.get("exists"):
+            asset.status = "failed"
+            asset.save(update_fields=["status"])
+            return {"success": False, "error": "File not found in storage"}
+
+        # Update file size from actual storage
+        if result.get("size"):
+            asset.file_size = result["size"]
+
+        # Extract dimensions and other metadata based on asset type
+        if asset.asset_type == "image":
+            _extract_image_dimensions(asset)
+        elif asset.asset_type == "video":
+            _extract_video_metadata(asset)
+
+        # Calculate file hash for deduplication
+        _calculate_file_hash(asset)
+
+        # Save dimension/hash updates
+        asset.save(
+            update_fields=[
+                "file_size",
+                "width",
+                "height",
+                "duration",
+                "bitrate",
+                "frame_rate",
+                "file_hash",
+            ]
+        )
+
+        # Extract extended metadata (EXIF, audio tags, etc.)
+        try:
+            extract_all_metadata(asset)
+        except Exception as e:
+            # Log but don't fail the whole task for metadata extraction issues
+            import logging
+
+            logging.getLogger(__name__).warning(
+                f"Metadata extraction failed for {asset.key}: {e}"
+            )
+
+        # Generate renditions for images
+        if asset.asset_type == "image":
+            try:
+                renditions = generate_asset_renditions(asset)
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"Rendition generation failed for {asset.key}: {e}"
+                )
+
+        # Mark as ready
+        asset.status = "ready"
+        asset.save(update_fields=["status"])
+
+        return {
+            "success": True,
+            "asset_id": asset.pk,
+            "asset_key": asset.key,
+            "status": "ready",
+        }
+
+    except Exception as e:
+        # Mark asset as failed
+        try:
+            asset.status = "failed"
+            asset.save(update_fields=["status"])
+        except Exception:
+            pass
+
+        return {
+            "success": False,
+            "asset_id": asset_id,
+            "error": str(e),
+        }
+
+
+def _extract_image_dimensions(asset):
+    """Extract width and height from an image asset."""
+    from PIL import Image
+
+    from .storage_utils import open_field_file
+
+    if asset.width and asset.height:
+        return
+
+    try:
+        file_obj = open_field_file(asset.file)
+        with Image.open(file_obj) as img:
+            img.load()
+            asset.width, asset.height = img.size
+        try:
+            file_obj.seek(0)
+        except Exception:
+            pass
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Failed to extract image dimensions for {asset.key}: {e}"
+        )
+
+
+def _extract_video_metadata(asset):
+    """Extract dimensions, duration, bitrate, and frame rate from video."""
+    import json
+    import subprocess
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from .storage_utils import ensure_local_file
+
+    try:
+        with ensure_local_file(asset.file) as local_path:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    local_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            for stream in data.get("streams", []):
+                if stream.get("codec_type") == "video":
+                    if not asset.width:
+                        asset.width = stream.get("width")
+                    if not asset.height:
+                        asset.height = stream.get("height")
+                    if not asset.duration and stream.get("duration"):
+                        duration_seconds = float(stream["duration"])
+                        asset.duration = timedelta(seconds=duration_seconds)
+                    if not asset.bitrate and stream.get("bit_rate"):
+                        bitrate_bps = int(stream["bit_rate"])
+                        asset.bitrate = bitrate_bps // 1000
+                    if not asset.frame_rate and stream.get("r_frame_rate"):
+                        frame_rate_str = stream["r_frame_rate"]
+                        if "/" in frame_rate_str:
+                            num, den = frame_rate_str.split("/")
+                            if den != "0":
+                                frame_rate = float(num) / float(den)
+                                asset.frame_rate = Decimal(str(round(frame_rate, 2)))
+                    break
+    except FileNotFoundError:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"ffprobe not found - cannot extract video metadata for {asset.key}"
+        )
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Failed to extract video metadata for {asset.key}: {e}"
+        )
+
+
+def _calculate_file_hash(asset):
+    """Calculate SHA256 hash of asset file."""
+    import hashlib
+
+    from .storage_utils import open_field_file
+
+    if asset.file_hash:
+        return
+
+    try:
+        file_obj = open_field_file(asset.file)
+        file_obj.seek(0)
+        file_hash = hashlib.sha256(file_obj.read()).hexdigest()
+        asset.file_hash = file_hash
+        try:
+            file_obj.seek(0)
+        except Exception:
+            pass
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Failed to calculate file hash for {asset.key}: {e}"
+        )
+
+
+@shared_task
+def cleanup_expired_uploads():
+    """
+    Delete Assets stuck in 'uploading' state past their expiry time.
+
+    This task should be run periodically (e.g., hourly via Celery Beat) to clean up
+    failed or abandoned presigned uploads.
+
+    Returns:
+        Dict with cleanup results
+    """
+    from django.utils import timezone
+
+    from .models import Asset
+
+    now = timezone.now()
+
+    # Find expired uploads
+    expired_assets = Asset.all_objects.filter(
+        status="uploading",
+        upload_expires_at__lt=now,
+    )
+
+    count = expired_assets.count()
+    asset_ids = list(expired_assets.values_list("id", flat=True))
+
+    # Delete expired assets
+    expired_assets.delete()
+
+    return {
+        "success": True,
+        "cleaned_up": count,
+        "asset_ids": asset_ids,
+    }
+
+
 # Helper functions
 
 

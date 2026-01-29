@@ -423,3 +423,26 @@ else:
 ADMIN_SITE_HEADER = "Architextual Admin"
 ADMIN_SITE_TITLE = "Architextual"
 ADMIN_INDEX_TITLE = "Site Administration"
+
+
+# ==============================================================================
+# PRESIGNED UPLOAD CONFIGURATION
+# ==============================================================================
+
+# Expiry time for presigned upload URLs (in seconds)
+PRESIGNED_UPLOAD_EXPIRY_SECONDS = env.int("PRESIGNED_UPLOAD_EXPIRY", default=3600)
+
+# API token for programmatic access to presigned upload endpoints
+# If not set, only session-based authentication will work
+PRESIGNED_UPLOAD_API_TOKEN = env("PRESIGNED_UPLOAD_API_TOKEN", default=None)
+
+# Maximum file sizes per asset type (for direct uploads)
+# These are larger than proxy limits since files go directly to R2
+ASSET_MAX_SIZES = {
+    "image": 100 * 1024 * 1024,         # 100MB
+    "video": 5 * 1024 * 1024 * 1024,    # 5GB
+    "audio": 500 * 1024 * 1024,         # 500MB
+    "document": 100 * 1024 * 1024,      # 100MB
+    "archive": 1 * 1024 * 1024 * 1024,  # 1GB
+    "other": 100 * 1024 * 1024,         # 100MB
+}

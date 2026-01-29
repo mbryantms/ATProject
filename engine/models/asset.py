@@ -306,6 +306,22 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         null=True, blank=True, help_text="Last time this asset was accessed/viewed"
     )
 
+    # Presigned upload fields
+    upload_token = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        unique=True,
+        db_index=True,
+        help_text="Single-use token for presigned upload verification",
+    )
+
+    upload_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Expiry time for presigned upload URL",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
