@@ -31,5 +31,5 @@ RUN SECRET_KEY=build-placeholder \
 ENV PORT=8000
 EXPOSE $PORT
 
-# Run gunicorn (shell form to expand $PORT)
-CMD gunicorn --bind 0.0.0.0:$PORT ATProject.wsgi:application
+# Run migrations then start gunicorn (shell form to expand $PORT)
+CMD python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:$PORT ATProject.wsgi:application
