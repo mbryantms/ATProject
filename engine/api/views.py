@@ -142,6 +142,9 @@ def request_presigned_upload(request):
         "expires_at": "2024-01-15T12:30:00Z"
     }
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -180,61 +183,69 @@ def request_presigned_upload(request):
     asset_folder_id = data.get("asset_folder_id")
     asset_tag_ids = data.get("asset_tags", [])
 
-    # Generate the object key for R2
-    object_key = get_asset_upload_key(filename, asset_type)
+    try:
+        # Generate the object key for R2
+        object_key = get_asset_upload_key(filename, asset_type)
 
-    # Generate presigned URL
-    upload_url, expires_at = generate_presigned_put_url(object_key, content_type)
+        # Generate presigned URL
+        upload_url, expires_at = generate_presigned_put_url(object_key, content_type)
 
-    # Generate upload token
-    upload_token = generate_upload_token()
+        # Generate upload token
+        upload_token = generate_upload_token()
 
-    # Create placeholder Asset record
-    from engine.models import Asset, AssetFolder
+        # Create placeholder Asset record
+        from engine.models import Asset, AssetFolder
 
-    asset = Asset(
-        title=title,
-        asset_type=asset_type,
-        original_filename=filename,
-        file_extension=os.path.splitext(filename)[1].lstrip(".").lower(),
-        mime_type=content_type,
-        file_size=file_size,
-        alt_text=alt_text,
-        status="uploading",
-        uploaded_by=request.api_user,
-        upload_token=upload_token,
-        upload_expires_at=expires_at,
-    )
+        asset = Asset(
+            title=title,
+            asset_type=asset_type,
+            original_filename=filename,
+            file_extension=os.path.splitext(filename)[1].lstrip(".").lower(),
+            mime_type=content_type,
+            file_size=file_size,
+            alt_text=alt_text,
+            status="uploading",
+            uploaded_by=request.api_user,
+            upload_token=upload_token,
+            upload_expires_at=expires_at,
+        )
 
-    # Set the file field to point to the expected R2 location
-    # This is set after upload confirmation
-    asset.file.name = object_key
+        # Set the file field to point to the expected R2 location
+        # This is set after upload confirmation
+        asset.file.name = object_key
 
-    # Handle optional folder
-    if asset_folder_id:
-        try:
-            asset.asset_folder = AssetFolder.objects.get(pk=asset_folder_id)
-        except AssetFolder.DoesNotExist:
-            return JsonResponse({"error": "asset_folder_id not found"}, status=400)
+        # Handle optional folder
+        if asset_folder_id:
+            try:
+                asset.asset_folder = AssetFolder.objects.get(pk=asset_folder_id)
+            except AssetFolder.DoesNotExist:
+                return JsonResponse({"error": "asset_folder_id not found"}, status=400)
 
-    asset.save()
+        asset.save()
 
-    # Handle optional tags (M2M relationship, must be after save)
-    if asset_tag_ids:
-        from engine.models import AssetTag
+        # Handle optional tags (M2M relationship, must be after save)
+        if asset_tag_ids:
+            from engine.models import AssetTag
 
-        tags = AssetTag.objects.filter(pk__in=asset_tag_ids)
-        asset.asset_tags.set(tags)
+            tags = AssetTag.objects.filter(pk__in=asset_tag_ids)
+            asset.asset_tags.set(tags)
 
-    return JsonResponse(
-        {
-            "asset_id": asset.pk,
-            "upload_url": upload_url,
-            "upload_headers": {"Content-Type": content_type},
-            "expires_at": expires_at.isoformat(),
-        },
-        status=201,
-    )
+        return JsonResponse(
+            {
+                "asset_id": asset.pk,
+                "upload_url": upload_url,
+                "upload_headers": {"Content-Type": content_type},
+                "expires_at": expires_at.isoformat(),
+            },
+            status=201,
+        )
+
+    except Exception as e:
+        logger.exception(f"Presigned upload error: {e}")
+        return JsonResponse(
+            {"error": f"Server error: {str(e)}"},
+            status=500,
+        )
 
 
 @csrf_exempt

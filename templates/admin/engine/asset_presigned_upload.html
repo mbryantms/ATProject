@@ -543,11 +543,35 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (!presignedResponse.ok) {
-                const error = await presignedResponse.json();
-                throw new Error(error.error || 'Failed to get upload URL');
+                let errorMsg = `Server error (${presignedResponse.status})`;
+                try {
+                    const errorText = await presignedResponse.text();
+                    // Try to parse as JSON first
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorMsg = errorJson.error || errorMsg;
+                    } catch {
+                        // Not JSON, check if it's HTML (server error page)
+                        if (errorText.includes('<!DOCTYPE') || errorText.includes('<html')) {
+                            errorMsg = `Server error (${presignedResponse.status}). Check server logs.`;
+                        } else {
+                            errorMsg = errorText.substring(0, 200);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error reading response:', e);
+                }
+                throw new Error(errorMsg);
             }
 
-            const presignedData = await presignedResponse.json();
+            let presignedData;
+            try {
+                presignedData = await presignedResponse.json();
+            } catch (e) {
+                const text = await presignedResponse.clone().text();
+                console.error('Invalid JSON response:', text);
+                throw new Error('Server returned invalid response. Check server logs.');
+            }
             setStep(1, 'complete');
 
             // Step 2: Upload file directly to R2
