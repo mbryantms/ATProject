@@ -36,6 +36,11 @@ class Command(BaseCommand):
             type=int,
             help='Only delete items older than N days (for unused assets)',
         )
+        parser.add_argument(
+            '--delete-files',
+            action='store_true',
+            help='Also delete files from R2 storage (prevents orphaned files)',
+        )
 
     def handle(self, *args, **options):
         dry_run = options.get('dry_run')
@@ -43,6 +48,7 @@ class Command(BaseCommand):
         unused_assets = options.get('unused_assets')
         soft_deleted = options.get('soft_deleted')
         days = options.get('days')
+        delete_files = options.get('delete_files')
 
         if not orphaned_renditions and not unused_assets:
             self.stdout.write(
@@ -55,19 +61,25 @@ class Command(BaseCommand):
             return
 
         mode = 'DRY RUN' if dry_run else 'LIVE'
-        self.stdout.write(self.style.WARNING(f'\n=== {mode} MODE ===\n'))
+        file_mode = ' + R2 FILES' if delete_files and not dry_run else ''
+        self.stdout.write(self.style.WARNING(f'\n=== {mode} MODE{file_mode} ===\n'))
+
+        if delete_files and not dry_run:
+            self.stdout.write(
+                self.style.WARNING('  WARNING: Files will be permanently deleted from R2!\n')
+            )
 
         # Clean up orphaned renditions
         if orphaned_renditions:
-            self._cleanup_orphaned_renditions(dry_run, soft_deleted)
+            self._cleanup_orphaned_renditions(dry_run, soft_deleted, delete_files)
 
         # Clean up unused assets
         if unused_assets:
-            self._cleanup_unused_assets(dry_run, soft_deleted, days)
+            self._cleanup_unused_assets(dry_run, soft_deleted, days, delete_files)
 
         self.stdout.write(self.style.SUCCESS('\nCleanup complete!'))
 
-    def _cleanup_orphaned_renditions(self, dry_run, soft_deleted):
+    def _cleanup_orphaned_renditions(self, dry_run, soft_deleted, delete_files):
         """Delete renditions whose parent assets are deleted or don't exist."""
         self.stdout.write('\n--- Orphaned Renditions ---')
 
@@ -112,16 +124,33 @@ class Command(BaseCommand):
 
         # Delete if not dry run
         if not dry_run:
-            deleted_count, _ = orphaned.delete()
-            self.stdout.write(
-                self.style.SUCCESS(f'\n  ✓ Deleted {deleted_count} orphaned rendition(s)')
-            )
-        else:
-            self.stdout.write(
-                self.style.WARNING(f'\n  Would delete {count} orphaned rendition(s)')
-            )
+            # Delete files from R2 first (before DB records are gone)
+            files_deleted = 0
+            if delete_files:
+                for rendition in orphaned:
+                    if rendition.file:
+                        try:
+                            file_name = rendition.file.name
+                            rendition.file.delete(save=False)
+                            files_deleted += 1
+                            self.stdout.write(f'    Deleted R2: {file_name}')
+                        except Exception as e:
+                            self.stdout.write(
+                                self.style.ERROR(f'    Failed to delete R2 file: {e}')
+                            )
 
-    def _cleanup_unused_assets(self, dry_run, soft_deleted, days):
+            deleted_count, _ = orphaned.delete()
+            msg = f'\n  ✓ Deleted {deleted_count} orphaned rendition(s)'
+            if delete_files:
+                msg += f' and {files_deleted} R2 file(s)'
+            self.stdout.write(self.style.SUCCESS(msg))
+        else:
+            msg = f'\n  Would delete {count} orphaned rendition(s)'
+            if delete_files:
+                msg += ' and their R2 files'
+            self.stdout.write(self.style.WARNING(msg))
+
+    def _cleanup_unused_assets(self, dry_run, soft_deleted, days, delete_files):
         """Delete assets that are not used in any posts."""
         self.stdout.write('\n--- Unused Assets ---')
 
@@ -186,22 +215,53 @@ class Command(BaseCommand):
             # Count renditions that will be cascade deleted
             rendition_count = sum(a.renditions.count() for a in unused)
 
+            # Delete files from R2 first (before DB records are gone)
+            asset_files_deleted = 0
+            rendition_files_deleted = 0
+            if delete_files:
+                for asset in unused:
+                    # Delete rendition files first
+                    for rendition in asset.renditions.all():
+                        if rendition.file:
+                            try:
+                                rendition.file.delete(save=False)
+                                rendition_files_deleted += 1
+                            except Exception as e:
+                                self.stdout.write(
+                                    self.style.ERROR(
+                                        f'    Failed to delete rendition R2 file: {e}'
+                                    )
+                                )
+                    # Delete asset file
+                    if asset.file:
+                        try:
+                            file_name = asset.file.name
+                            asset.file.delete(save=False)
+                            asset_files_deleted += 1
+                            self.stdout.write(f'    Deleted R2: {file_name}')
+                        except Exception as e:
+                            self.stdout.write(
+                                self.style.ERROR(f'    Failed to delete R2 file: {e}')
+                            )
+
             deleted_count, details = unused.delete()
 
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f'\n  ✓ Deleted {deleted_count} unused asset(s) '
-                    f'and {details.get("engine.AssetRendition", 0)} associated rendition(s)'
-                )
+            msg = (
+                f'\n  ✓ Deleted {deleted_count} unused asset(s) '
+                f'and {details.get("engine.AssetRendition", 0)} associated rendition(s)'
             )
+            if delete_files:
+                msg += f'\n  ✓ Deleted {asset_files_deleted} asset file(s) and {rendition_files_deleted} rendition file(s) from R2'
+            self.stdout.write(self.style.SUCCESS(msg))
         else:
             rendition_count = sum(a.renditions.count() for a in unused)
-            self.stdout.write(
-                self.style.WARNING(
-                    f'\n  Would delete {count} unused asset(s) '
-                    f'and {rendition_count} associated rendition(s)'
-                )
+            msg = (
+                f'\n  Would delete {count} unused asset(s) '
+                f'and {rendition_count} associated rendition(s)'
             )
+            if delete_files:
+                msg += ' and their R2 files'
+            self.stdout.write(self.style.WARNING(msg))
 
     def _format_size(self, size_bytes):
         """Format bytes as human-readable size."""
