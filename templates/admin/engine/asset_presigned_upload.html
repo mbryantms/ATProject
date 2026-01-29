@@ -1,0 +1,641 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Upload Large File{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .upload-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 30px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .upload-header {
+        margin-bottom: 30px;
+    }
+
+    .upload-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 24px;
+        color: #333;
+    }
+
+    .upload-header p {
+        color: #666;
+        margin: 0;
+    }
+
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 60px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #fafafa;
+        margin-bottom: 20px;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+        border-color: #417690;
+        background: #f0f7fb;
+    }
+
+    .drop-zone.has-file {
+        border-color: #28a745;
+        background: #f8fff9;
+    }
+
+    .drop-zone-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+
+    .drop-zone-text {
+        font-size: 16px;
+        color: #666;
+    }
+
+    .drop-zone-hint {
+        font-size: 13px;
+        color: #999;
+        margin-top: 10px;
+    }
+
+    .file-info {
+        display: none;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+
+    .file-info.visible {
+        display: block;
+    }
+
+    .file-info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .file-info-label {
+        color: #666;
+        font-weight: 500;
+    }
+
+    .file-info-value {
+        color: #333;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #333;
+    }
+
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #417690;
+        box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+    }
+
+    .form-group .help-text {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 20px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    .upload-btn {
+        display: inline-block;
+        padding: 12px 30px;
+        background: #417690;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .upload-btn:hover:not(:disabled) {
+        background: #205067;
+    }
+
+    .upload-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .progress-container {
+        display: none;
+        margin-top: 20px;
+    }
+
+    .progress-container.visible {
+        display: block;
+    }
+
+    .progress-bar-wrapper {
+        height: 24px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: #417690;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .progress-status {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .status-steps {
+        margin-top: 20px;
+    }
+
+    .status-step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        color: #999;
+    }
+
+    .status-step.active {
+        color: #417690;
+    }
+
+    .status-step.complete {
+        color: #28a745;
+    }
+
+    .status-step.error {
+        color: #dc3545;
+    }
+
+    .status-icon {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    .alert {
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .alert-success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .alert a {
+        color: inherit;
+        font-weight: 500;
+    }
+
+    .size-limits {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+
+    .size-limits strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .size-limits ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .size-limits li {
+        margin: 4px 0;
+    }
+
+    #file-input {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <div class="upload-header">
+        <h1>Upload Large File</h1>
+        <p>Upload files larger than 100MB directly to storage, bypassing server limits.</p>
+    </div>
+
+    <div class="size-limits">
+        <strong>Maximum file sizes:</strong>
+        <ul>
+            <li>Images: 100 MB</li>
+            <li>Videos: 5 GB</li>
+            <li>Audio: 500 MB</li>
+            <li>Documents: 100 MB</li>
+            <li>Archives: 1 GB</li>
+        </ul>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <input type="file" id="file-input" />
+
+    <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-icon">📁</div>
+        <div class="drop-zone-text">Drop file here or click to browse</div>
+        <div class="drop-zone-hint">Supports large files up to 5GB</div>
+    </div>
+
+    <div class="file-info" id="file-info">
+        <div class="file-info-row">
+            <span class="file-info-label">File name:</span>
+            <span class="file-info-value" id="info-filename">-</span>
+        </div>
+        <div class="file-info-row">
+            <span class="file-info-label">Size:</span>
+            <span class="file-info-value" id="info-size">-</span>
+        </div>
+        <div class="file-info-row">
+            <span class="file-info-label">Type:</span>
+            <span class="file-info-value" id="info-type">-</span>
+        </div>
+    </div>
+
+    <form id="upload-form">
+        <div class="form-group">
+            <label for="title">Title *</label>
+            <input type="text" id="title" name="title" required>
+        </div>
+
+        <div class="form-group">
+            <label for="alt_text">Alt Text</label>
+            <input type="text" id="alt_text" name="alt_text">
+            <div class="help-text">Required for images (accessibility)</div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="asset_folder">Folder</label>
+                <select id="asset_folder" name="asset_folder_id">
+                    <option value="">-- No folder --</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}">{{ folder.path }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="asset_tags">Tags</label>
+                <select id="asset_tags" name="asset_tags" multiple>
+                    {% for tag in tags %}
+                    <option value="{{ tag.id }}">{{ tag.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="upload-btn" id="upload-btn" disabled>
+            Select a file first
+        </button>
+    </form>
+
+    <div class="progress-container" id="progress-container">
+        <div class="progress-bar-wrapper">
+            <div class="progress-bar" id="progress-bar" style="width: 0%">0%</div>
+        </div>
+        <div class="progress-status" id="progress-status">Preparing upload...</div>
+
+        <div class="status-steps">
+            <div class="status-step" id="step-1">
+                <span class="status-icon">1</span>
+                <span>Requesting upload URL...</span>
+            </div>
+            <div class="status-step" id="step-2">
+                <span class="status-icon">2</span>
+                <span>Uploading file to storage...</span>
+            </div>
+            <div class="status-step" id="step-3">
+                <span class="status-icon">3</span>
+                <span>Processing and extracting metadata...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileInfo = document.getElementById('file-info');
+    const uploadForm = document.getElementById('upload-form');
+    const uploadBtn = document.getElementById('upload-btn');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressStatus = document.getElementById('progress-status');
+    const alertContainer = document.getElementById('alert-container');
+
+    let selectedFile = null;
+
+    // CSRF token for Django
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Format file size
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Show alert
+    function showAlert(type, message) {
+        alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+    }
+
+    // Update step status
+    function setStep(stepNum, status) {
+        const step = document.getElementById(`step-${stepNum}`);
+        step.className = 'status-step ' + status;
+        if (status === 'complete') {
+            step.querySelector('.status-icon').textContent = '✓';
+        } else if (status === 'error') {
+            step.querySelector('.status-icon').textContent = '✗';
+        } else if (status === 'active') {
+            step.querySelector('.status-icon').textContent = '●';
+        }
+    }
+
+    // Handle file selection
+    function handleFile(file) {
+        selectedFile = file;
+
+        // Update UI
+        dropZone.classList.add('has-file');
+        dropZone.querySelector('.drop-zone-text').textContent = file.name;
+        dropZone.querySelector('.drop-zone-icon').textContent = '✓';
+
+        fileInfo.classList.add('visible');
+        document.getElementById('info-filename').textContent = file.name;
+        document.getElementById('info-size').textContent = formatSize(file.size);
+        document.getElementById('info-type').textContent = file.type || 'Unknown';
+
+        // Auto-fill title from filename
+        const titleInput = document.getElementById('title');
+        if (!titleInput.value) {
+            const baseName = file.name.replace(/\.[^/.]+$/, '');
+            titleInput.value = baseName.replace(/[-_]/g, ' ');
+        }
+
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload File';
+    }
+
+    // Drop zone events
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+
+        if (e.dataTransfer.files.length > 0) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    // Form submission
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!selectedFile) {
+            showAlert('error', 'Please select a file first.');
+            return;
+        }
+
+        const title = document.getElementById('title').value.trim();
+        if (!title) {
+            showAlert('error', 'Please enter a title.');
+            return;
+        }
+
+        // Hide form, show progress
+        uploadForm.style.display = 'none';
+        dropZone.style.display = 'none';
+        fileInfo.style.display = 'none';
+        progressContainer.classList.add('visible');
+        alertContainer.innerHTML = '';
+
+        try {
+            // Step 1: Request presigned URL
+            setStep(1, 'active');
+            progressStatus.textContent = 'Requesting upload URL...';
+
+            const folderId = document.getElementById('asset_folder').value;
+            const tagSelect = document.getElementById('asset_tags');
+            const tagIds = Array.from(tagSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+            const presignedResponse = await fetch('/api/v1/assets/presigned-upload/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+                body: JSON.stringify({
+                    filename: selectedFile.name,
+                    content_type: selectedFile.type || 'application/octet-stream',
+                    file_size: selectedFile.size,
+                    title: title,
+                    alt_text: document.getElementById('alt_text').value,
+                    asset_folder_id: folderId ? parseInt(folderId) : null,
+                    asset_tags: tagIds,
+                }),
+            });
+
+            if (!presignedResponse.ok) {
+                const error = await presignedResponse.json();
+                throw new Error(error.error || 'Failed to get upload URL');
+            }
+
+            const presignedData = await presignedResponse.json();
+            setStep(1, 'complete');
+
+            // Step 2: Upload file directly to R2
+            setStep(2, 'active');
+            progressStatus.textContent = 'Uploading file...';
+
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressBar.textContent = percent + '%';
+                        progressStatus.textContent = `Uploading... ${formatSize(e.loaded)} / ${formatSize(e.total)}`;
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve();
+                    } else {
+                        reject(new Error(`Upload failed with status ${xhr.status}`));
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    reject(new Error('Upload failed - network error'));
+                });
+
+                xhr.open('PUT', presignedData.upload_url);
+                xhr.setRequestHeader('Content-Type', presignedData.upload_headers['Content-Type']);
+                xhr.send(selectedFile);
+            });
+
+            setStep(2, 'complete');
+
+            // Step 3: Confirm upload
+            setStep(3, 'active');
+            progressStatus.textContent = 'Processing file...';
+            progressBar.style.width = '100%';
+            progressBar.textContent = 'Processing...';
+
+            const confirmResponse = await fetch(`/api/v1/assets/${presignedData.asset_id}/confirm-upload/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                },
+            });
+
+            if (!confirmResponse.ok) {
+                const error = await confirmResponse.json();
+                throw new Error(error.error || 'Failed to confirm upload');
+            }
+
+            const confirmData = await confirmResponse.json();
+            setStep(3, 'complete');
+
+            progressStatus.textContent = 'Upload complete!';
+            progressBar.textContent = 'Done!';
+            progressBar.style.background = '#28a745';
+
+            showAlert('success',
+                `File uploaded successfully! ` +
+                `<a href="/admin/engine/asset/${presignedData.asset_id}/change/">View Asset</a> | ` +
+                `<a href="/admin/engine/asset/">Back to Assets</a> | ` +
+                `<a href="" onclick="location.reload(); return false;">Upload Another</a>`
+            );
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            progressStatus.textContent = 'Upload failed';
+            progressBar.style.background = '#dc3545';
+            progressBar.textContent = 'Error';
+
+            // Mark current step as error
+            for (let i = 1; i <= 3; i++) {
+                const step = document.getElementById(`step-${i}`);
+                if (step.classList.contains('active')) {
+                    setStep(i, 'error');
+                    break;
+                }
+            }
+
+            showAlert('error', `Upload failed: ${error.message}`);
+        }
+    });
+});
+</script>
+{% endblock %}

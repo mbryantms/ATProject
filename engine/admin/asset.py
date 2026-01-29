@@ -14,6 +14,8 @@ import csv
 
 from django.contrib import admin, messages
 from django.http import HttpResponse
+from django.shortcuts import render
+from django.urls import path, reverse
 from django.utils.html import format_html
 
 
@@ -223,6 +225,9 @@ class AssetRenditionInline(admin.TabularInline):
 # --------------------------
 @admin.register(Asset)
 class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
+    # Add custom button to changelist
+    change_list_template = "admin/engine/asset_changelist.html"
+
     # Compressed list view with expandable details
     list_display = [
         "asset_title_with_preview",
@@ -441,6 +446,29 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 "Or enter a custom key (lowercase, hyphens only)."
             )
         return form
+
+    def get_urls(self):
+        """Add custom URL for presigned upload view."""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "presigned-upload/",
+                self.admin_site.admin_view(self.presigned_upload_view),
+                name="engine_asset_presigned_upload",
+            ),
+        ]
+        return custom_urls + urls
+
+    def presigned_upload_view(self, request):
+        """Custom view for large file uploads using presigned URLs."""
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Upload Large File",
+            "folders": AssetFolder.objects.all().order_by("path"),
+            "tags": AssetTag.objects.all().order_by("name"),
+            "opts": self.model._meta,
+        }
+        return render(request, "admin/engine/asset_presigned_upload.html", context)
 
     @admin.display(description="Asset", ordering="title")
     def asset_title_with_preview(self, obj):
