@@ -105,6 +105,7 @@ uv run python manage.py cleanup_assets       # Remove orphaned assets (DB only)
 
 ### Asset Cleanup
 
+**Via management command:**
 ```bash
 # Preview what would be deleted
 uv run python manage.py cleanup_assets --orphaned-renditions --dry-run
@@ -116,6 +117,17 @@ uv run python manage.py cleanup_assets --soft-deleted --unused-assets --days 30
 # Delete DB records AND R2 files (recommended for production)
 uv run python manage.py cleanup_assets --soft-deleted --unused-assets --days 30 --delete-files
 ```
+
+**Via Django admin:**
+- Go to Assets > "Cleanup Assets" button
+- Preview changes before executing
+- Option to run sync or async (via Celery)
+
+**Scheduled cleanup (Celery Beat):**
+- Task: `engine.tasks.cleanup_orphaned_assets`
+- Recommended schedule: Weekly (e.g., Sunday 3am)
+- Kwargs: `{"delete_files": true, "days_old": 30}`
+- Configure at `/admin/django_celery_beat/periodictask/`
 
 ## Environment Variables
 

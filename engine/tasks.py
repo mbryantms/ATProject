@@ -584,6 +584,170 @@ def cleanup_expired_uploads():
     }
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    retry_kwargs={"max_retries": 2},
+)
+def cleanup_orphaned_assets(
+    self,
+    delete_files: bool = False,
+    include_soft_deleted: bool = True,
+    days_old: int = 30,
+    cleanup_renditions: bool = True,
+    cleanup_unused: bool = True,
+):
+    """
+    Clean up orphaned renditions and unused assets.
+
+    This task can be scheduled via django-celery-beat to run periodically
+    (e.g., weekly) to prevent accumulation of orphaned files.
+
+    Args:
+        delete_files: If True, also delete files from R2 storage (default: False)
+        include_soft_deleted: Target soft-deleted assets (default: True)
+        days_old: Only delete items older than N days (default: 30)
+        cleanup_renditions: Clean up orphaned renditions (default: True)
+        cleanup_unused: Clean up unused assets (default: True)
+
+    Returns:
+        Dict with cleanup results
+
+    Schedule via django-celery-beat admin:
+        Task: engine.tasks.cleanup_orphaned_assets
+        Schedule: Weekly (crontab: 0 3 * * 0 for Sunday 3am)
+        Kwargs: {"delete_files": true, "days_old": 30}
+    """
+    from datetime import timedelta
+
+    from django.db.models import Count
+    from django.utils import timezone
+
+    from .models import Asset, AssetRendition
+
+    results = {
+        "success": True,
+        "orphaned_renditions": {"found": 0, "deleted": 0, "files_deleted": 0},
+        "unused_assets": {"found": 0, "deleted": 0, "files_deleted": 0},
+        "total_size_freed": 0,
+        "errors": [],
+    }
+
+    cutoff_date = timezone.now() - timedelta(days=days_old)
+
+    # --- Clean up orphaned renditions ---
+    if cleanup_renditions:
+        try:
+            if include_soft_deleted:
+                # Renditions of soft-deleted assets
+                orphaned_renditions = AssetRendition.objects.filter(
+                    asset__is_deleted=True,
+                    created_at__lt=cutoff_date,
+                )
+            else:
+                # Truly orphaned (asset doesn't exist)
+                all_renditions = AssetRendition.objects.filter(created_at__lt=cutoff_date)
+                valid_asset_ids = Asset.all_objects.values_list("id", flat=True)
+                orphaned_renditions = all_renditions.exclude(asset_id__in=valid_asset_ids)
+
+            results["orphaned_renditions"]["found"] = orphaned_renditions.count()
+
+            # Calculate size
+            total_rendition_size = sum(r.file_size or 0 for r in orphaned_renditions)
+            results["total_size_freed"] += total_rendition_size
+
+            # Delete files from R2 first
+            if delete_files:
+                for rendition in orphaned_renditions:
+                    if rendition.file:
+                        try:
+                            rendition.file.delete(save=False)
+                            results["orphaned_renditions"]["files_deleted"] += 1
+                        except Exception as e:
+                            results["errors"].append(
+                                f"Failed to delete rendition file: {e}"
+                            )
+
+            # Delete DB records
+            deleted_count, _ = orphaned_renditions.delete()
+            results["orphaned_renditions"]["deleted"] = deleted_count
+
+        except Exception as e:
+            results["errors"].append(f"Rendition cleanup error: {e}")
+
+    # --- Clean up unused assets ---
+    if cleanup_unused:
+        try:
+            if include_soft_deleted:
+                # Soft-deleted assets not used in posts
+                queryset = Asset.all_objects.filter(
+                    is_deleted=True,
+                    created_at__lt=cutoff_date,
+                )
+            else:
+                # Active unused assets (be careful with this!)
+                queryset = Asset.objects.filter(created_at__lt=cutoff_date)
+
+            unused_assets = queryset.annotate(post_count=Count("postasset")).filter(
+                post_count=0
+            )
+
+            results["unused_assets"]["found"] = unused_assets.count()
+
+            # Calculate size
+            total_asset_size = sum(a.file_size or 0 for a in unused_assets)
+            results["total_size_freed"] += total_asset_size
+
+            # Delete files from R2 first
+            if delete_files:
+                for asset in unused_assets:
+                    # Delete rendition files
+                    for rendition in asset.renditions.all():
+                        if rendition.file:
+                            try:
+                                rendition.file.delete(save=False)
+                            except Exception as e:
+                                results["errors"].append(
+                                    f"Failed to delete rendition file for {asset.key}: {e}"
+                                )
+
+                    # Delete asset file
+                    if asset.file:
+                        try:
+                            asset.file.delete(save=False)
+                            results["unused_assets"]["files_deleted"] += 1
+                        except Exception as e:
+                            results["errors"].append(
+                                f"Failed to delete asset file {asset.key}: {e}"
+                            )
+
+            # Delete DB records
+            deleted_count, details = unused_assets.delete()
+            results["unused_assets"]["deleted"] = deleted_count
+
+        except Exception as e:
+            results["errors"].append(f"Unused asset cleanup error: {e}")
+
+    # Format size for readability
+    results["total_size_freed_human"] = _format_bytes(results["total_size_freed"])
+
+    return results
+
+
+def _format_bytes(size_bytes):
+    """Format bytes as human-readable size."""
+    if size_bytes == 0:
+        return "0 B"
+
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+
+    return f"{size_bytes:.2f} TB"
+
+
 # Helper functions
 
 

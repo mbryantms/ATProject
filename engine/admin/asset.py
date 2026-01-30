@@ -448,13 +448,18 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         return form
 
     def get_urls(self):
-        """Add custom URL for presigned upload view."""
+        """Add custom URLs for presigned upload and cleanup views."""
         urls = super().get_urls()
         custom_urls = [
             path(
                 "presigned-upload/",
                 self.admin_site.admin_view(self.presigned_upload_view),
                 name="engine_asset_presigned_upload",
+            ),
+            path(
+                "cleanup/",
+                self.admin_site.admin_view(self.cleanup_view),
+                name="engine_asset_cleanup",
             ),
         ]
         return custom_urls + urls
@@ -469,6 +474,219 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "opts": self.model._meta,
         }
         return render(request, "admin/engine/asset_presigned_upload.html", context)
+
+    def cleanup_view(self, request):
+        """Custom view for asset cleanup with preview and execution."""
+        from datetime import timedelta
+
+        from django.db.models import Count
+        from django.utils import timezone
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Asset Cleanup",
+            "opts": self.model._meta,
+        }
+
+        # Calculate current stats
+        orphaned_renditions = AssetRendition.objects.filter(asset__is_deleted=True)
+        soft_deleted_assets = Asset.all_objects.filter(is_deleted=True)
+        unused_assets = soft_deleted_assets.annotate(
+            post_count=Count("postasset")
+        ).filter(post_count=0)
+
+        total_size = sum(a.file_size or 0 for a in unused_assets)
+        total_size += sum(r.file_size or 0 for r in orphaned_renditions)
+
+        context["stats"] = {
+            "orphaned_renditions": orphaned_renditions.count(),
+            "unused_assets": unused_assets.count(),
+            "soft_deleted": soft_deleted_assets.count(),
+            "total_size": self._format_size(total_size),
+        }
+
+        # Handle form submission
+        if request.method == "POST":
+            action = request.POST.get("action")
+            cleanup_renditions = request.POST.get("cleanup_renditions") == "on"
+            cleanup_unused = request.POST.get("cleanup_unused") == "on"
+            delete_files = request.POST.get("delete_files") == "on"
+            days_old = int(request.POST.get("days_old", 30))
+            run_async = request.POST.get("run_async") == "on"
+
+            cutoff_date = timezone.now() - timedelta(days=days_old)
+
+            if action == "preview":
+                # Preview mode - show what would be deleted
+                preview = {
+                    "orphaned_renditions": {"count": 0, "examples": []},
+                    "unused_assets": {"count": 0, "examples": []},
+                    "total_size": "0 B",
+                }
+
+                if cleanup_renditions:
+                    qs = AssetRendition.objects.filter(
+                        asset__is_deleted=True,
+                        created_at__lt=cutoff_date,
+                    )
+                    preview["orphaned_renditions"]["count"] = qs.count()
+                    preview["orphaned_renditions"]["examples"] = [
+                        {
+                            "width": r.width,
+                            "format": r.format,
+                            "asset_key": r.asset.key if r.asset else "N/A",
+                        }
+                        for r in qs[:5]
+                    ]
+
+                if cleanup_unused:
+                    qs = (
+                        Asset.all_objects.filter(
+                            is_deleted=True,
+                            created_at__lt=cutoff_date,
+                        )
+                        .annotate(post_count=Count("postasset"))
+                        .filter(post_count=0)
+                    )
+                    preview["unused_assets"]["count"] = qs.count()
+                    preview["unused_assets"]["examples"] = [
+                        {
+                            "key": a.key,
+                            "asset_type": a.asset_type,
+                            "file_size": a.human_file_size,
+                        }
+                        for a in qs[:5]
+                    ]
+
+                # Calculate total size
+                size = 0
+                if cleanup_renditions:
+                    size += sum(
+                        r.file_size or 0
+                        for r in AssetRendition.objects.filter(
+                            asset__is_deleted=True, created_at__lt=cutoff_date
+                        )
+                    )
+                if cleanup_unused:
+                    size += sum(
+                        a.file_size or 0
+                        for a in Asset.all_objects.filter(
+                            is_deleted=True, created_at__lt=cutoff_date
+                        )
+                        .annotate(post_count=Count("postasset"))
+                        .filter(post_count=0)
+                    )
+                preview["total_size"] = self._format_size(size)
+
+                context["preview_results"] = preview
+
+            elif action == "cleanup":
+                if run_async:
+                    # Run via Celery
+                    try:
+                        from engine.tasks import cleanup_orphaned_assets
+
+                        result = cleanup_orphaned_assets.delay(
+                            delete_files=delete_files,
+                            include_soft_deleted=True,
+                            days_old=days_old,
+                            cleanup_renditions=cleanup_renditions,
+                            cleanup_unused=cleanup_unused,
+                        )
+                        context["cleanup_results"] = {
+                            "task_id": result.id,
+                        }
+                        messages.success(
+                            request,
+                            f"Cleanup task queued. Task ID: {result.id}",
+                        )
+                    except Exception as e:
+                        messages.error(request, f"Failed to queue task: {e}")
+                else:
+                    # Run synchronously
+                    results = self._run_cleanup_sync(
+                        delete_files=delete_files,
+                        days_old=days_old,
+                        cleanup_renditions=cleanup_renditions,
+                        cleanup_unused=cleanup_unused,
+                    )
+                    context["cleanup_results"] = results
+                    messages.success(
+                        request,
+                        f"Cleanup complete. Freed {results['total_size_freed_human']}.",
+                    )
+
+        return render(request, "admin/engine/asset_cleanup.html", context)
+
+    def _run_cleanup_sync(
+        self, delete_files, days_old, cleanup_renditions, cleanup_unused
+    ):
+        """Run cleanup synchronously (for small cleanups or when Celery unavailable)."""
+        from datetime import timedelta
+
+        from django.db.models import Count
+        from django.utils import timezone
+
+        results = {
+            "orphaned_renditions": {"found": 0, "deleted": 0, "files_deleted": 0},
+            "unused_assets": {"found": 0, "deleted": 0, "files_deleted": 0},
+            "total_size_freed": 0,
+            "errors": [],
+        }
+
+        cutoff_date = timezone.now() - timedelta(days=days_old)
+
+        if cleanup_renditions:
+            orphaned = AssetRendition.objects.filter(
+                asset__is_deleted=True,
+                created_at__lt=cutoff_date,
+            )
+            results["orphaned_renditions"]["found"] = orphaned.count()
+            results["total_size_freed"] += sum(r.file_size or 0 for r in orphaned)
+
+            if delete_files:
+                for r in orphaned:
+                    if r.file:
+                        try:
+                            r.file.delete(save=False)
+                            results["orphaned_renditions"]["files_deleted"] += 1
+                        except Exception as e:
+                            results["errors"].append(str(e))
+
+            deleted, _ = orphaned.delete()
+            results["orphaned_renditions"]["deleted"] = deleted
+
+        if cleanup_unused:
+            unused = (
+                Asset.all_objects.filter(is_deleted=True, created_at__lt=cutoff_date)
+                .annotate(post_count=Count("postasset"))
+                .filter(post_count=0)
+            )
+            results["unused_assets"]["found"] = unused.count()
+            results["total_size_freed"] += sum(a.file_size or 0 for a in unused)
+
+            if delete_files:
+                for a in unused:
+                    for r in a.renditions.all():
+                        if r.file:
+                            try:
+                                r.file.delete(save=False)
+                            except Exception as e:
+                                results["errors"].append(str(e))
+                    if a.file:
+                        try:
+                            a.file.delete(save=False)
+                            results["unused_assets"]["files_deleted"] += 1
+                        except Exception as e:
+                            results["errors"].append(str(e))
+
+            deleted, _ = unused.delete()
+            results["unused_assets"]["deleted"] = deleted
+
+        results["total_size_freed_human"] = self._format_size(
+            results["total_size_freed"]
+        )
+        return results
 
     @admin.display(description="Asset", ordering="title")
     def asset_title_with_preview(self, obj):

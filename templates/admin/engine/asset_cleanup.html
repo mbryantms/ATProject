@@ -1,0 +1,218 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Asset Cleanup | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='engine' %}">Engine</a>
+    &rsaquo; <a href="{% url 'admin:engine_asset_changelist' %}">Assets</a>
+    &rsaquo; Cleanup
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>Asset Cleanup</h1>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
+    <!-- Current Status -->
+    <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+        <h2 style="margin-top: 0; color: #495057;">Current Status</h2>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="background: white; padding: 16px; border-radius: 6px; border: 1px solid #e9ecef;">
+                <div style="font-size: 32px; font-weight: bold; color: #dc3545;">{{ stats.orphaned_renditions }}</div>
+                <div style="color: #6c757d;">Orphaned Renditions</div>
+                <div style="font-size: 12px; color: #adb5bd;">From soft-deleted assets</div>
+            </div>
+
+            <div style="background: white; padding: 16px; border-radius: 6px; border: 1px solid #e9ecef;">
+                <div style="font-size: 32px; font-weight: bold; color: #fd7e14;">{{ stats.unused_assets }}</div>
+                <div style="color: #6c757d;">Unused Assets</div>
+                <div style="font-size: 12px; color: #adb5bd;">Not linked to any posts</div>
+            </div>
+
+            <div style="background: white; padding: 16px; border-radius: 6px; border: 1px solid #e9ecef;">
+                <div style="font-size: 32px; font-weight: bold; color: #6c757d;">{{ stats.soft_deleted }}</div>
+                <div style="color: #6c757d;">Soft-Deleted Assets</div>
+                <div style="font-size: 12px; color: #adb5bd;">Marked for deletion</div>
+            </div>
+
+            <div style="background: white; padding: 16px; border-radius: 6px; border: 1px solid #e9ecef;">
+                <div style="font-size: 32px; font-weight: bold; color: #17a2b8;">{{ stats.total_size }}</div>
+                <div style="color: #6c757d;">Reclaimable Space</div>
+                <div style="font-size: 12px; color: #adb5bd;">Estimated storage savings</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleanup Actions -->
+    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px;">
+        <h2 style="margin-top: 0; color: #856404;">Run Cleanup</h2>
+
+        <form method="post" id="cleanup-form">
+            {% csrf_token %}
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="cleanup_renditions" checked>
+                    <span>Clean up orphaned renditions</span>
+                </label>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="cleanup_unused" checked>
+                    <span>Clean up unused soft-deleted assets</span>
+                </label>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="delete_files" id="delete-files-checkbox">
+                    <span style="color: #dc3545; font-weight: 500;">Delete files from R2 storage</span>
+                </label>
+                <div style="font-size: 12px; color: #6c757d; margin-left: 24px;">
+                    Warning: This permanently removes files and cannot be undone!
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 4px;">
+                    Only items older than:
+                </label>
+                <select name="days_old" style="padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px;">
+                    <option value="7">7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30" selected>30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90">90 days</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="run_async" checked>
+                    <span>Run asynchronously (via Celery)</span>
+                </label>
+                <div style="font-size: 12px; color: #6c757d; margin-left: 24px;">
+                    Recommended for large cleanups. Results available in Celery task results.
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button type="submit" name="action" value="preview"
+                        style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    Preview Changes
+                </button>
+                <button type="submit" name="action" value="cleanup" id="cleanup-button"
+                        style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                    Run Cleanup
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if preview_results %}
+<div style="margin-top: 24px; background: #e7f3ff; border: 1px solid #b6d4fe; border-radius: 8px; padding: 20px;">
+    <h2 style="margin-top: 0; color: #084298;">Preview Results</h2>
+
+    <div style="background: white; padding: 16px; border-radius: 6px; margin-bottom: 16px;">
+        <h3 style="margin-top: 0;">Orphaned Renditions: {{ preview_results.orphaned_renditions.count }}</h3>
+        {% if preview_results.orphaned_renditions.examples %}
+        <ul style="margin: 0; padding-left: 20px;">
+            {% for r in preview_results.orphaned_renditions.examples %}
+            <li>{{ r.width }}w {{ r.format }} for asset: {{ r.asset_key }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <div style="background: white; padding: 16px; border-radius: 6px;">
+        <h3 style="margin-top: 0;">Unused Assets: {{ preview_results.unused_assets.count }}</h3>
+        {% if preview_results.unused_assets.examples %}
+        <ul style="margin: 0; padding-left: 20px;">
+            {% for a in preview_results.unused_assets.examples %}
+            <li>{{ a.key }} ({{ a.asset_type }}) - {{ a.file_size }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+
+    <p style="margin-bottom: 0; color: #084298;">
+        <strong>Estimated space to reclaim:</strong> {{ preview_results.total_size }}
+    </p>
+</div>
+{% endif %}
+
+{% if cleanup_results %}
+<div style="margin-top: 24px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px;">
+    <h2 style="margin-top: 0; color: #155724;">Cleanup Results</h2>
+
+    {% if cleanup_results.task_id %}
+    <p>
+        <strong>Task queued successfully!</strong><br>
+        Task ID: <code>{{ cleanup_results.task_id }}</code><br>
+        Check results in <a href="{% url 'admin:django_celery_results_taskresult_changelist' %}">Celery Task Results</a>
+    </p>
+    {% else %}
+    <ul style="margin: 0; padding-left: 20px;">
+        <li>Orphaned renditions deleted: {{ cleanup_results.orphaned_renditions.deleted }}</li>
+        <li>Unused assets deleted: {{ cleanup_results.unused_assets.deleted }}</li>
+        {% if cleanup_results.orphaned_renditions.files_deleted or cleanup_results.unused_assets.files_deleted %}
+        <li>R2 files deleted: {{ cleanup_results.orphaned_renditions.files_deleted|add:cleanup_results.unused_assets.files_deleted }}</li>
+        {% endif %}
+        <li>Space freed: {{ cleanup_results.total_size_freed_human }}</li>
+    </ul>
+
+    {% if cleanup_results.errors %}
+    <div style="margin-top: 16px; background: #f8d7da; padding: 12px; border-radius: 4px;">
+        <strong style="color: #721c24;">Errors:</strong>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #721c24;">
+            {% for error in cleanup_results.errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Scheduling Info -->
+<div style="margin-top: 24px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+    <h2 style="margin-top: 0; color: #495057;">Schedule Automatic Cleanup</h2>
+
+    <p>You can schedule this cleanup to run automatically using django-celery-beat:</p>
+
+    <ol>
+        <li>Go to <a href="{% url 'admin:django_celery_beat_periodictask_add' %}">Add Periodic Task</a></li>
+        <li>Set the task name to: <code>engine.tasks.cleanup_orphaned_assets</code></li>
+        <li>Choose a schedule (e.g., weekly on Sunday at 3am)</li>
+        <li>Add kwargs: <code>{"delete_files": true, "days_old": 30}</code></li>
+    </ol>
+
+    <p style="margin-bottom: 0;">
+        <a href="{% url 'admin:django_celery_beat_periodictask_changelist' %}"
+           style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">
+            Manage Scheduled Tasks
+        </a>
+    </p>
+</div>
+
+<script>
+document.getElementById('delete-files-checkbox').addEventListener('change', function() {
+    const btn = document.getElementById('cleanup-button');
+    if (this.checked) {
+        btn.style.background = '#dc3545';
+        btn.textContent = 'Run Cleanup (+ Delete R2 Files)';
+    } else {
+        btn.style.background = '#fd7e14';
+        btn.textContent = 'Run Cleanup';
+    }
+});
+</script>
+
+{% endblock %}
