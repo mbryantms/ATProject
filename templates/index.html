@@ -28,6 +28,8 @@
         {% for post in newest_posts %}
         <li class="index-post-item in-list">
           <a href="{{ post.get_absolute_url }}" class="index-post-link">{{ post.title }}</a>
+          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
           {% if post.published_at %}
           <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
           {% endif %}
@@ -50,6 +52,8 @@
         {% for post in section.posts %}
         <li class="index-post-item in-list">
           <a href="{{ post.get_absolute_url }}" class="index-post-link">{{ post.title }}</a>
+          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
           {% if post.published_at %}
           <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
           {% endif %}
