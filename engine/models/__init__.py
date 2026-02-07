@@ -55,6 +55,9 @@ from .organization import (
     AssetTag,
 )
 
+# Settings
+from .settings import SiteSettings
+
 __all__ = [
     # Base
     "TimeStampedModel",
@@ -87,4 +90,6 @@ __all__ = [
     "AssetFolder",
     "AssetTag",
     "AssetCollection",
+    # Settings
+    "SiteSettings",
 ]

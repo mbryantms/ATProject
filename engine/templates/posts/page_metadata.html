@@ -23,6 +23,9 @@
     {% endif %}
     {# Metadata fields #}
     <div class="page-metadata-fields">
+      {% if user.is_staff and post.visibility != 'public' %}<span class="page-visibility staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+      {% if user.is_staff and post.status != 'published' %}<span class="page-visibility staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+      {% if user.is_staff and site_settings.show_edit_buttons %}<span class="page-edit"><a href="{% url 'admin:engine_post_change' post.pk %}">Edit</a></span>{% endif %}
       {# Author: if published #}
       {% if post.author %}<span class="page-author">by: {{ post.author.get_full_name|default:post.author.username }}</span>{% endif %}
       {# Date range: published to updated #}

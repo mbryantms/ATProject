@@ -34,6 +34,7 @@ from .mixins import SoftDeleteAdminMixin
 from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin
 from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
+from .settings import SiteSettingsAdmin
 from .task_result import TaskResultAdmin
 
 # Export all admin classes for convenient imports
@@ -59,4 +60,6 @@ __all__ = [
     "AssetCollectionAdmin",
     # Task Results
     "TaskResultAdmin",
+    # Settings
+    "SiteSettingsAdmin",
 ]
