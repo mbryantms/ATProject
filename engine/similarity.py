@@ -3,9 +3,9 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Iterable, Optional, Sequence, Set
 
 from django.db.models import Q
 from django.utils import timezone
@@ -13,7 +13,7 @@ from django.utils import timezone
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9]{3,}")
 MAX_TOKEN_COUNT = 700
 CONTENT_SLICE_LENGTH = 8000
-STOPWORDS: Set[str] = {
+STOPWORDS: set[str] = {
     "a",
     "about",
     "after",
@@ -216,12 +216,16 @@ def compute_similar_posts(
     if tag_ids:
         filters = Q(tags__in=tag_ids)
     if category_ids:
-        filters = (filters | Q(categories__in=category_ids)) if filters else Q(
-            categories__in=category_ids
+        filters = (
+            (filters | Q(categories__in=category_ids))
+            if filters
+            else Q(categories__in=category_ids)
         )
     if post.series_id:
-        filters = (filters | Q(series_id=post.series_id)) if filters else Q(
-            series_id=post.series_id
+        filters = (
+            (filters | Q(series_id=post.series_id))
+            if filters
+            else Q(series_id=post.series_id)
         )
 
     if filters is not None:
@@ -248,7 +252,9 @@ def compute_similar_posts(
                 category_ids,
                 {cat.id for cat in candidate.categories.all()},
             ),
-            series_score=1.0 if post_series_id and candidate.series_id == post_series_id else 0.0,
+            series_score=1.0
+            if post_series_id and candidate.series_id == post_series_id
+            else 0.0,
             content_score=_cosine_similarity(post_tokens, candidate_tokens),
             recency_score=_recency_boost(post.published_at, candidate.published_at),
         )
@@ -298,9 +304,7 @@ def _tokenize(text: str) -> Sequence[str]:
     if not text:
         return []
     tokens = [
-        token
-        for token in TOKEN_PATTERN.findall(text.lower())
-        if token not in STOPWORDS
+        token for token in TOKEN_PATTERN.findall(text.lower()) if token not in STOPWORDS
     ]
     if len(tokens) > MAX_TOKEN_COUNT:
         return tokens[:MAX_TOKEN_COUNT]
@@ -333,7 +337,7 @@ def _cosine_similarity(vec_a: Counter, vec_b: Counter) -> float:
     return dot / (norm_a * norm_b)
 
 
-def _recency_boost(primary: Optional[datetime], candidate: Optional[datetime]) -> float:
+def _recency_boost(primary: datetime | None, candidate: datetime | None) -> float:
     if not primary or not candidate:
         return 0.0
     days = abs((primary - candidate).days)

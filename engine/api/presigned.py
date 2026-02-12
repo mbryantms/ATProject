@@ -9,7 +9,7 @@ This module provides:
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import boto3
 from botocore.config import Config

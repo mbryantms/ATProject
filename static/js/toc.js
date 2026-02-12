@@ -1,76 +1,78 @@
 // Simple collapse toggle for the in-article TOC
-document.addEventListener("DOMContentLoaded", () => {
-  const toc = document.querySelector("[data-toc-collapsible]");
+document.addEventListener('DOMContentLoaded', () => {
+  const toc = document.querySelector('[data-toc-collapsible]');
   if (!toc) return;
 
-  const toggle = toc.querySelector("[data-toc-toggle]");
+  const toggle = toc.querySelector('[data-toc-toggle]');
   if (!toggle) return;
 
   const setState = (collapsed) => {
-    toc.classList.toggle("collapsed", collapsed);
-    toggle.setAttribute("aria-expanded", String(!collapsed));
+    toc.classList.toggle('collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute(
-      "title",
-      collapsed ? "Expand table of contents" : "Collapse table of contents"
+      'title',
+      collapsed ? 'Expand table of contents' : 'Collapse table of contents',
     );
   };
 
-  toggle.addEventListener("click", (event) => {
+  toggle.addEventListener('click', (event) => {
     event.preventDefault();
-    const nextState = !toc.classList.contains("collapsed");
+    const nextState = !toc.classList.contains('collapsed');
     setState(nextState);
   });
 
-  setState(toc.classList.contains("collapsed"));
+  setState(toc.classList.contains('collapsed'));
 });
 
 // Minimal scroll-spy for headings referenced in the TOC
-document.addEventListener("DOMContentLoaded", () => {
-  const root = document.querySelector("[data-toc-root]");
+document.addEventListener('DOMContentLoaded', () => {
+  const root = document.querySelector('[data-toc-root]');
   if (!root) return;
 
-  const links = Array.from(root.querySelectorAll("[data-toc-link]"));
+  const links = Array.from(root.querySelectorAll('[data-toc-link]'));
   const targets = new Map();
   links.forEach((a) => {
-    const id = a.getAttribute("data-target-id");
+    const id = a.getAttribute('data-target-id');
     const el = id ? document.getElementById(id) : null;
     if (el) targets.set(el, a);
   });
 
   if (targets.size === 0) return;
 
-  const clearActive = () => links.forEach((a) => a.dataset.active = "false");
+  const clearActive = () => links.forEach((a) => (a.dataset.active = 'false'));
 
-  const obs = new IntersectionObserver((entries) => {
-    // Choose the most visible heading in viewport
-    const visible = entries
-      .filter(e => e.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+  const obs = new IntersectionObserver(
+    (entries) => {
+      // Choose the most visible heading in viewport
+      const visible = entries
+        .filter((e) => e.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-    if (visible) {
-      clearActive();
-      const link = targets.get(visible.target);
-      if (link) link.dataset.active = "true";
-    }
-  }, {rootMargin: "0px 0px -70% 0px", threshold: [0.1, 0.5, 1]});
+      if (visible) {
+        clearActive();
+        const link = targets.get(visible.target);
+        if (link) link.dataset.active = 'true';
+      }
+    },
+    { rootMargin: '0px 0px -70% 0px', threshold: [0.1, 0.5, 1] },
+  );
 
   targets.forEach((_, el) => obs.observe(el));
 
   // Optional: smooth scroll for in-page anchor clicks
-  root.addEventListener("click", (e) => {
-    const a = e.target.closest("a[data-toc-link]");
+  root.addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-toc-link]');
     if (!a) return;
-    const id = a.getAttribute("data-target-id");
+    const id = a.getAttribute('data-target-id');
     const tgt = id ? document.getElementById(id) : null;
     if (!tgt) return;
     e.preventDefault();
     // Adjust for sticky headers if you have them (e.g., 80px)
     const y = tgt.getBoundingClientRect().top + window.scrollY - 80;
-    window.scrollTo({top: y, behavior: "smooth"});
-    history.replaceState(null, "", `#${id}`);
+    window.scrollTo({ top: y, behavior: 'smooth' });
+    history.replaceState(null, '', `#${id}`);
   });
 });
-
 
 // static/js/toc-left.js
 // Features:
@@ -80,11 +82,10 @@ document.addEventListener("DOMContentLoaded", () => {
 // - Page progress bar (0–100%) at bottom of TOC
 
 (function () {
-  const ready = (fn) => (
+  const ready = (fn) =>
     document.readyState !== 'loading'
       ? fn()
-      : document.addEventListener('DOMContentLoaded', fn)
-  );
+      : document.addEventListener('DOMContentLoaded', fn);
 
   ready(() => {
     const rail = document.querySelector('[data-toc-left]');
@@ -141,34 +142,37 @@ document.addEventListener("DOMContentLoaded", () => {
       if (children) children.style.display = '';
     };
 
-    const observer = new IntersectionObserver((entries) => {
-      // Consider the most visible in viewport
-      const visible = entries
-        .filter(e => e.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Consider the most visible in viewport
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-      if (visible && targets.has(visible.target)) {
-        const link = targets.get(visible.target);
-        if (link !== currentActiveLink) {
-          currentActiveLink = link;
-          clearActive();
-          link.dataset.active = 'true';
+        if (visible && targets.has(visible.target)) {
+          const link = targets.get(visible.target);
+          if (link !== currentActiveLink) {
+            currentActiveLink = link;
+            clearActive();
+            link.dataset.active = 'true';
 
-          // After we’re away from the top, hide non-active branches
-          const scrolledPastTop = window.scrollY > 20;
-          if (scrolledPastTop) {
-            revealActiveBranch(link);
-          } else {
-            // Near top: show full TOC
-            nodes.forEach((li) => setCollapsed(li, false));
+            // After we’re away from the top, hide non-active branches
+            const scrolledPastTop = window.scrollY > 20;
+            if (scrolledPastTop) {
+              revealActiveBranch(link);
+            } else {
+              // Near top: show full TOC
+              nodes.forEach((li) => setCollapsed(li, false));
+            }
           }
         }
-      }
-    }, {
-      // Tune rootMargin to your header height so we choose what’s “active” a bit before the heading hits the top
-      rootMargin: '-80px 0px -60% 0px',
-      threshold: [0.1, 0.5, 1.0]
-    });
+      },
+      {
+        // Tune rootMargin to your header height so we choose what’s “active” a bit before the heading hits the top
+        rootMargin: '-80px 0px -60% 0px',
+        threshold: [0.1, 0.5, 1.0],
+      },
+    );
 
     // Observe headings
     targets.forEach((_, el) => observer.observe(el));
@@ -183,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const offset = 80; // match your sticky header height
       const y = target.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({top: y, behavior: 'smooth'});
+      window.scrollTo({ top: y, behavior: 'smooth' });
       history.replaceState(null, '', `#${id}`);
     });
 
@@ -191,9 +195,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateProgress = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       const docHeight = Math.max(
-        document.body.scrollHeight, document.documentElement.scrollHeight,
-        document.body.offsetHeight, document.documentElement.offsetHeight,
-        document.body.clientHeight, document.documentElement.clientHeight
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight,
+        document.body.clientHeight,
+        document.documentElement.clientHeight,
       );
       const winH = window.innerHeight;
       const max = Math.max(1, docHeight - winH);
@@ -202,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (progressLabel) progressLabel.textContent = `${Math.round(pct)}%`;
     };
     updateProgress();
-    window.addEventListener('scroll', updateProgress, {passive: true});
+    window.addEventListener('scroll', updateProgress, { passive: true });
     window.addEventListener('resize', updateProgress);
   });
 })();

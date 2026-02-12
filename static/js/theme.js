@@ -45,9 +45,14 @@ const Theme = {
    */
   updateColorSchemeMeta(theme) {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const colorScheme = theme === 'dark' ? 'dark' :
-                        theme === 'light' ? 'light' :
-                        (prefersDark ? 'dark' : 'light');
+    const colorScheme =
+      theme === 'dark'
+        ? 'dark'
+        : theme === 'light'
+          ? 'light'
+          : prefersDark
+            ? 'dark'
+            : 'light';
 
     let meta = document.querySelector('meta[name="color-scheme"]');
     if (!meta) {
@@ -64,7 +69,8 @@ const Theme = {
    */
   cycle() {
     const current = this.get();
-    const nextIndex = (this.VALID_THEMES.indexOf(current) + 1) % this.VALID_THEMES.length;
+    const nextIndex =
+      (this.VALID_THEMES.indexOf(current) + 1) % this.VALID_THEMES.length;
     const next = this.VALID_THEMES[nextIndex];
     this.set(next);
     return next;
@@ -85,10 +91,10 @@ const Theme = {
     });
 
     // Bind toggle buttons
-    document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
+    document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
       btn.addEventListener('click', () => this.cycle());
     });
-  }
+  },
 };
 
 // Initialize on DOMContentLoaded

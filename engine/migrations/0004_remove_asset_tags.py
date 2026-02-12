@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0003_remove_asset_engine_asse_collect_90df62_idx_and_more"),
     ]

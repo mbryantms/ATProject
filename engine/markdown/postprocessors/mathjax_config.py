@@ -28,7 +28,9 @@ def mathjax_config_injector(html: str, context: dict) -> str:
 
     # Check if there's already a MathJax config or script
     # We want to ensure we don't duplicate configs
-    existing_config = soup.find("script", string=lambda s: s and "MathJax" in s and "xfrac" in s)
+    existing_config = soup.find(
+        "script", string=lambda s: s and "MathJax" in s and "xfrac" in s
+    )
     if existing_config:
         return str(soup)
 

@@ -15,9 +15,9 @@ from django.conf import settings
 from django.contrib import admin
 
 # Customize admin site
-admin.site.site_header = getattr(settings, 'ADMIN_SITE_HEADER', 'Django Administration')
-admin.site.site_title = getattr(settings, 'ADMIN_SITE_TITLE', 'Django site admin')
-admin.site.index_title = getattr(settings, 'ADMIN_INDEX_TITLE', 'Site administration')
+admin.site.site_header = getattr(settings, "ADMIN_SITE_HEADER", "Django Administration")
+admin.site.site_title = getattr(settings, "ADMIN_SITE_TITLE", "Django site admin")
+admin.site.index_title = getattr(settings, "ADMIN_INDEX_TITLE", "Site administration")
 
 # Import admin classes to ensure they're registered
 # The @admin.register() decorators in each module handle the registration
@@ -33,9 +33,9 @@ from .asset import (
 from .mixins import SoftDeleteAdminMixin
 from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin
-from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
 from .settings import SiteSettingsAdmin
 from .task_result import TaskResultAdmin
+from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
 
 # Export all admin classes for convenient imports
 __all__ = [

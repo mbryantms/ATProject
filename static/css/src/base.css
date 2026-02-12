@@ -230,7 +230,9 @@ div.sans-serif {
   color: var(--AT-body-text-color);
   cursor: pointer;
   opacity: 0.5;
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .theme-toggle:hover {
@@ -244,16 +246,16 @@ div.sans-serif {
   display: none;
 }
 
-html[data-theme="auto"] .theme-toggle .theme-icon-auto,
+html[data-theme='auto'] .theme-toggle .theme-icon-auto,
 html:not([data-theme]) .theme-toggle .theme-icon-auto {
   display: block;
 }
 
-html[data-theme="light"] .theme-toggle .theme-icon-light {
+html[data-theme='light'] .theme-toggle .theme-icon-light {
   display: block;
 }
 
-html[data-theme="dark"] .theme-toggle .theme-icon-dark {
+html[data-theme='dark'] .theme-toggle .theme-icon-dark {
   display: block;
 }
 
@@ -3583,7 +3585,10 @@ script {
   color: var(--AT-body-text-color);
   opacity: 0.7;
   border-radius: 3px;
-  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.15s ease;
 }
 
 .index-nav-links .nav-link:hover {
@@ -3643,7 +3648,9 @@ script {
   color: var(--AT-body-link-color, #333);
   text-decoration: none;
   border-bottom: 1px solid var(--AT-body-link-color, #333);
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
   background-image: none;
   text-shadow: none;
 }

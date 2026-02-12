@@ -14,7 +14,12 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.template.defaultfilters import slugify
 
-from .base import SoftDeleteManager, SoftDeleteModel, SoftDeleteQuerySet, TimeStampedModel
+from .base import (
+    SoftDeleteManager,
+    SoftDeleteModel,
+    SoftDeleteQuerySet,
+    TimeStampedModel,
+)
 
 
 class AssetQuerySet(SoftDeleteQuerySet):

@@ -11,7 +11,6 @@ This postprocessor:
 """
 
 import re
-from typing import List, Optional
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -32,7 +31,7 @@ def _calculate_blockquote_level(blockquote: Tag) -> int:
     return level
 
 
-def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
+def _detect_and_remove_float_marker(blockquote: Tag) -> str | None:
     """
     Detect float marker at the start of a blockquote and remove it.
 
@@ -46,8 +45,8 @@ def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
         "right" if {>>} found, "left" if {<<} found, None otherwise
     """
     # Pattern to match float markers at the start of text
-    float_right_pattern = re.compile(r'^\s*\{>>\}\s*')
-    float_left_pattern = re.compile(r'^\s*\{<<\}\s*')
+    float_right_pattern = re.compile(r"^\s*\{>>\}\s*")
+    float_left_pattern = re.compile(r"^\s*\{<<\}\s*")
 
     # Check the first meaningful content in the blockquote
     for child in blockquote.children:
@@ -60,12 +59,12 @@ def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
             # Check for float markers
             if float_right_pattern.match(text):
                 # Remove the marker from the text
-                new_text = float_right_pattern.sub('', text)
+                new_text = float_right_pattern.sub("", text)
                 child.replace_with(new_text)
                 return "right"
             elif float_left_pattern.match(text):
                 # Remove the marker from the text
-                new_text = float_left_pattern.sub('', text)
+                new_text = float_left_pattern.sub("", text)
                 child.replace_with(new_text)
                 return "left"
 
@@ -76,11 +75,11 @@ def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
                 if child.string:
                     text = str(child.string)
                     if float_right_pattern.match(text):
-                        new_text = float_right_pattern.sub('', text)
+                        new_text = float_right_pattern.sub("", text)
                         child.string.replace_with(new_text)
                         return "right"
                     elif float_left_pattern.match(text):
-                        new_text = float_left_pattern.sub('', text)
+                        new_text = float_left_pattern.sub("", text)
                         child.string.replace_with(new_text)
                         return "left"
                 else:
@@ -91,11 +90,11 @@ def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
                             if not text.strip():
                                 continue
                             if float_right_pattern.match(text):
-                                new_text = float_right_pattern.sub('', text)
+                                new_text = float_right_pattern.sub("", text)
                                 grandchild.replace_with(new_text)
                                 return "right"
                             elif float_left_pattern.match(text):
-                                new_text = float_left_pattern.sub('', text)
+                                new_text = float_left_pattern.sub("", text)
                                 grandchild.replace_with(new_text)
                                 return "left"
                             break
@@ -108,7 +107,7 @@ def _detect_and_remove_float_marker(blockquote: Tag) -> Optional[str]:
 def blockquote_enhancer(
     html: str,
     context: dict,
-    blockquote_classes: Optional[List[str]] = None,
+    blockquote_classes: list[str] | None = None,
     add_level_classes: bool = True,
     enable_float_detection: bool = True,
 ) -> str:

@@ -27,15 +27,33 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=24.0.0",
     "celery-types>=0.22.0",
     "djlint>=1.36.0",
     "ffprobe>=0.5",
     "flower>=2.0.1",
-    "isort>=5.13.0",
     "pre-commit>=4.0.0",
     "ruff>=0.8.0",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"ATProject/celery.py" = ["E402"]
+"engine/admin/__init__.py" = ["E402"]
+"engine/admin/asset.py" = ["F841"]
+"engine/links/extractor.py" = ["E741"]
+"engine/markdown/postprocessors/asset_video_enhancer.py" = ["F841"]
+"engine/metadata_extractor.py" = ["E722", "F821"]
+"engine/tasks.py" = ["F841"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["engine", "ATProject"]
 
 [tool.pyright]
 venvPath = "."

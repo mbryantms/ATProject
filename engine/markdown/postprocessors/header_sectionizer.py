@@ -12,7 +12,6 @@ This postprocessor:
 """
 
 import re
-from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -39,8 +38,8 @@ def _get_text_content(element: Tag) -> str:
 def header_sectionizer(
     html: str,
     context: dict,
-    header_classes: Optional[List[str]] = None,
-    section_classes: Optional[List[str]] = None,
+    header_classes: list[str] | None = None,
+    section_classes: list[str] | None = None,
     add_data_attributes: bool = True,
     set_heading_id: bool = True,
 ) -> str:
@@ -62,7 +61,7 @@ def header_sectionizer(
     section_classes = section_classes or ["block"]
 
     soup = BeautifulSoup(html, "html.parser")
-    used_slugs: Dict[str, int] = {}
+    used_slugs: dict[str, int] = {}
 
     def unique_slug(base: str) -> str:
         """Generate unique slug by appending counter if needed."""

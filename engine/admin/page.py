@@ -51,4 +51,5 @@ class PageAdmin(admin.ModelAdmin):
 
     def featured_tags_count(self, obj):
         return obj.featured_tags.count()
+
     featured_tags_count.short_description = "Featured Tags"

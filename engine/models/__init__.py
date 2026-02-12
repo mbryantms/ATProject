@@ -10,12 +10,42 @@ This package contains all model definitions organized by domain:
 """
 
 # Base models and mixins
+# Asset models
+from .asset import (
+    Asset,
+    AssetManager,
+    AssetMetadata,
+    AssetQuerySet,
+    AssetRendition,
+    PostAsset,
+)
 from .base import (
     SoftDeleteManager,
     SoftDeleteModel,
     SoftDeleteQuerySet,
     TimeStampedModel,
 )
+
+# Organization models
+from .organization import (
+    AssetCollection,
+    AssetFolder,
+    AssetTag,
+)
+
+# Page model
+from .page import Page, PageFeaturedTag
+
+# Post models
+from .post import (
+    InternalLink,
+    Post,
+    PostManager,
+    PostQuerySet,
+)
+
+# Settings
+from .settings import SiteSettings
 
 # Taxonomy models
 from .taxonomy import (
@@ -26,37 +56,6 @@ from .taxonomy import (
     TagManager,
     TagQuerySet,
 )
-
-# Post models
-from .post import (
-    InternalLink,
-    Post,
-    PostManager,
-    PostQuerySet,
-)
-
-# Page model
-from .page import Page, PageFeaturedTag
-
-# Asset models
-from .asset import (
-    Asset,
-    AssetManager,
-    AssetMetadata,
-    AssetQuerySet,
-    AssetRendition,
-    PostAsset,
-)
-
-# Organization models
-from .organization import (
-    AssetCollection,
-    AssetFolder,
-    AssetTag,
-)
-
-# Settings
-from .settings import SiteSettings
 
 __all__ = [
     # Base

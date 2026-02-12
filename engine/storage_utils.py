@@ -5,9 +5,10 @@ Helpers for working with Django storage-backed files (e.g., S3/R2).
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
-from typing import BinaryIO, Iterator
+from typing import BinaryIO
 
 
 def open_field_file(field_file, mode: str = "rb") -> BinaryIO:

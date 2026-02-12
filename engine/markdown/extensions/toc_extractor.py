@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, TypedDict
+from collections.abc import Iterable, Mapping
+from typing import Any, TypedDict
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 from django.utils.text import slugify
@@ -11,7 +12,7 @@ class HeadingNode(TypedDict):
     id: str
     title: str
     title_html: str
-    children: list["HeadingNode"]
+    children: list[HeadingNode]
 
 
 def _extract_heading_contents(heading: Tag) -> tuple[str, str]:
@@ -106,15 +107,15 @@ def extract_toc_from_html(html: str) -> list[HeadingNode]:
         return False
 
     if footnotes_section and not contains_id(toc, "footnotes"):
-            toc.append(
-                {
-                    "level": 1,
-                    "id": "footnotes",
-                    "title": "Footnotes",
-                    "title_html": "Footnotes",
-                    "children": [],
-                }
-            )
+        toc.append(
+            {
+                "level": 1,
+                "id": "footnotes",
+                "title": "Footnotes",
+                "title_html": "Footnotes",
+                "children": [],
+            }
+        )
 
     return toc
 
@@ -137,7 +138,9 @@ def _prepare_heading_node(raw: Mapping[str, Any]) -> HeadingNode | None:
 
     children_data = raw.get("children")
     children: list[HeadingNode] = []
-    if isinstance(children_data, Iterable) and not isinstance(children_data, (str, bytes, Mapping)):
+    if isinstance(children_data, Iterable) and not isinstance(
+        children_data, (str, bytes, Mapping)
+    ):
         for child in children_data:
             if isinstance(child, Mapping):
                 prepared = _prepare_heading_node(child)

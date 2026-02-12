@@ -46,9 +46,9 @@ class IndexView(TemplateView):
 
         # Get the page object for intro content and featured tags config
         try:
-            page = Page.objects.prefetch_related(
-                "pagefeaturedtag_set__tag"
-            ).get(slug=self.PAGE_SLUG, is_active=True)
+            page = Page.objects.prefetch_related("pagefeaturedtag_set__tag").get(
+                slug=self.PAGE_SLUG, is_active=True
+            )
             context["intro_html"] = page.content_html
             featured_tags_config = page.get_featured_tags_config()
         except Page.DoesNotExist:
@@ -66,11 +66,13 @@ class IndexView(TemplateView):
             if tag.is_active:
                 posts = base_qs.filter(tags=tag)[:5]
                 if posts.exists():
-                    tag_sections.append({
-                        "title": config["display_title"],
-                        "tag": tag,
-                        "posts": posts,
-                    })
+                    tag_sections.append(
+                        {
+                            "title": config["display_title"],
+                            "tag": tag,
+                            "posts": posts,
+                        }
+                    )
 
         context["tag_sections"] = tag_sections
 
@@ -159,8 +161,10 @@ class TagArchiveView(TemplateView):
         user = self.request.user
 
         # Get the tag (we know it exists from get())
-        tag = Tag.objects.select_related("parent").prefetch_related("aliases").get(
-            slug=slug, is_active=True
+        tag = (
+            Tag.objects.select_related("parent")
+            .prefetch_related("aliases")
+            .get(slug=slug, is_active=True)
         )
 
         # Get posts with this tag
@@ -250,7 +254,10 @@ class TagListView(TemplateView):
             post_filter = Q(
                 posts__is_deleted=False,
                 posts__status=Post.Status.PUBLISHED,
-                posts__visibility__in=[Post.Visibility.PUBLIC, Post.Visibility.UNLISTED],
+                posts__visibility__in=[
+                    Post.Visibility.PUBLIC,
+                    Post.Visibility.UNLISTED,
+                ],
                 posts__published_at__isnull=False,
                 posts__published_at__lte=now,
             )
@@ -380,7 +387,10 @@ class PostDetailView(DetailView):
 
     def get_queryset(self):
         qs = Post.all_objects.select_related("author", "series").prefetch_related(
-            "categories", "tags", "co_authors", "related_posts",
+            "categories",
+            "tags",
+            "co_authors",
+            "related_posts",
             "post_assets__asset",  # Prefetch for asset resolution in markdown
         )
         user = self.request.user
@@ -415,14 +425,10 @@ class PostDetailView(DetailView):
         # Get backlinks (posts that link to this post)
         from engine.links.extractor import get_backlinks_for_post
 
-        backlinks = get_backlinks_for_post(
-            post,
-            published_only=True,
-            public_only=True
-        )
+        backlinks = get_backlinks_for_post(post, published_only=True, public_only=True)
 
-        context['backlinks'] = backlinks
-        context['backlinks_count'] = backlinks.count()
+        context["backlinks"] = backlinks
+        context["backlinks_count"] = backlinks.count()
 
         # Cache similar posts for 1 hour (expensive computation)
         cache_key = f"similar_posts:{post.pk}"
@@ -430,15 +436,15 @@ class PostDetailView(DetailView):
         if similar_posts is None:
             similar_posts = list(post.get_similar_posts(limit=6))
             cache.set(cache_key, similar_posts, 3600)  # 1 hour
-        context['similar_posts'] = similar_posts
-        context['similar_posts_count'] = len(similar_posts)
+        context["similar_posts"] = similar_posts
+        context["similar_posts_count"] = len(similar_posts)
 
         if post.show_toc:
-            context['toc_nodes'] = post.get_render_toc(
-                backlinks_count=context['backlinks_count'],
-                similar_posts_count=context['similar_posts_count'],
+            context["toc_nodes"] = post.get_render_toc(
+                backlinks_count=context["backlinks_count"],
+                similar_posts_count=context["similar_posts_count"],
             )
         else:
-            context['toc_nodes'] = []
+            context["toc_nodes"] = []
 
         return context

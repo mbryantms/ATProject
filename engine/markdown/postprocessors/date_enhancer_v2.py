@@ -24,9 +24,9 @@ Supported date formats:
 
 import re
 from datetime import datetime
-from dateutil import parser as date_parser
 
 from bs4 import BeautifulSoup, NavigableString
+from dateutil import parser as date_parser
 
 
 def _years_ago_text(years: int, is_duration: bool = False) -> str:
@@ -96,16 +96,18 @@ def _parse_date(date_string: str) -> datetime:
     date_string = date_string.strip()
 
     # Handle BC/BCE dates (including large numbers and decimals)
-    bc_match = re.match(r'^([\d,]+(?:\.\d+)?)\s*(million|m)?\s*(BC|BCE)$', date_string, re.IGNORECASE)
+    bc_match = re.match(
+        r"^([\d,]+(?:\.\d+)?)\s*(million|m)?\s*(BC|BCE)$", date_string, re.IGNORECASE
+    )
     if bc_match:
-        year_str = bc_match.group(1).replace(',', '')
+        year_str = bc_match.group(1).replace(",", "")
         multiplier = bc_match.group(2)
 
         # Parse the year value
         year_value = float(year_str)
 
         # Apply multiplier if present
-        if multiplier and multiplier.lower() in ('million', 'm'):
+        if multiplier and multiplier.lower() in ("million", "m"):
             year_value *= 1_000_000
 
         year = int(year_value)
@@ -116,7 +118,7 @@ def _parse_date(date_string: str) -> datetime:
         raise ValueError(f"BC_DATE:{year}")
 
     # Handle AD prefix dates (AD 673)
-    ad_match = re.match(r'^AD\s+(\d+)$', date_string, re.IGNORECASE)
+    ad_match = re.match(r"^AD\s+(\d+)$", date_string, re.IGNORECASE)
     if ad_match:
         year = int(ad_match.group(1))
         return datetime(year, 7, 1)
@@ -185,7 +187,7 @@ def _split_date_range(text: str) -> tuple[str, str, str, int]:
     # Try various separators (order matters - try more specific first)
     # Double hyphen before single hyphen to avoid matching ISO date hyphens
     # Special handling for ISO dates with -- separator
-    separators = ['–', '—', '--', ' to ', ' - ']
+    separators = ["–", "—", "--", " to ", " - "]
 
     for sep in separators:
         if sep in text:
@@ -198,10 +200,10 @@ def _split_date_range(text: str) -> tuple[str, str, str, int]:
     # Only split on hyphen if it's not part of an ISO date pattern
     # Strategy: Find hyphens that aren't surrounded by digits on both sides in a date-like pattern
     # Look for year-year patterns like "1500-1600" but not "2020-01-15"
-    hyphen_pattern = r'^(\d{4})-(\d{4})$'  # Simple year-to-year range
+    hyphen_pattern = r"^(\d{4})-(\d{4})$"  # Simple year-to-year range
     if re.match(hyphen_pattern, text):
-        parts = text.split('-', 1)
-        return parts[0].strip(), parts[1].strip(), '-', text.find('-')
+        parts = text.split("-", 1)
+        return parts[0].strip(), parts[1].strip(), "-", text.find("-")
 
     raise ValueError(f"Could not find date range separator in: {text}")
 
@@ -488,7 +490,9 @@ def date_enhancer_v2(html: str, context: dict) -> str:
     # Process .date-since (time-since only)
     for span in soup.find_all("span", class_="date-since"):
         # Skip if already processed as date-range or date-range-since
-        if "date-range" not in span.get("class", []) and "date-range-since" not in span.get("class", []):
+        if "date-range" not in span.get(
+            "class", []
+        ) and "date-range-since" not in span.get("class", []):
             _process_date_since(span, soup)
 
     return str(soup)

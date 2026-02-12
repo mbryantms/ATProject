@@ -18,12 +18,10 @@ This postprocessor:
 - Adds configurable classes to paragraphs immediately before top-level lists
 """
 
-from typing import Dict, List, Optional
-
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 # Mapping of CSS list-style-type values to our custom CSS classes
-LIST_TYPE_CLASS_MAP: Dict[str, str] = {
+LIST_TYPE_CLASS_MAP: dict[str, str] = {
     "decimal": "list-type-decimal",
     "lower-alpha": "list-type-lower-alpha",
     "upper-alpha": "list-type-upper-alpha",
@@ -49,7 +47,7 @@ def _calculate_list_level(element: Tag) -> int:
     return level
 
 
-def _detect_list_type(ol: Tag) -> Optional[str]:
+def _detect_list_type(ol: Tag) -> str | None:
     """
     Detect the list type from an <ol> element.
 
@@ -91,7 +89,7 @@ def _detect_list_type(ol: Tag) -> Optional[str]:
 
 
 def _wrap_li_content_in_paragraph(
-    li: Tag, soup: BeautifulSoup, paragraph_classes: Optional[List[str]] = None
+    li: Tag, soup: BeautifulSoup, paragraph_classes: list[str] | None = None
 ):
     """
     Wrap the content of an <li> element in a <p> tag if not already wrapped.
@@ -190,11 +188,11 @@ def _wrap_li_content_in_paragraph(
 def list_enhancer(
     html: str,
     context: dict,
-    ul_classes: Optional[List[str]] = None,
-    ol_classes: Optional[List[str]] = None,
-    li_classes: Optional[List[str]] = None,
-    li_paragraph_classes: Optional[List[str]] = None,
-    preceding_paragraph_classes: Optional[List[str]] = None,
+    ul_classes: list[str] | None = None,
+    ol_classes: list[str] | None = None,
+    li_classes: list[str] | None = None,
+    li_paragraph_classes: list[str] | None = None,
+    preceding_paragraph_classes: list[str] | None = None,
     add_list_level_classes: bool = True,
     wrap_li_in_paragraph: bool = True,
     mark_preceding_paragraphs: bool = True,

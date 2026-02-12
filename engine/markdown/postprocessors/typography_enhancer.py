@@ -13,7 +13,6 @@ extension during markdown rendering, so they are NOT implemented here.
 """
 
 import re
-from typing import List, Optional
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -35,7 +34,11 @@ def _wrap_subsup_pairs(soup: BeautifulSoup) -> None:
                 break
             next_sibling = next_sibling.next_sibling
 
-        if next_sibling and isinstance(next_sibling, Tag) and next_sibling.name == "sup":
+        if (
+            next_sibling
+            and isinstance(next_sibling, Tag)
+            and next_sibling.name == "sup"
+        ):
             # Found sub followed by sup
             _create_subsup_wrapper(soup, sub, next_sibling)
             continue
@@ -43,7 +46,11 @@ def _wrap_subsup_pairs(soup: BeautifulSoup) -> None:
     # Find all sup elements (to catch sup followed by sub)
     for sup in soup.find_all("sup"):
         # Skip if already wrapped
-        if sup.parent and sup.parent.name == "span" and "subsup" in sup.parent.get("class", []):
+        if (
+            sup.parent
+            and sup.parent.name == "span"
+            and "subsup" in sup.parent.get("class", [])
+        ):
             continue
 
         # Check next sibling (skipping whitespace)
@@ -54,7 +61,11 @@ def _wrap_subsup_pairs(soup: BeautifulSoup) -> None:
                 break
             next_sibling = next_sibling.next_sibling
 
-        if next_sibling and isinstance(next_sibling, Tag) and next_sibling.name == "sub":
+        if (
+            next_sibling
+            and isinstance(next_sibling, Tag)
+            and next_sibling.name == "sub"
+        ):
             # Found sup followed by sub
             _create_subsup_wrapper(soup, sup, next_sibling)
 
@@ -69,7 +80,11 @@ def _create_subsup_wrapper(soup: BeautifulSoup, first: Tag, second: Tag) -> None
         second: Second element (sup or sub)
     """
     # Check if already wrapped
-    if first.parent and first.parent.name == "span" and "subsup" in first.parent.get("class", []):
+    if (
+        first.parent
+        and first.parent.name == "span"
+        and "subsup" in first.parent.get("class", [])
+    ):
         return
 
     # Create wrapper span
@@ -105,7 +120,7 @@ def _add_word_breaks(soup: BeautifulSoup) -> None:
     - Excludes <pre> blocks (code blocks)
     - Excludes <script>, <style>, <noscript> tags
     """
-    excluded_tags = {'pre', 'script', 'style', 'noscript'}
+    excluded_tags = {"pre", "script", "style", "noscript"}
 
     def should_process_element(element):
         """
@@ -139,11 +154,11 @@ def _add_word_breaks(soup: BeautifulSoup) -> None:
 
         # Only process if there are slashes followed by non-slash characters
         # Pattern: slash(es) followed by non-slash, non-wbr character
-        if not re.search(r'/+[^/\u200b]', text):
+        if not re.search(r"/+[^/\u200b]", text):
             return
 
         # Split on slashes while keeping them
-        parts = re.split(r'(/+)', text)
+        parts = re.split(r"(/+)", text)
 
         # If no splitting occurred or only one part, nothing to do
         if len(parts) <= 1:
@@ -159,8 +174,8 @@ def _add_word_breaks(soup: BeautifulSoup) -> None:
             new_nodes.append(soup.new_string(part))
 
             # Add <wbr> after slash sequences (but not at the end)
-            if part.startswith('/') and i < len(parts) - 1 and parts[i + 1]:
-                wbr = soup.new_tag('wbr')
+            if part.startswith("/") and i < len(parts) - 1 and parts[i + 1]:
+                wbr = soup.new_tag("wbr")
                 new_nodes.append(wbr)
 
         # Replace the original text node with new nodes
@@ -190,7 +205,7 @@ def _clean_consecutive_wbr_tags(soup: BeautifulSoup) -> None:
 
     Also removes <wbr> tags that are only separated by whitespace-only text nodes.
     """
-    for wbr in soup.find_all('wbr'):
+    for wbr in soup.find_all("wbr"):
         # Check next sibling
         next_sibling = wbr.next_sibling
 
@@ -201,7 +216,11 @@ def _clean_consecutive_wbr_tags(soup: BeautifulSoup) -> None:
             next_sibling = next_sibling.next_sibling
 
         # If next non-whitespace sibling is also a <wbr>, remove this one
-        if next_sibling and isinstance(next_sibling, Tag) and next_sibling.name == 'wbr':
+        if (
+            next_sibling
+            and isinstance(next_sibling, Tag)
+            and next_sibling.name == "wbr"
+        ):
             wbr.extract()
 
 
@@ -214,7 +233,7 @@ def _normalize_nbsp(soup: BeautifulSoup) -> None:
     - Between numbers and units
     - In specific formatting contexts
     """
-    excluded_tags = {'pre', 'code'}
+    excluded_tags = {"pre", "code"}
 
     def should_process_element(element):
         """Check if element or any parent is in excluded tags."""
@@ -227,13 +246,13 @@ def _normalize_nbsp(soup: BeautifulSoup) -> None:
 
     # Find all text nodes with non-breaking spaces
     for element in soup.descendants:
-        if isinstance(element, NavigableString) and '\xa0' in str(element):
+        if isinstance(element, NavigableString) and "\xa0" in str(element):
             if should_process_element(element):
                 # Replace nbsp with regular space
                 # Preserve nbsp in specific patterns (number + unit, etc.)
                 text = str(element)
                 # Don't replace nbsp between digit and letter (like "5 km")
-                text = re.sub(r'(?<![0-9])\xa0(?![A-Za-z])', ' ', text)
+                text = re.sub(r"(?<![0-9])\xa0(?![A-Za-z])", " ", text)
                 element.replace_with(text)
 
 

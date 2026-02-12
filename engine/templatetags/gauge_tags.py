@@ -56,7 +56,7 @@ def gauge(
     progress = c * pct
     gap = c - progress
     color = _color_for_scheme(pct, scheme)
-    aria = label or f"Value {v} out of {max_value} ({int(pct*100)}%)"
+    aria = label or f"Value {v} out of {max_value} ({int(pct * 100)}%)"
 
     return {
         "v": v,

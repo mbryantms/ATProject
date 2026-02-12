@@ -30,7 +30,7 @@ STATUS_COLORS = {
     "FAILURE": "#dc3545",  # Red
     "PENDING": "#ffc107",  # Yellow
     "STARTED": "#17a2b8",  # Cyan
-    "RETRY": "#fd7e14",    # Orange
+    "RETRY": "#fd7e14",  # Orange
     "REVOKED": "#6c757d",  # Gray
 }
 

@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0002_assettag_assetcollection_assetfolder_and_more"),
     ]

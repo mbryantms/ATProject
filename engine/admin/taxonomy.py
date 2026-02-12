@@ -123,11 +123,15 @@ class TagAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("parent").prefetch_related("children", "aliases").annotate(
-            _asset_count=models.Count("posts__post_assets__asset", distinct=True),
-            _post_count=models.Count("posts", distinct=True),
-            _alias_count=models.Count("aliases", distinct=True),
-            _children_count=models.Count("children", distinct=True),
+        return (
+            qs.select_related("parent")
+            .prefetch_related("children", "aliases")
+            .annotate(
+                _asset_count=models.Count("posts__post_assets__asset", distinct=True),
+                _post_count=models.Count("posts", distinct=True),
+                _alias_count=models.Count("aliases", distinct=True),
+                _children_count=models.Count("children", distinct=True),
+            )
         )
 
     # Custom display methods
@@ -159,7 +163,9 @@ class TagAdmin(admin.ModelAdmin):
     def parent_display(self, obj):
         """Display parent tag with link."""
         if not obj.parent:
-            return mark_safe('<span style="color: #999; font-style: italic;">Root</span>')
+            return mark_safe(
+                '<span style="color: #999; font-style: italic;">Root</span>'
+            )
         return mark_safe(
             f'<a href="/admin/engine/tag/{obj.parent.pk}/change/" style="color: #3B82F6; font-weight: 500;">{obj.parent.name}</a>'
         )
@@ -175,7 +181,9 @@ class TagAdmin(admin.ModelAdmin):
         if obj.rank == 0:
             return mark_safe('<span style="color: #999;">0</span>')
         color = "#10B981" if obj.rank > 0 else "#EF4444"
-        return mark_safe(f'<span style="color: {color}; font-weight: 600;">{obj.rank}</span>')
+        return mark_safe(
+            f'<span style="color: {color}; font-weight: 600;">{obj.rank}</span>'
+        )
 
     @admin.display(description="Usage", ordering="usage_count")
     def usage_count_display(self, obj):
@@ -226,7 +234,9 @@ class TagAdmin(admin.ModelAdmin):
         count = getattr(obj, "_children_count", 0)
         if count == 0:
             return mark_safe('<span style="color: #999;">0</span>')
-        return mark_safe(f'<span style="color: #F59E0B; font-weight: 500;">{count}</span>')
+        return mark_safe(
+            f'<span style="color: #F59E0B; font-weight: 500;">{count}</span>'
+        )
 
     # Bulk actions
     @admin.action(description="Activate selected tags")
@@ -334,7 +344,7 @@ class TagAliasAdmin(admin.ModelAdmin):
         return mark_safe(
             f'<a href="/admin/engine/tag/{obj.tag.pk}/change/" '
             f'style="display: inline-block; padding: 4px 10px; border-radius: 12px; '
-            f'background-color: {obj.tag.color}; color: white; font-weight: 500; font-size: 13px; '
+            f"background-color: {obj.tag.color}; color: white; font-weight: 500; font-size: 13px; "
             f'text-decoration: none;">{obj.tag.name}</a>'
         )
 

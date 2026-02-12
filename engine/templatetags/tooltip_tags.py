@@ -73,7 +73,7 @@ class TooltipNode(template.Node):
             <div class="tooltip-content">
                 {tooltip_content}
             </div>
-            {f'<div class="tooltip-arrow" data-popper-arrow></div>' if arrow else ''}
+            {'<div class="tooltip-arrow" data-popper-arrow></div>' if arrow else ""}
         </div>
         """
 
@@ -178,11 +178,11 @@ def simple_tooltip(context, content, tooltip_text, **kwargs):
     <span id="{trigger_id}" class="tooltip-trigger" data-tooltip-target="{tooltip_id}" data-tooltip-config='{config}'>
         {escape(content)}
     </span>
-    <div id="{tooltip_id}" class="tooltip tooltip-{options['theme']}" role="tooltip" style="display: none; max-width: {options['maxWidth']};">
+    <div id="{tooltip_id}" class="tooltip tooltip-{options["theme"]}" role="tooltip" style="display: none; max-width: {options["maxWidth"]};">
         <div class="tooltip-content">
             {escape(tooltip_text)}
         </div>
-        {f'<div class="tooltip-arrow" data-popper-arrow></div>' if options['arrow'] else ''}
+        {'<div class="tooltip-arrow" data-popper-arrow></div>' if options["arrow"] else ""}
     </div>
     """
 

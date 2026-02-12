@@ -22,9 +22,8 @@ Usage in Markdown:
 """
 
 import re
-from typing import List, Optional
 
-from bs4 import BeautifulSoup, Comment, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString
 
 
 def horizontal_rule_enhancer(
@@ -48,7 +47,7 @@ def horizontal_rule_enhancer(
     soup = BeautifulSoup(html, "html.parser")
 
     # Pattern to detect style hints in HTML comments
-    style_hint_pattern = re.compile(r'hr:([123])', re.IGNORECASE)
+    style_hint_pattern = re.compile(r"hr:([123])", re.IGNORECASE)
 
     # Track which style to use for cycling
     current_style = default_style
@@ -65,7 +64,10 @@ def horizontal_rule_enhancer(
         check_sibling = prev_sibling
         while check_sibling:
             # Skip whitespace-only text nodes
-            if isinstance(check_sibling, NavigableString) and not str(check_sibling).strip():
+            if (
+                isinstance(check_sibling, NavigableString)
+                and not str(check_sibling).strip()
+            ):
                 check_sibling = check_sibling.find_previous_sibling()
                 continue
 

@@ -208,9 +208,15 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         settings.AUTH_USER_MODEL, blank=True, related_name="posts_coauthored"
     )
     series = models.ForeignKey(
-        "engine.Series", null=True, blank=True, on_delete=models.SET_NULL, related_name="posts"
+        "engine.Series",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="posts",
     )
-    categories = models.ManyToManyField("engine.Category", blank=True, related_name="posts")
+    categories = models.ManyToManyField(
+        "engine.Category", blank=True, related_name="posts"
+    )
     tags = models.ManyToManyField("engine.Tag", blank=True, related_name="posts")
     related_posts = models.ManyToManyField(
         "self", blank=True, symmetrical=False, related_name="related_to"

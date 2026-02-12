@@ -69,8 +69,7 @@
         for (let i = 0; i < graf.childNodes.length; i++) {
           const node = graf.childNodes[i];
           if (
-            marginnote.compareDocumentPosition(node) &
-            Node.DOCUMENT_POSITION_PRECEDING
+            marginnote.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING
           ) {
             if (
               node.nodeType === Node.ELEMENT_NODE ||
@@ -90,7 +89,7 @@
 
         marginnote.style.setProperty(
           '--marginnote-vertical-position',
-          `${percentPosition}%`
+          `${percentPosition}%`,
         );
       });
     },

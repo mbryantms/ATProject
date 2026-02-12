@@ -15,10 +15,8 @@ import csv
 from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.urls import path, reverse
+from django.urls import path
 from django.utils.html import format_html
-
-
 
 from engine.models import (
     Asset,
@@ -1317,7 +1315,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         from engine.models import AssetRendition
 
         # Find renditions of soft-deleted assets in the queryset
-        asset_ids = queryset.filter(is_deleted=True).values_list('id', flat=True)
+        asset_ids = queryset.filter(is_deleted=True).values_list("id", flat=True)
         orphaned = AssetRendition.objects.filter(asset_id__in=asset_ids)
 
         count = orphaned.count()
@@ -1326,7 +1324,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             self.message_user(
                 request,
                 "No orphaned renditions found for selected assets.",
-                level=messages.INFO
+                level=messages.INFO,
             )
             return
 
@@ -1340,7 +1338,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             request,
             f"✓ Deleted {deleted_count} orphaned rendition(s) "
             f"({self._format_size(total_size)} freed)",
-            level=messages.SUCCESS
+            level=messages.SUCCESS,
         )
 
     @admin.action(description="Delete unused assets (not in posts)")
@@ -1349,9 +1347,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         from django.db.models import Count
 
         # Find unused assets in queryset
-        unused = queryset.annotate(
-            post_count=Count('postasset')
-        ).filter(post_count=0)
+        unused = queryset.annotate(post_count=Count("postasset")).filter(post_count=0)
 
         count = unused.count()
 
@@ -1359,7 +1355,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             self.message_user(
                 request,
                 "All selected assets are being used in posts.",
-                level=messages.INFO
+                level=messages.INFO,
             )
             return
 
@@ -1375,20 +1371,20 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             f"✓ Deleted {deleted_count} unused asset(s) and "
             f"{details.get('engine.AssetRendition', 0)} rendition(s) "
             f"({self._format_size(total_size)} freed)",
-            level=messages.SUCCESS
+            level=messages.SUCCESS,
         )
 
     def _format_size(self, size_bytes):
         """Format bytes as human-readable size."""
         if size_bytes == 0:
-            return '0 B'
+            return "0 B"
 
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if size_bytes < 1024.0:
-                return f'{size_bytes:.2f} {unit}'
+                return f"{size_bytes:.2f} {unit}"
             size_bytes /= 1024.0
 
-        return f'{size_bytes:.2f} TB'
+        return f"{size_bytes:.2f} TB"
 
 
 # --------------------------

@@ -21,7 +21,7 @@ npm run format                       # Prettier formatting
 # Code quality
 uv run pre-commit run --all-files    # Run all checks
 uv run ruff check --fix .            # Python linting
-uv run black .                       # Python formatting
+uv run ruff format .                 # Python formatting
 npm run lint:js                      # JavaScript linting
 ```
 
@@ -146,7 +146,7 @@ R2_CUSTOM_DOMAIN=...
 
 ## Code Style
 
-- Python: Black + Ruff (configured in pyproject.toml)
+- Python: Ruff (linting + formatting, configured in pyproject.toml)
 - JavaScript: Prettier + ESLint
 - Templates: djlint
 - Pre-commit hooks enforce formatting

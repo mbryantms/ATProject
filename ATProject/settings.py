@@ -132,7 +132,12 @@ _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
     # MathJax requires 'unsafe-inline' for dynamic script creation
-    "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://static.cloudflareinsights.com"],
+    "script-src": [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdn.jsdelivr.net",
+        "https://static.cloudflareinsights.com",
+    ],
     # MathJax requires 'unsafe-inline' for dynamic styles
     "style-src": ["'self'", "'unsafe-inline'"],
     # MathJax loads fonts from jsdelivr CDN
@@ -445,10 +450,10 @@ PRESIGNED_UPLOAD_API_TOKEN = env("PRESIGNED_UPLOAD_API_TOKEN", default=None)
 # Maximum file sizes per asset type (for direct presigned uploads)
 # These are larger than proxy limits since files go directly to R2
 ASSET_MAX_SIZES = {
-    "image": 1 * 1024 * 1024 * 1024,    # 1GB (large RAW/TIFF files)
-    "video": 5 * 1024 * 1024 * 1024,    # 5GB
-    "audio": 500 * 1024 * 1024,         # 500MB
-    "document": 500 * 1024 * 1024,      # 500MB
+    "image": 1 * 1024 * 1024 * 1024,  # 1GB (large RAW/TIFF files)
+    "video": 5 * 1024 * 1024 * 1024,  # 5GB
+    "audio": 500 * 1024 * 1024,  # 500MB
+    "document": 500 * 1024 * 1024,  # 500MB
     "archive": 2 * 1024 * 1024 * 1024,  # 2GB
-    "other": 500 * 1024 * 1024,         # 500MB
+    "other": 500 * 1024 * 1024,  # 500MB
 }

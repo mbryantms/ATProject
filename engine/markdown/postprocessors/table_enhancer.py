@@ -53,7 +53,7 @@ Expected structure:
         </div>
 """
 
-from bs4 import BeautifulSoup, Tag, NavigableString
+from bs4 import BeautifulSoup, Tag
 
 
 def _extract_table_attributes(table: Tag) -> dict:
@@ -71,11 +71,7 @@ def _extract_table_attributes(table: Tag) -> dict:
     Returns:
         Dictionary with keys: size_class, float_classes, sortable
     """
-    attributes = {
-        'size_class': None,
-        'float_classes': [],
-        'sortable': False
-    }
+    attributes = {"size_class": None, "float_classes": [], "sortable": False}
 
     # Check table classes
     table_classes = table.get("class", [])
@@ -84,13 +80,13 @@ def _extract_table_attributes(table: Tag) -> dict:
 
     # Check for size class on table
     if "table-small" in table_classes:
-        attributes['size_class'] = "table-small"
+        attributes["size_class"] = "table-small"
     elif "width-full" in table_classes:
-        attributes['size_class'] = "width-full"
+        attributes["size_class"] = "width-full"
 
     # Check for sortable on table
     if "sortable" in table_classes:
-        attributes['sortable'] = True
+        attributes["sortable"] = True
 
     # Check parent div for explicit classes (from Pandoc fenced div)
     parent = table.parent
@@ -100,20 +96,20 @@ def _extract_table_attributes(table: Tag) -> dict:
             parent_classes = parent_classes.split()
 
         # Extract size class from parent if not already found
-        if not attributes['size_class']:
+        if not attributes["size_class"]:
             if "table-small" in parent_classes:
-                attributes['size_class'] = "table-small"
+                attributes["size_class"] = "table-small"
             elif "width-full" in parent_classes:
-                attributes['size_class'] = "width-full"
+                attributes["size_class"] = "width-full"
 
         # Extract float classes from parent
         for cls in parent_classes:
             if cls in ["float-left", "float-right"]:
-                attributes['float_classes'].append(cls)
+                attributes["float_classes"].append(cls)
 
         # Check for sortable in parent
         if "sortable" in parent_classes:
-            attributes['sortable'] = True
+            attributes["sortable"] = True
 
     return attributes
 
@@ -205,7 +201,13 @@ def _wrap_table(soup: BeautifulSoup, table: Tag, attributes: dict) -> Tag:
         # Check if parent has any table-related classes
         has_table_classes = any(
             cls in parent_classes
-            for cls in ["table-small", "width-full", "float-left", "float-right", "sortable"]
+            for cls in [
+                "table-small",
+                "width-full",
+                "float-left",
+                "float-right",
+                "sortable",
+            ]
         )
 
         # If parent has table-related classes, it's a Pandoc wrapper
@@ -217,11 +219,11 @@ def _wrap_table(soup: BeautifulSoup, table: Tag, attributes: dict) -> Tag:
     wrapper_classes = ["table-wrapper"]
 
     # Add size class if specified
-    if attributes['size_class']:
-        wrapper_classes.append(attributes['size_class'])
+    if attributes["size_class"]:
+        wrapper_classes.append(attributes["size_class"])
 
     # Add float classes if they exist
-    wrapper_classes.extend(attributes['float_classes'])
+    wrapper_classes.extend(attributes["float_classes"])
 
     # Always add block class last
     wrapper_classes.append("block")
@@ -233,8 +235,8 @@ def _wrap_table(soup: BeautifulSoup, table: Tag, attributes: dict) -> Tag:
     inner_wrapper["class"] = ["table-scroll-wrapper"]
 
     # Add sortable attribute to table if specified
-    if attributes['sortable']:
-        table['data-sortable'] = "true"
+    if attributes["sortable"]:
+        table["data-sortable"] = "true"
 
     # Build the structure
     if pandoc_wrapper:

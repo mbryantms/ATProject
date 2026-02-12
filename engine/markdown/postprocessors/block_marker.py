@@ -9,8 +9,6 @@ This postprocessor:
 - Configurable list of block-level element types to process
 """
 
-from typing import List, Optional, Set
-
 from bs4 import BeautifulSoup, Tag
 
 # Default block-level elements that represent discrete content blocks
@@ -32,8 +30,8 @@ DEFAULT_BLOCK_ELEMENTS = [
 def block_marker(
     html: str,
     context: dict,
-    block_class: Optional[List[str]] = None,
-    block_elements: Optional[List[str]] = None,
+    block_class: list[str] | None = None,
+    block_elements: list[str] | None = None,
     skip_nested: bool = True,
 ) -> str:
     """
@@ -58,10 +56,10 @@ def block_marker(
     soup = BeautifulSoup(html, "html.parser")
 
     # Convert to set for faster lookups
-    block_element_set: Set[str] = set(block_elements)
+    block_element_set: set[str] = set(block_elements)
 
     # Track which elements we've already marked to avoid redundant marking
-    marked_elements: Set[Tag] = set()
+    marked_elements: set[Tag] = set()
 
     def is_nested_in_block(element: Tag) -> bool:
         """

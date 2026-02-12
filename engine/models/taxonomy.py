@@ -7,7 +7,7 @@ Includes Tag (with hierarchical support and aliases), Category, and Series model
 import re
 
 from django.core.exceptions import ValidationError
-from django.db import models, connection
+from django.db import connection, models
 from django.template.defaultfilters import slugify
 
 from .base import TimeStampedModel, UniqueSlugMixin
@@ -59,7 +59,7 @@ class TagManager(models.Manager):
             return tag, False
         except self.model.DoesNotExist:
             # Create new tag with normalized name
-            defaults['name'] = normalized_name
+            defaults["name"] = normalized_name
             tag = self.create(**defaults)
             return tag, True
 
@@ -382,7 +382,9 @@ class TagAlias(TimeStampedModel, UniqueSlugMixin):
         # Check if alias conflicts with an existing tag name (case-insensitive)
         if Tag.objects.filter(name__iexact=self.alias).exists():
             raise ValidationError(
-                {"alias": f"An alias cannot have the same name as an existing tag: '{self.alias}'"}
+                {
+                    "alias": f"An alias cannot have the same name as an existing tag: '{self.alias}'"
+                }
             )
 
 

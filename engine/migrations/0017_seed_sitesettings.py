@@ -14,7 +14,6 @@ def remove_site_settings(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0016_sitesettings"),
     ]

@@ -5,9 +5,8 @@ This module parses markdown content to find internal links to other posts,
 enabling the backlinks feature which shows bidirectional post connections.
 """
 
-import re
 import logging
-from typing import List, Dict, Optional
+import re
 from urllib.parse import urlparse
 
 from django.db import transaction
@@ -15,7 +14,7 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 
 
-def extract_internal_links(markdown_content: str) -> List[Dict[str, str]]:
+def extract_internal_links(markdown_content: str) -> list[dict[str, str]]:
     """
     Extract internal post links from markdown content.
 
@@ -46,25 +45,21 @@ def extract_internal_links(markdown_content: str) -> List[Dict[str, str]]:
         slug = match.group(2)
 
         # Avoid duplicates
-        if not any(l['slug'] == slug for l in links):
-            links.append({
-                'slug': slug,
-                'format': 'markdown'
-            })
+        if not any(l["slug"] == slug for l in links):
+            links.append({"slug": slug, "format": "markdown"})
 
     # Pattern 2: HTML-style links <a href="/posts/slug/">text</a>
     # Matches: <a href="/posts/slug/">text</a>
-    html_pattern = r'<a\s+(?:[^>]*?\s+)?href=["\']?/posts/([^/"\'>]+)/?["\']?[^>]*>([^<]+)</a>'
+    html_pattern = (
+        r'<a\s+(?:[^>]*?\s+)?href=["\']?/posts/([^/"\'>]+)/?["\']?[^>]*>([^<]+)</a>'
+    )
 
     for match in re.finditer(html_pattern, markdown_content, re.IGNORECASE):
         slug = match.group(1)
 
         # Avoid duplicates
-        if not any(l['slug'] == slug for l in links):
-            links.append({
-                'slug': slug,
-                'format': 'html'
-            })
+        if not any(l["slug"] == slug for l in links):
+            links.append({"slug": slug, "format": "html"})
 
     # Pattern 3: Absolute URLs (for same domain)
     # Matches: https://yourdomain.com/posts/slug/ or http://yourdomain.com/posts/slug/
@@ -75,11 +70,8 @@ def extract_internal_links(markdown_content: str) -> List[Dict[str, str]]:
         slug = match.group(2)
 
         # Avoid duplicates
-        if not any(l['slug'] == slug for l in links):
-            links.append({
-                'slug': slug,
-                'format': 'absolute'
-            })
+        if not any(l["slug"] == slug for l in links):
+            links.append({"slug": slug, "format": "absolute"})
 
     logger.debug(f"Extracted {len(links)} internal links from markdown content")
     return links
@@ -110,7 +102,7 @@ def find_post_by_slug(slug: str):
         return Post.objects.filter(slug=slug, is_deleted=False).first()
 
 
-def update_post_links(post, dry_run=False) -> Dict[str, any]:
+def update_post_links(post, dry_run=False) -> dict[str, any]:
     """
     Update InternalLink records for a post by parsing its markdown content.
 
@@ -137,24 +129,26 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
     from engine.models import InternalLink
 
     stats = {
-        'links_found': 0,
-        'links_created': 0,
-        'links_updated': 0,
-        'links_deleted': 0,
-        'links_failed': 0,
-        'failed_slugs': []
+        "links_found": 0,
+        "links_created": 0,
+        "links_updated": 0,
+        "links_deleted": 0,
+        "links_failed": 0,
+        "failed_slugs": [],
     }
 
     # Extract links from markdown
-    extracted_links = extract_internal_links(post.content_markdown or '')
-    stats['links_found'] = len(extracted_links)
+    extracted_links = extract_internal_links(post.content_markdown or "")
+    stats["links_found"] = len(extracted_links)
 
     if not extracted_links:
         # No links found - remove all existing links for this post
         if not dry_run:
             deleted_count = InternalLink.objects.filter(source_post=post).delete()[0]
-            stats['links_deleted'] = deleted_count
-            logger.info(f"Removed {deleted_count} outdated links from post '{post.slug}'")
+            stats["links_deleted"] = deleted_count
+            logger.info(
+                f"Removed {deleted_count} outdated links from post '{post.slug}'"
+            )
         return stats
 
     # Use a transaction to ensure atomicity
@@ -163,14 +157,14 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
         current_target_slugs = set()
 
         for link_data in extracted_links:
-            slug = link_data['slug']
+            slug = link_data["slug"]
 
             # Find target post
             target_post = find_post_by_slug(slug)
 
             if not target_post:
-                stats['links_failed'] += 1
-                stats['failed_slugs'].append(slug)
+                stats["links_failed"] += 1
+                stats["failed_slugs"].append(slug)
                 logger.warning(
                     f"Target post with slug '{slug}' not found for link in '{post.slug}'"
                 )
@@ -186,11 +180,10 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
             if dry_run:
                 # In dry run, just check if it exists
                 exists = InternalLink.objects.filter(
-                    source_post=post,
-                    target_post=target_post
+                    source_post=post, target_post=target_post
                 ).exists()
                 if not exists:
-                    stats['links_created'] += 1
+                    stats["links_created"] += 1
                     logger.info(f"Would create link: {post.slug} → {target_post.slug}")
                 continue
 
@@ -198,14 +191,11 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
             link, created = InternalLink.objects.get_or_create(
                 source_post=post,
                 target_post=target_post,
-                defaults={
-                    'link_count': 1,
-                    'is_deleted': False
-                }
+                defaults={"link_count": 1, "is_deleted": False},
             )
 
             if created:
-                stats['links_created'] += 1
+                stats["links_created"] += 1
                 logger.debug(f"Created link: {post.slug} → {target_post.slug}")
             else:
                 # Update existing link if needed
@@ -216,7 +206,7 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
 
                 if updated:
                     link.save()
-                    stats['links_updated'] += 1
+                    stats["links_updated"] += 1
                     logger.debug(f"Updated link: {post.slug} → {target_post.slug}")
 
         if not dry_run:
@@ -228,7 +218,7 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
                 if existing_link.target_post.slug not in current_target_slugs:
                     # This link is no longer in the content
                     existing_link.delete()  # Soft delete by default
-                    stats['links_deleted'] += 1
+                    stats["links_deleted"] += 1
                     logger.debug(
                         f"Removed outdated link: {post.slug} → {existing_link.target_post.slug}"
                     )
@@ -244,7 +234,7 @@ def update_post_links(post, dry_run=False) -> Dict[str, any]:
     return stats
 
 
-def validate_internal_link(link_url: str) -> Optional[str]:
+def validate_internal_link(link_url: str) -> str | None:
     """
     Validate and extract slug from an internal link URL.
 
@@ -271,7 +261,7 @@ def validate_internal_link(link_url: str) -> Optional[str]:
 
     # Check if it's a post URL
     # Pattern: /posts/slug/ or /posts/slug
-    post_path_pattern = r'^/posts/([^/]+)/?$'
+    post_path_pattern = r"^/posts/([^/]+)/?$"
     match = re.match(post_path_pattern, path)
 
     if match:
@@ -295,22 +285,19 @@ def get_backlinks_for_post(post, published_only=True, public_only=True):
     from engine.models import InternalLink, Post
 
     queryset = InternalLink.objects.filter(
-        target_post=post,
-        is_deleted=False
-    ).select_related('source_post', 'source_post__author')
+        target_post=post, is_deleted=False
+    ).select_related("source_post", "source_post__author")
 
     if published_only:
         queryset = queryset.filter(
             source_post__status=Post.Status.PUBLISHED,
-            source_post__published_at__isnull=False
+            source_post__published_at__isnull=False,
         )
 
     if public_only:
-        queryset = queryset.filter(
-            source_post__visibility=Post.Visibility.PUBLIC
-        )
+        queryset = queryset.filter(source_post__visibility=Post.Visibility.PUBLIC)
 
-    return queryset.order_by('-source_post__published_at')
+    return queryset.order_by("-source_post__published_at")
 
 
 def get_outgoing_links_for_post(post):
@@ -325,10 +312,11 @@ def get_outgoing_links_for_post(post):
     """
     from engine.models import InternalLink
 
-    return InternalLink.objects.filter(
-        source_post=post,
-        is_deleted=False
-    ).select_related('target_post').order_by('target_post__title')
+    return (
+        InternalLink.objects.filter(source_post=post, is_deleted=False)
+        .select_related("target_post")
+        .order_by("target_post__title")
+    )
 
 
 def find_orphaned_posts():
@@ -338,17 +326,18 @@ def find_orphaned_posts():
     Returns:
         QuerySet of Post objects with no links
     """
+    from django.db.models import Count, Q
+
     from engine.models import Post
-    from django.db.models import Q, Count
 
     return Post.objects.annotate(
-        incoming_count=Count('incoming_links', filter=Q(incoming_links__is_deleted=False)),
-        outgoing_count=Count('outgoing_links', filter=Q(outgoing_links__is_deleted=False))
-    ).filter(
-        incoming_count=0,
-        outgoing_count=0,
-        status=Post.Status.PUBLISHED
-    )
+        incoming_count=Count(
+            "incoming_links", filter=Q(incoming_links__is_deleted=False)
+        ),
+        outgoing_count=Count(
+            "outgoing_links", filter=Q(outgoing_links__is_deleted=False)
+        ),
+    ).filter(incoming_count=0, outgoing_count=0, status=Post.Status.PUBLISHED)
 
 
 def find_broken_links():
@@ -361,9 +350,8 @@ def find_broken_links():
     from engine.models import InternalLink
 
     return InternalLink.objects.filter(
-        is_deleted=False,
-        target_post__is_deleted=True
-    ).select_related('source_post', 'target_post')
+        is_deleted=False, target_post__is_deleted=True
+    ).select_related("source_post", "target_post")
 
 
 def get_link_statistics():
@@ -373,9 +361,10 @@ def get_link_statistics():
     Returns:
         Dict with various statistics about internal links
     """
-    from engine.models import InternalLink, Post
     from django.db.models import Count, Q
     from django.utils import timezone
+
+    from engine.models import InternalLink, Post
 
     total_links = InternalLink.objects.filter(is_deleted=False).count()
 
@@ -385,18 +374,30 @@ def get_link_statistics():
         status=Post.Status.PUBLISHED,
         published_at__isnull=False,
         published_at__lte=now,
-        is_deleted=False
+        is_deleted=False,
     ).count()
 
     # Most linked-to posts
-    most_linked = Post.objects.annotate(
-        backlink_count=Count('incoming_links', filter=Q(incoming_links__is_deleted=False))
-    ).filter(backlink_count__gt=0).order_by('-backlink_count')[:10]
+    most_linked = (
+        Post.objects.annotate(
+            backlink_count=Count(
+                "incoming_links", filter=Q(incoming_links__is_deleted=False)
+            )
+        )
+        .filter(backlink_count__gt=0)
+        .order_by("-backlink_count")[:10]
+    )
 
     # Posts with most outgoing links
-    most_linking = Post.objects.annotate(
-        outgoing_count=Count('outgoing_links', filter=Q(outgoing_links__is_deleted=False))
-    ).filter(outgoing_count__gt=0).order_by('-outgoing_count')[:10]
+    most_linking = (
+        Post.objects.annotate(
+            outgoing_count=Count(
+                "outgoing_links", filter=Q(outgoing_links__is_deleted=False)
+            )
+        )
+        .filter(outgoing_count__gt=0)
+        .order_by("-outgoing_count")[:10]
+    )
 
     # Orphaned posts
     orphaned_count = find_orphaned_posts().count()
@@ -405,11 +406,15 @@ def get_link_statistics():
     broken_count = find_broken_links().count()
 
     return {
-        'total_links': total_links,
-        'total_posts': total_posts,
-        'average_links_per_post': total_links / total_posts if total_posts > 0 else 0,
-        'most_linked_posts': list(most_linked.values('id', 'title', 'slug', 'backlink_count')),
-        'most_linking_posts': list(most_linking.values('id', 'title', 'slug', 'outgoing_count')),
-        'orphaned_posts_count': orphaned_count,
-        'broken_links_count': broken_count,
+        "total_links": total_links,
+        "total_posts": total_posts,
+        "average_links_per_post": total_links / total_posts if total_posts > 0 else 0,
+        "most_linked_posts": list(
+            most_linked.values("id", "title", "slug", "backlink_count")
+        ),
+        "most_linking_posts": list(
+            most_linking.values("id", "title", "slug", "outgoing_count")
+        ),
+        "orphaned_posts_count": orphaned_count,
+        "broken_links_count": broken_count,
     }

@@ -13,6 +13,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Autodiscover tasks.py in all INSTALLED_APPS
 # Use a callable to defer discovery until Django is ready
 from django.conf import settings
+
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 

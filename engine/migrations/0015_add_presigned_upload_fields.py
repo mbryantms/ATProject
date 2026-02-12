@@ -4,20 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0014_add_search_vector_field'),
+        ("engine", "0014_add_search_vector_field"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='asset',
-            name='upload_expires_at',
-            field=models.DateTimeField(blank=True, help_text='Expiry time for presigned upload URL', null=True),
+            model_name="asset",
+            name="upload_expires_at",
+            field=models.DateTimeField(
+                blank=True, help_text="Expiry time for presigned upload URL", null=True
+            ),
         ),
         migrations.AddField(
-            model_name='asset',
-            name='upload_token',
-            field=models.CharField(blank=True, db_index=True, help_text='Single-use token for presigned upload verification', max_length=64, null=True, unique=True),
+            model_name="asset",
+            name="upload_token",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                help_text="Single-use token for presigned upload verification",
+                max_length=64,
+                null=True,
+                unique=True,
+            ),
         ),
     ]

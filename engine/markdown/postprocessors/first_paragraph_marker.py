@@ -12,14 +12,12 @@ This postprocessor:
 - Works recursively for nested structures
 """
 
-from typing import List, Optional
-
 from bs4 import NavigableString, Tag
 
 from .utils import get_shared_soup, soup_to_html
 
 
-def _add_class_to_paragraph(p: Tag, classes: List[str]) -> None:
+def _add_class_to_paragraph(p: Tag, classes: list[str]) -> None:
     """Helper function to add classes to a paragraph element."""
     existing_classes = p.get("class", [])
     if isinstance(existing_classes, str):
@@ -29,8 +27,8 @@ def _add_class_to_paragraph(p: Tag, classes: List[str]) -> None:
 
 
 def _find_first_paragraph_in_children(
-    parent: Tag, skip_elements: Optional[List[str]] = None
-) -> Optional[Tag]:
+    parent: Tag, skip_elements: list[str] | None = None
+) -> Tag | None:
     """
     Find the first <p> element among the children of a parent element.
 
@@ -68,7 +66,7 @@ def _find_first_paragraph_in_children(
 def first_paragraph_marker(
     html: str,
     context: dict,
-    first_paragraph_class: Optional[List[str]] = None,
+    first_paragraph_class: list[str] | None = None,
 ) -> str:
     """
     Add a class to the first paragraph element in various contexts.
@@ -175,7 +173,7 @@ def first_paragraph_marker(
             next_sibling = next_sibling.find_next_sibling()
 
     if intro_enabled:
-        intro_paragraph: Optional[Tag] = None
+        intro_paragraph: Tag | None = None
         for candidate in soup.find_all("p"):
             if candidate.find_parent(id="footnotes") or candidate.find_parent(
                 class_="footnotes"

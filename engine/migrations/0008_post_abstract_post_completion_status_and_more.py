@@ -18,7 +18,6 @@ def reset_completion_status(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0007_simplify_internal_link_model"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -29,8 +28,7 @@ class Migration(migrations.Migration):
             database_operations=[
                 migrations.RunSQL(
                     sql=(
-                        "ALTER TABLE engine_post "
-                        "ADD COLUMN IF NOT EXISTS abstract TEXT"
+                        "ALTER TABLE engine_post ADD COLUMN IF NOT EXISTS abstract TEXT"
                     ),
                     reverse_sql=migrations.RunSQL.noop,
                 )
@@ -84,9 +82,7 @@ class Migration(migrations.Migration):
                 )
             ],
         ),
-        migrations.RunPython(
-            populate_completion_status, reset_completion_status
-        ),
+        migrations.RunPython(populate_completion_status, reset_completion_status),
         migrations.AddIndex(
             model_name="post",
             index=models.Index(

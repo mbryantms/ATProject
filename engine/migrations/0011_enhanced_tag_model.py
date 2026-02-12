@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0010_alter_post_first_line_caps_alter_post_show_toc"),
     ]

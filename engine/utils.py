@@ -4,10 +4,10 @@ Utility functions for the engine app, including asset rendition generation.
 
 from io import BytesIO
 
-from PIL import Image
 from django.core.files.base import ContentFile
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from PIL import Image
 
 from .storage_utils import ensure_local_file, open_field_file
 
@@ -33,7 +33,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         widths = [400, 800, 1200, 1600]
 
     if formats is None:
-        formats = ['auto']
+        formats = ["auto"]
 
     renditions = []
 
@@ -55,9 +55,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
 
                     # Resize image
                     resized_img = img.copy()
-                    resized_img.thumbnail(
-                        (width, height), Image.Resampling.LANCZOS
-                    )
+                    resized_img.thumbnail((width, height), Image.Resampling.LANCZOS)
 
                     # Determine output format
                     if fmt == "auto":
@@ -78,9 +76,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
                             optimize=True,
                         )
                     else:
-                        resized_img.save(
-                            output, format=output_format, optimize=True
-                        )
+                        resized_img.save(output, format=output_format, optimize=True)
 
                     output.seek(0)
                     content = output.read()
@@ -103,9 +99,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
 
                     # Save file to rendition
                     filename = f"{asset.key}-{width}w.{ext}"
-                    rendition.file.save(
-                        filename, ContentFile(content), save=False
-                    )
+                    rendition.file.save(filename, ContentFile(content), save=False)
                     rendition.height = height
                     rendition.file_size = file_size
                     rendition.save()
@@ -123,12 +117,11 @@ def generate_asset_renditions(asset, widths=None, formats=None):
     return renditions
 
 
-@receiver(post_save, sender='engine.Asset')
+@receiver(post_save, sender="engine.Asset")
 def populate_asset_metadata(sender, instance, created, **kwargs):
     """
     Signal handler to populate metadata and generate renditions when asset is uploaded.
     """
-    from .models import Asset
     import mimetypes
 
     # Only process on creation or if file changed
@@ -255,8 +248,19 @@ def populate_asset_metadata(sender, instance, created, **kwargs):
             print(f"Error extracting video metadata for {instance.key}: {e}")
 
     # Save if metadata was updated (avoid recursion by checking if we're already saving)
-    if needs_save and not kwargs.get('update_fields'):
-        instance.save(update_fields=['mime_type', 'file_size', 'width', 'height', 'duration', 'bitrate', 'frame_rate', 'file_hash'])
+    if needs_save and not kwargs.get("update_fields"):
+        instance.save(
+            update_fields=[
+                "mime_type",
+                "file_size",
+                "width",
+                "height",
+                "duration",
+                "bitrate",
+                "frame_rate",
+                "file_hash",
+            ]
+        )
 
     # Extract extended metadata (EXIF, audio tags, etc.) - only on creation
     if created:
@@ -264,11 +268,14 @@ def populate_asset_metadata(sender, instance, created, **kwargs):
         try:
             # Try Celery first (async)
             from .tasks import extract_metadata_async
+
             try:
                 extract_metadata_async.delay(instance.id)
                 metadata_enqueued = True
             except Exception as exc:
-                print(f"Celery unavailable for metadata extraction, falling back to sync: {exc}")
+                print(
+                    f"Celery unavailable for metadata extraction, falling back to sync: {exc}"
+                )
         except ImportError:
             pass
 
@@ -276,21 +283,25 @@ def populate_asset_metadata(sender, instance, created, **kwargs):
             # Celery not available, extract synchronously
             try:
                 from .metadata_extractor import extract_all_metadata
+
                 extract_all_metadata(instance)
             except Exception as e:
                 print(f"Error extracting metadata for {instance.key}: {e}")
 
     # Generate renditions for images (only on creation)
-    if created and instance.asset_type == "image" and instance.status == 'ready':
+    if created and instance.asset_type == "image" and instance.status == "ready":
         # Generate renditions asynchronously if Celery is available, otherwise sync
         renditions_enqueued = False
         try:
             from .tasks import generate_renditions_async
+
             try:
                 generate_renditions_async.delay(instance.id)
                 renditions_enqueued = True
             except Exception as exc:
-                print(f"Celery unavailable for rendition generation, falling back to sync: {exc}")
+                print(
+                    f"Celery unavailable for rendition generation, falling back to sync: {exc}"
+                )
         except ImportError:
             pass
 

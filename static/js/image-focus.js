@@ -320,7 +320,7 @@
     imageInFocus: null,
 
     savedHash: null,
-    
+
     _dragStartMouseX: 0, // Added for drag event refactoring
     _dragStartMouseY: 0, // Added for drag event refactoring
     _dragStartImageX: 0, // Added for drag event refactoring
@@ -328,11 +328,17 @@
 
     // Define the mousemove handler as a property of ImageFocus
     dragImageMouseMoveHandler: (moveEvent) => {
-        ImageFocus.imageInFocus.style.filter = 'none';
-        ImageFocus.imageInFocus.style.left =
-            ImageFocus._dragStartImageX + moveEvent.clientX - ImageFocus._dragStartMouseX + 'px';
-        ImageFocus.imageInFocus.style.top =
-            ImageFocus._dragStartImageY + moveEvent.clientY - ImageFocus._dragStartMouseY + 'px';
+      ImageFocus.imageInFocus.style.filter = 'none';
+      ImageFocus.imageInFocus.style.left =
+        ImageFocus._dragStartImageX +
+        moveEvent.clientX -
+        ImageFocus._dragStartMouseX +
+        'px';
+      ImageFocus.imageInFocus.style.top =
+        ImageFocus._dragStartImageY +
+        moveEvent.clientY -
+        ImageFocus._dragStartMouseY +
+        'px';
     },
 
     setup: () => {
@@ -474,29 +480,35 @@
         ImageFocus.designateSmallImageIfNeeded(image);
       });
 
-      container.querySelectorAll(ImageFocus.focusableImagesSelector).forEach((image) => {
-        image.addEventListener('click', ImageFocus.imageClickedToFocus);
-      });
-
-      container.querySelectorAll(ImageFocus.focusableImagesSelector).forEach((image) => {
-        image.removeAnnotationLoadEvents = onEventAfterDelayDo(
-          image,
-          'mouseenter',
-          ImageFocus.fullSizeImageLoadHoverDelay,
-          () => {
-            ImageFocus.preloadImage(image);
-            image.removeAnnotationLoadEvents();
-          },
-          { cancelOnEvents: ['mouseleave'] },
-        );
-      });
-
-      container.querySelectorAll(ImageFocus.focusableImagesSelector).forEach((image) => {
-        wrapElement(image, 'span.image-wrapper.focusable', {
-          moveClasses: ['small-image'],
-          useExistingWrapper: true,
+      container
+        .querySelectorAll(ImageFocus.focusableImagesSelector)
+        .forEach((image) => {
+          image.addEventListener('click', ImageFocus.imageClickedToFocus);
         });
-      });
+
+      container
+        .querySelectorAll(ImageFocus.focusableImagesSelector)
+        .forEach((image) => {
+          image.removeAnnotationLoadEvents = onEventAfterDelayDo(
+            image,
+            'mouseenter',
+            ImageFocus.fullSizeImageLoadHoverDelay,
+            () => {
+              ImageFocus.preloadImage(image);
+              image.removeAnnotationLoadEvents();
+            },
+            { cancelOnEvents: ['mouseleave'] },
+          );
+        });
+
+      container
+        .querySelectorAll(ImageFocus.focusableImagesSelector)
+        .forEach((image) => {
+          wrapElement(image, 'span.image-wrapper.focusable', {
+            moveClasses: ['small-image'],
+            useExistingWrapper: true,
+          });
+        });
     },
 
     focusedImgSrcForImage: (image) => {
@@ -569,7 +581,8 @@
         ImageFocus.overlay.querySelector('.image-number').textContent =
           indexOfFocusedImage + 1;
 
-        if (!location.hash.startsWith('#if_slide_')) ImageFocus.savedHash = location.hash;
+        if (!location.hash.startsWith('#if_slide_'))
+          ImageFocus.savedHash = location.hash;
         relocate('#if_slide_' + (indexOfFocusedImage + 1));
 
         if (indexOfFocusedImage > 0)
@@ -608,7 +621,8 @@
         );
 
         if (imageToFocus.dataset.aspectRatio) {
-          ImageFocus.imageInFocus.dataset.aspectRatio = imageToFocus.dataset.aspectRatio;
+          ImageFocus.imageInFocus.dataset.aspectRatio =
+            imageToFocus.dataset.aspectRatio;
         }
       }
       ImageFocus.imageInFocus.classList.add('image-in-focus');
@@ -688,7 +702,10 @@
           }
         }
       } else {
-        imageWidth = Math.min(window.innerWidth * ImageFocus.shrinkRatio, window.innerWidth * 0.9);
+        imageWidth = Math.min(
+          window.innerWidth * ImageFocus.shrinkRatio,
+          window.innerWidth * 0.9,
+        );
         imageHeight = Math.min(
           window.innerHeight * ImageFocus.shrinkRatio,
           window.innerHeight * 0.9,
@@ -767,7 +784,9 @@
       });
 
       if (GW.isMobile() === false)
-        addMousemoveListener(ImageFocus.mouseMoved, { name: 'ImageFocusMousemoveListener' });
+        addMousemoveListener(ImageFocus.mouseMoved, {
+          name: 'ImageFocusMousemoveListener',
+        });
 
       window.addEventListener('mouseup', ImageFocus.mouseUp);
 
@@ -831,9 +850,13 @@
       let indexOfFocusedImage = ImageFocus.getIndexOfFocusedImage();
       if (indexOfFocusedImage === -1) indexOfFocusedImage = 0;
       else indexOfFocusedImage += forward ? 1 : -1;
-      indexOfFocusedImage = Math.max(0, Math.min(images.length - 1, indexOfFocusedImage));
+      indexOfFocusedImage = Math.max(
+        0,
+        Math.min(images.length - 1, indexOfFocusedImage),
+      );
 
-      if (images[indexOfFocusedImage]) ImageFocus.focusImage(images[indexOfFocusedImage]);
+      if (images[indexOfFocusedImage])
+        ImageFocus.focusImage(images[indexOfFocusedImage]);
     },
 
     setImageFocusCaption: () => {
@@ -922,7 +945,11 @@
           const images = document.querySelectorAll(ImageFocus.galleryImagesSelector);
           const match = /#if_slide_([0-9]+)/.exec(location.hash);
           const imageIndex = match ? parseInt(match[1], 10) : NaN;
-          if (Number.isFinite(imageIndex) && imageIndex > 0 && imageIndex <= images.length) {
+          if (
+            Number.isFinite(imageIndex) &&
+            imageIndex > 0 &&
+            imageIndex <= images.length
+          ) {
             ImageFocus.focusImage(images[imageIndex - 1]);
           }
         });
@@ -1027,7 +1054,9 @@
       const originDeltaY = zoomOrigin.clientY - imageBoundingBox.top;
 
       image.style.left =
-        zoomOrigin.clientX - (originDeltaX * image.clientWidth) / imageBoundingBox.width + 'px';
+        zoomOrigin.clientX -
+        (originDeltaX * image.clientWidth) / imageBoundingBox.width +
+        'px';
       image.style.top =
         zoomOrigin.clientY -
         (originDeltaY * image.clientHeight) / imageBoundingBox.height +
@@ -1041,7 +1070,8 @@
 
       if (ImageFocus.imageInFocus == null) return;
 
-      const imageWasBeingDragged = ImageFocus._dragStartMouseX !== 0 || ImageFocus._dragStartMouseY !== 0;
+      const imageWasBeingDragged =
+        ImageFocus._dragStartMouseX !== 0 || ImageFocus._dragStartMouseY !== 0;
       window.removeEventListener('mousemove', ImageFocus.dragImageMouseMoveHandler);
 
       // Reset drag start coordinates
@@ -1170,9 +1200,11 @@
       const currentDateTime = Date.now();
 
       if (
-        [ImageFocus.imageInFocus, ImageFocus.overlay, document.documentElement].includes(
-          event.target,
-        )
+        [
+          ImageFocus.imageInFocus,
+          ImageFocus.overlay,
+          document.documentElement,
+        ].includes(event.target)
       ) {
         if (ImageFocus.hideUITimer == null) ImageFocus.unhideImageFocusUI();
         ImageFocus.mouseLastMovedAt = currentDateTime;

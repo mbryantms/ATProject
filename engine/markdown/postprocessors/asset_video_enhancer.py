@@ -325,13 +325,17 @@ def enhance_video_assets(html: str, context: dict) -> str:
                     ]
                 ).strip()
                 other_elements = [
-                    c for c in element_parent.children if c.name and c.name not in ["img", "video"]
+                    c
+                    for c in element_parent.children
+                    if c.name and c.name not in ["img", "video"]
                 ]
 
                 if not text_content and not other_elements:
                     # This is a standalone element, replace the <p> with <figure>
                     element_parent_parent = element_parent.parent
-                    element_parent_index = element_parent_parent.contents.index(element_parent)
+                    element_parent_index = element_parent_parent.contents.index(
+                        element_parent
+                    )
                     element_parent.extract()
                     element.extract()
                     replace_parent = True

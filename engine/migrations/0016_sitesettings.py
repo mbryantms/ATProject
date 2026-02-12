@@ -4,21 +4,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0015_add_presigned_upload_fields'),
+        ("engine", "0015_add_presigned_upload_fields"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SiteSettings',
+            name="SiteSettings",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('show_edit_buttons', models.BooleanField(default=True, help_text='Show admin edit links on post detail pages for staff users.')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "show_edit_buttons",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Show admin edit links on post detail pages for staff users.",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'site settings',
-                'verbose_name_plural': 'site settings',
+                "verbose_name": "site settings",
+                "verbose_name_plural": "site settings",
             },
         ),
     ]

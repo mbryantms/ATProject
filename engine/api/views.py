@@ -38,12 +38,22 @@ def get_asset_type_from_content_type(content_type):
         return "video"
     elif content_type.startswith("audio/"):
         return "audio"
-    elif content_type in ["application/pdf", "application/epub+zip",
-                          "application/msword", "text/plain", "text/markdown",
-                          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+    elif content_type in [
+        "application/pdf",
+        "application/epub+zip",
+        "application/msword",
+        "text/plain",
+        "text/markdown",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]:
         return "document"
-    elif content_type in ["application/zip", "application/x-tar", "application/gzip",
-                          "application/x-7z-compressed", "application/x-rar-compressed"]:
+    elif content_type in [
+        "application/zip",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-7z-compressed",
+        "application/x-rar-compressed",
+    ]:
         return "archive"
     return None
 
@@ -52,8 +62,34 @@ def get_asset_type_from_extension(filename):
     """Detect asset type from file extension."""
     ext = os.path.splitext(filename)[1].lower()
 
-    image_exts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico", ".tiff", ".tif", ".raw", ".heic", ".heif"]
-    video_exts = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v", ".wmv", ".flv", ".mpg", ".mpeg", ".3gp"]
+    image_exts = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".svg",
+        ".bmp",
+        ".ico",
+        ".tiff",
+        ".tif",
+        ".raw",
+        ".heic",
+        ".heif",
+    ]
+    video_exts = [
+        ".mp4",
+        ".webm",
+        ".mov",
+        ".avi",
+        ".mkv",
+        ".m4v",
+        ".wmv",
+        ".flv",
+        ".mpg",
+        ".mpeg",
+        ".3gp",
+    ]
     audio_exts = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma", ".aiff"]
     document_exts = [".pdf", ".epub", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt"]
     archive_exts = [".zip", ".tar", ".gz", ".bz2", ".7z", ".rar", ".tgz", ".tar.gz"]
@@ -109,7 +145,10 @@ def validate_file_size(file_size, asset_type):
 
     if file_size > max_size:
         max_size_mb = max_size / (1024 * 1024)
-        return False, f"File size exceeds maximum of {max_size_mb:.0f}MB for {asset_type}"
+        return (
+            False,
+            f"File size exceeds maximum of {max_size_mb:.0f}MB for {asset_type}",
+        )
 
     return True, None
 
@@ -143,6 +182,7 @@ def request_presigned_upload(request):
     }
     """
     import logging
+
     logger = logging.getLogger(__name__)
 
     try:
@@ -312,7 +352,7 @@ def confirm_upload(request, asset_id):
 
         task = finalize_presigned_upload.delay(asset.pk)
         task_id = task.id
-    except Exception as e:
+    except Exception:
         # If Celery is unavailable, process synchronously
         from engine.tasks import finalize_presigned_upload
 

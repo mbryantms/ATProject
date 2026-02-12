@@ -5,11 +5,12 @@ Handles automatic updates for internal links when posts are saved or deleted.
 """
 
 import logging
+
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
-from engine.models import Post, InternalLink
 from engine.links.extractor import update_post_links
+from engine.models import InternalLink, Post
 
 logger = logging.getLogger(__name__)
 
@@ -54,15 +55,14 @@ def update_internal_links_on_save(sender, instance, created, **kwargs):
             f"{stats['links_deleted']} deleted"
         )
 
-        if stats['links_failed'] > 0:
+        if stats["links_failed"] > 0:
             logger.warning(
                 f"Failed to resolve {stats['links_failed']} links in post '{instance.slug}': "
                 f"{', '.join(stats['failed_slugs'])}"
             )
     except Exception as e:
         logger.error(
-            f"Error updating links for post '{instance.slug}': {str(e)}",
-            exc_info=True
+            f"Error updating links for post '{instance.slug}': {str(e)}", exc_info=True
         )
 
 
@@ -101,7 +101,9 @@ def cleanup_internal_links_on_delete(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Post)
-def update_backlinks_when_slug_changes(sender, instance, created, update_fields, **kwargs):
+def update_backlinks_when_slug_changes(
+    sender, instance, created, update_fields, **kwargs
+):
     """
     Handle the case where a post's slug changes.
 
@@ -125,7 +127,7 @@ def update_backlinks_when_slug_changes(sender, instance, created, update_fields,
         return
 
     # Check if slug was updated
-    if update_fields and 'slug' not in update_fields:
+    if update_fields and "slug" not in update_fields:
         return
 
     # Try to get the old instance from the database
@@ -140,8 +142,7 @@ def update_backlinks_when_slug_changes(sender, instance, created, update_fields,
 
             # Get count of backlinks that might be affected
             backlink_count = InternalLink.objects.filter(
-                target_post=instance,
-                is_deleted=False
+                target_post=instance, is_deleted=False
             ).count()
 
             if backlink_count > 0:

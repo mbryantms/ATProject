@@ -12,8 +12,6 @@ from django.http import HttpResponse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-
-
 from engine.models import InternalLink, Post, PostAsset
 
 from .mixins import SoftDeleteAdminMixin
@@ -293,7 +291,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     # Optional: nicer widgets for large text fields
     formfield_overrides = {
-        admin.widgets.AdminTextareaWidget: {"widget": admin.widgets.AdminTextareaWidget},
+        admin.widgets.AdminTextareaWidget: {
+            "widget": admin.widgets.AdminTextareaWidget
+        },
     }
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):

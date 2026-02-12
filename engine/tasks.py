@@ -647,9 +647,13 @@ def cleanup_orphaned_assets(
                 )
             else:
                 # Truly orphaned (asset doesn't exist)
-                all_renditions = AssetRendition.objects.filter(created_at__lt=cutoff_date)
+                all_renditions = AssetRendition.objects.filter(
+                    created_at__lt=cutoff_date
+                )
                 valid_asset_ids = Asset.all_objects.values_list("id", flat=True)
-                orphaned_renditions = all_renditions.exclude(asset_id__in=valid_asset_ids)
+                orphaned_renditions = all_renditions.exclude(
+                    asset_id__in=valid_asset_ids
+                )
 
             results["orphaned_renditions"]["found"] = orphaned_renditions.count()
 

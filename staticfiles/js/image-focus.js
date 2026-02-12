@@ -319,7 +319,7 @@
     imageInFocus: null,
 
     savedHash: null,
-    
+
     _dragStartMouseX: 0, // Added for drag event refactoring
     _dragStartMouseY: 0, // Added for drag event refactoring
     _dragStartImageX: 0, // Added for drag event refactoring

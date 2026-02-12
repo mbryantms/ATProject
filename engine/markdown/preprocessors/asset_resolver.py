@@ -7,6 +7,7 @@ Converts:
 """
 
 import re
+
 from django.core.cache import cache
 
 
@@ -24,20 +25,20 @@ def resolve_asset_keys(text: str, context: dict) -> str:
     # Lazy import to avoid circular import
     from engine.models import Asset, PostAsset
 
-    post = context.get('post')
+    post = context.get("post")
     # Note: post can be None for global @asset: references, which still work
 
     # Build alias map for this post (if post is available)
     alias_map = {}
     if post:
-        for post_asset in post.post_assets.select_related('asset').all():
+        for post_asset in post.post_assets.select_related("asset").all():
             if post_asset.alias:
                 alias_map[post_asset.alias] = post_asset.asset
 
     # Pattern for @asset:key or @alias
     # Matches: ![alt](@asset:key) or ![alt](@alias) or [text](@asset:key)
     # Allow uppercase, lowercase, digits, hyphens, and underscores in keys
-    pattern = r'(!?\[([^\]]*)\]\(@)(asset:)?([a-zA-Z0-9_-]+)(\?[^\)]*)?\)'
+    pattern = r"(!?\[([^\]]*)\]\(@)(asset:)?([a-zA-Z0-9_-]+)(\?[^\)]*)?\)"
 
     def replace_asset_ref(match):
         # Group 0: entire match
@@ -46,11 +47,11 @@ def resolve_asset_keys(text: str, context: dict) -> str:
         # Group 3: optional "asset:"
         # Group 4: asset key
         # Group 5: optional query params
-        is_image = match.group(0).startswith('!')  # Check if it's an image
+        is_image = match.group(0).startswith("!")  # Check if it's an image
         link_text = match.group(2)  # Alt text or link text
-        is_global = match.group(3) == 'asset:'  # Has @asset: prefix
+        is_global = match.group(3) == "asset:"  # Has @asset: prefix
         key = match.group(4)  # Asset key or alias
-        query_params = match.group(5) or ''  # Optional ?width=800
+        query_params = match.group(5) or ""  # Optional ?width=800
 
         asset = None
         asset_metadata = {}
@@ -58,17 +59,13 @@ def resolve_asset_keys(text: str, context: dict) -> str:
         if is_global:
             # Global asset reference: @asset:key
             # Use cache to avoid repeated DB queries
-            cache_key = f'asset:{key}'
+            cache_key = f"asset:{key}"
             asset = cache.get(cache_key)
 
             if not asset:
                 try:
                     # Only use ready assets (not draft or archived)
-                    asset = Asset.objects.get(
-                        key=key,
-                        is_deleted=False,
-                        status='ready'
-                    )
+                    asset = Asset.objects.get(key=key, is_deleted=False, status="ready")
                     cache.set(cache_key, asset, 3600)  # Cache 1 hour
                 except Asset.DoesNotExist:
                     # Asset not found, return original
@@ -79,11 +76,7 @@ def resolve_asset_keys(text: str, context: dict) -> str:
             if not asset:
                 # Try global key as fallback
                 try:
-                    asset = Asset.objects.get(
-                        key=key,
-                        is_deleted=False,
-                        status='ready'
-                    )
+                    asset = Asset.objects.get(key=key, is_deleted=False, status="ready")
                 except Asset.DoesNotExist:
                     return match.group(0)
 
@@ -104,17 +97,17 @@ def resolve_asset_keys(text: str, context: dict) -> str:
 
                 if post_asset:
                     alt_text = post_asset.get_alt_text() or link_text
-                    asset_metadata['caption'] = post_asset.get_caption()
+                    asset_metadata["caption"] = post_asset.get_caption()
                 else:
                     # No PostAsset found, use asset defaults
                     alt_text = asset.alt_text or link_text
-                    asset_metadata['caption'] = asset.caption
+                    asset_metadata["caption"] = asset.caption
             except PostAsset.DoesNotExist:
                 alt_text = asset.alt_text or link_text
-                asset_metadata['caption'] = asset.caption
+                asset_metadata["caption"] = asset.caption
         else:
             alt_text = asset.alt_text or link_text
-            asset_metadata['caption'] = asset.caption
+            asset_metadata["caption"] = asset.caption
 
         # Build asset URL with data attributes for postprocessor
         # Store metadata in data attributes for later processing
@@ -123,9 +116,9 @@ def resolve_asset_keys(text: str, context: dict) -> str:
         # Parse query parameters
         params = {}
         if query_params:
-            for param in query_params[1:].split('&'):  # Skip leading ?
-                if '=' in param:
-                    k, v = param.split('=', 1)
+            for param in query_params[1:].split("&"):  # Skip leading ?
+                if "=" in param:
+                    k, v = param.split("=", 1)
                     params[k] = v
 
         # Add special marker for postprocessor with metadata
@@ -136,18 +129,19 @@ def resolve_asset_keys(text: str, context: dict) -> str:
             metadata_str += f":{asset.width}"
         if asset.height:
             metadata_str += f":{asset.height}"
-        if asset_metadata.get('caption'):
+        if asset_metadata.get("caption"):
             # URL-encode caption
             import urllib.parse
-            caption_encoded = urllib.parse.quote(asset_metadata['caption'])
+
+            caption_encoded = urllib.parse.quote(asset_metadata["caption"])
             metadata_str += f":caption={caption_encoded}"
 
         # Add query params to metadata
         # Map 'width' and 'height' params to 'display_width' and 'display_height'
         for k, v in params.items():
-            if k == 'width':
+            if k == "width":
                 metadata_str += f":display_width={v}"
-            elif k == 'height':
+            elif k == "height":
                 metadata_str += f":display_height={v}"
             else:
                 metadata_str += f":{k}={v}"

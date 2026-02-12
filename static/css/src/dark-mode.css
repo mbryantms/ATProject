@@ -5,7 +5,7 @@
 /*  Dark mode via data-theme attribute.
     Applied when user explicitly selects dark mode.
  */
-html[data-theme="dark"] {
+html[data-theme='dark'] {
   color-scheme: dark;
 
   /*  General.
@@ -258,7 +258,7 @@ html[data-theme="dark"] {
     Applied when user is on 'auto' and system prefers dark.
  */
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] {
+  html[data-theme='auto'] {
     color-scheme: dark;
 
     /*  General.
@@ -512,24 +512,24 @@ html[data-theme="dark"] {
 /*  For sortable table column headings, use dark versions of the up/down/both
     arrow icons.
  */
-html[data-theme="dark"] table th.tablesorter-header {
+html[data-theme='dark'] table th.tablesorter-header {
   background-image: url('/static/img/tablesorter/tablesorter-bg-dark.gif');
 }
-html[data-theme="dark"] table th.tablesorter-headerAsc {
+html[data-theme='dark'] table th.tablesorter-headerAsc {
   background-image: url('/static/img/tablesorter/tablesorter-asc-dark.gif');
 }
-html[data-theme="dark"] table th.tablesorter-headerDesc {
+html[data-theme='dark'] table th.tablesorter-headerDesc {
   background-image: url('/static/img/tablesorter/tablesorter-desc-dark.gif');
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] table th.tablesorter-header {
+  html[data-theme='auto'] table th.tablesorter-header {
     background-image: url('/static/img/tablesorter/tablesorter-bg-dark.gif');
   }
-  html[data-theme="auto"] table th.tablesorter-headerAsc {
+  html[data-theme='auto'] table th.tablesorter-headerAsc {
     background-image: url('/static/img/tablesorter/tablesorter-asc-dark.gif');
   }
-  html[data-theme="auto"] table th.tablesorter-headerDesc {
+  html[data-theme='auto'] table th.tablesorter-headerDesc {
     background-image: url('/static/img/tablesorter/tablesorter-desc-dark.gif');
   }
 }
@@ -537,12 +537,12 @@ html[data-theme="dark"] table th.tablesorter-headerDesc {
 /*  Bulleted list markers: invert for dark mode.
     The star icons are black SVGs, so we invert them to white.
  */
-html[data-theme="dark"] ul > li::before {
+html[data-theme='dark'] ul > li::before {
   filter: invert(1);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] ul > li::before {
+  html[data-theme='auto'] ul > li::before {
     filter: invert(1);
   }
 }
@@ -551,12 +551,12 @@ html[data-theme="dark"] ul > li::before {
     The decorative HR icons are black, so we invert them to white.
     Note: HR icons use ::after pseudo-element with background-image.
  */
-html[data-theme="dark"] hr::after {
+html[data-theme='dark'] hr::after {
   filter: invert(1);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] hr::after {
+  html[data-theme='auto'] hr::after {
     filter: invert(1);
   }
 }
@@ -564,20 +564,20 @@ html[data-theme="dark"] hr::after {
 /*  Index page decorated divider: the icon is on the element itself (not ::after),
     so we invert the whole element and counter-invert the pseudo-element lines.
  */
-html[data-theme="dark"] hr.index-divider-decorated {
+html[data-theme='dark'] hr.index-divider-decorated {
   filter: invert(1);
 }
-html[data-theme="dark"] hr.index-divider-decorated::before,
-html[data-theme="dark"] hr.index-divider-decorated::after {
+html[data-theme='dark'] hr.index-divider-decorated::before,
+html[data-theme='dark'] hr.index-divider-decorated::after {
   filter: invert(1);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] hr.index-divider-decorated {
+  html[data-theme='auto'] hr.index-divider-decorated {
     filter: invert(1);
   }
-  html[data-theme="auto"] hr.index-divider-decorated::before,
-  html[data-theme="auto"] hr.index-divider-decorated::after {
+  html[data-theme='auto'] hr.index-divider-decorated::before,
+  html[data-theme='auto'] hr.index-divider-decorated::after {
     filter: invert(1);
   }
 }
@@ -585,12 +585,12 @@ html[data-theme="dark"] hr.index-divider-decorated::after {
 /*  Inline icons (metadata icons like backlinks, similar posts, etc.)
     These use ::before pseudo-element with background-image.
  */
-html[data-theme="dark"] .inline-icon::before {
+html[data-theme='dark'] .inline-icon::before {
   filter: invert(1);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] .inline-icon::before {
+  html[data-theme='auto'] .inline-icon::before {
     filter: invert(1);
   }
 }
@@ -598,12 +598,12 @@ html[data-theme="dark"] .inline-icon::before {
 /*  Link icons (SVG icons after links like backlinks, similar posts, etc.)
     These use ::after pseudo-element with background-image.
  */
-html[data-theme="dark"] a[data-link-icon-type*='svg']::after {
+html[data-theme='dark'] a[data-link-icon-type*='svg']::after {
   filter: invert(1);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] a[data-link-icon-type*='svg']::after {
+  html[data-theme='auto'] a[data-link-icon-type*='svg']::after {
     filter: invert(1);
   }
 }
@@ -613,20 +613,20 @@ html[data-theme="dark"] a[data-link-icon-type*='svg']::after {
     dark text (to maintain their "alert" nature), so their icons need to be
     dark (not inverted). Tip needs inversion since it has a dark background.
  */
-html[data-theme="dark"] .admonition.tip::before {
+html[data-theme='dark'] .admonition.tip::before {
   filter: invert(1);
 }
-html[data-theme="dark"] .admonition.warning::before,
-html[data-theme="dark"] .admonition.error::before {
+html[data-theme='dark'] .admonition.warning::before,
+html[data-theme='dark'] .admonition.error::before {
   filter: none;
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] .admonition.tip::before {
+  html[data-theme='auto'] .admonition.tip::before {
     filter: invert(1);
   }
-  html[data-theme="auto"] .admonition.warning::before,
-  html[data-theme="auto"] .admonition.error::before {
+  html[data-theme='auto'] .admonition.warning::before,
+  html[data-theme='auto'] .admonition.error::before {
     filter: none;
   }
 }
@@ -636,24 +636,30 @@ html[data-theme="dark"] .admonition.error::before {
     .dark-mode-invert: invert black-on-white diagrams/charts.
     .no-dark-filter: leave unchanged (already dark, or stylistic choice).
  */
-html[data-theme="dark"] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
-html[data-theme="dark"] .markdownBody figure img:not(.dark-mode-invert):not(.no-dark-filter) {
+html[data-theme='dark'] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
+html[data-theme='dark']
+  .markdownBody
+  figure
+  img:not(.dark-mode-invert):not(.no-dark-filter) {
   filter: brightness(0.85) saturate(0.9);
 }
 
-html[data-theme="dark"] .markdownBody img.dark-mode-invert,
-html[data-theme="dark"] .markdownBody figure img.dark-mode-invert {
+html[data-theme='dark'] .markdownBody img.dark-mode-invert,
+html[data-theme='dark'] .markdownBody figure img.dark-mode-invert {
   filter: invert(1) hue-rotate(180deg);
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-theme="auto"] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
-  html[data-theme="auto"] .markdownBody figure img:not(.dark-mode-invert):not(.no-dark-filter) {
+  html[data-theme='auto'] .markdownBody img:not(.dark-mode-invert):not(.no-dark-filter),
+  html[data-theme='auto']
+    .markdownBody
+    figure
+    img:not(.dark-mode-invert):not(.no-dark-filter) {
     filter: brightness(0.85) saturate(0.9);
   }
 
-  html[data-theme="auto"] .markdownBody img.dark-mode-invert,
-  html[data-theme="auto"] .markdownBody figure img.dark-mode-invert {
+  html[data-theme='auto'] .markdownBody img.dark-mode-invert,
+  html[data-theme='auto'] .markdownBody figure img.dark-mode-invert {
     filter: invert(1) hue-rotate(180deg);
   }
 }

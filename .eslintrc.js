@@ -1,7 +1,13 @@
 module.exports = {
-  extends: ['eslint:recommended'], env: {
-    browser: true, es2021: true, node: true
-  }, rules: {
-    'indent': ['error', 2], 'quotes': ['error', 'single'], 'semi': ['error', 'always']
-  }
+  extends: ['eslint:recommended'],
+  env: {
+    browser: true,
+    es2021: true,
+    node: true,
+  },
+  rules: {
+    indent: ['error', 2],
+    quotes: ['error', 'single'],
+    semi: ['error', 'always'],
+  },
 };
