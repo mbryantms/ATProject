@@ -98,7 +98,7 @@ class PostAssetInline(admin.StackedInline):
     @admin.display(description="Preview")
     def asset_preview(self, obj):
         """Show enhanced preview in inline."""
-        if not obj.asset or not obj.asset.file:
+        if not obj or not obj.asset or not obj.asset.file:
             return format_html(
                 '<div style="width: 120px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; '
                 'background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 6px; color: #6c757d;">'
@@ -147,7 +147,7 @@ class PostAssetInline(admin.StackedInline):
     def markdown_ref_display(self, obj):
         """Show the markdown reference with copy button."""
         # Generate reference - this displays correctly for saved objects
-        if obj.pk and obj.asset:
+        if obj and obj.pk and obj.asset:
             if obj.alias:
                 ref = f"@{obj.alias}"
             else:
@@ -199,7 +199,7 @@ class IncomingLinksInline(admin.TabularInline):
     @admin.display(description="Source Post")
     def source_post_link(self, obj):
         """Display source post with link to admin."""
-        if not obj.pk:
+        if not obj or not obj.pk:
             return "—"
         return format_html(
             '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
