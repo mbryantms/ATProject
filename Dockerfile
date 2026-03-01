@@ -32,4 +32,6 @@ ENV PORT=8000
 EXPOSE $PORT
 
 # Run migrations then start gunicorn (shell form to expand $PORT)
-CMD python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:$PORT --max-requests 1000 --max-requests-jitter 50 ATProject.wsgi:application
+# The -c flag loads gunicorn.conf.py which includes post_fork hooks
+# to close inherited DB connections — critical for Neon auto-suspend.
+CMD python manage.py migrate --noinput && gunicorn -c gunicorn.conf.py ATProject.wsgi:application

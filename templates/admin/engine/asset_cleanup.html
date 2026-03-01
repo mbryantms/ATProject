@@ -194,6 +194,13 @@
         <li>Add kwargs: <code>{"delete_files": true, "days_old": 30}</code></li>
     </ol>
 
+    <p style="color: #856404; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px; font-size: 0.9em;">
+        <strong>Note:</strong> Using database-scheduled tasks requires switching
+        Celery Beat to <code>DatabaseScheduler</code>, which polls the database
+        every 5 seconds and prevents Neon from scaling to zero. For low-traffic
+        sites, run cleanup manually from this page instead.
+    </p>
+
     <p style="margin-bottom: 0;">
         <a href="{% url 'admin:django_celery_beat_periodictask_changelist' %}"
            style="padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; display: inline-block;">

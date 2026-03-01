@@ -237,9 +237,10 @@ db = DATABASES["default"]
 # The Neon *pooler* endpoint handles server-side connection reuse, so the
 # per-request TCP+TLS handshake is to the pooler — not cold-starting compute.
 db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # 0 = close after each request
-db["CONN_HEALTH_CHECKS"] = env.bool(
-    "DB_HEALTH_CHECKS"
-)  # ping on reuse (only relevant when CONN_MAX_AGE > 0)
+# Health checks only matter when connections are reused (CONN_MAX_AGE > 0).
+# With CONN_MAX_AGE=0 each request gets a fresh connection, so disable the
+# extra ping — it's a wasted round-trip that can wake Neon's compute.
+db["CONN_HEALTH_CHECKS"] = db["CONN_MAX_AGE"] > 0
 
 # 2) Safety/ergonomics per request
 db["ATOMIC_REQUESTS"] = env.bool("DB_USE_ATOMIC_REQUESTS")  # see notes below
@@ -391,11 +392,24 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Celery (Redis)
 CELERY_BROKER_URL = env("REDIS_URL")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
-CELERY_BEAT_SCHEDULER = env(
-    "CELERY_BEAT_SCHEDULER",
-    default="celery.beat:PersistentScheduler",  # file-based; no DB polling
-)
+
+# Result backend — MUST be Redis (not "django-db") to allow Neon auto-suspend.
+# Using "django-db" writes to the database after every task, keeping Neon awake.
+_celery_result_backend = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
+if _celery_result_backend == "django-db":
+    import warnings
+
+    warnings.warn(
+        "CELERY_RESULT_BACKEND='django-db' prevents Neon from scaling to zero. "
+        "Falling back to Redis. Remove the env var or set it to your REDIS_URL.",
+        stacklevel=1,
+    )
+    _celery_result_backend = CELERY_BROKER_URL
+CELERY_RESULT_BACKEND = _celery_result_backend
+
+# Beat scheduler — file-based to avoid DB polling.
+# DatabaseScheduler polls the DB every 5 seconds (~17K queries/day).
+CELERY_BEAT_SCHEDULER = "celery.beat:PersistentScheduler"
 
 
 # Recommended dev defaults
@@ -407,7 +421,6 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_EXPIRES = 60 * 60  # 1 hour
 CELERY_ENABLE_UTC = True  # Celery reads Django's TZ too
-CELERY_RESULT_EXTENDED = True  # Store meta information for admin inspection
 
 
 # ==============================================================================
@@ -437,6 +450,10 @@ else:
             "LOCATION": "unique-snowflake",
         }
     }
+    # Explicitly use cache-backed sessions even without Redis, so Django
+    # never falls back to its default database-backed session engine.
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
 
 
 # ==============================================================================
