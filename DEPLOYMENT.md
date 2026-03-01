@@ -131,10 +131,11 @@ DATABASE_URL=postgresql://username:password@ep-xxx-pooler.us-east-1.aws.neon.tec
 NEON_ENDPOINT_ID=ep-xxx-xxx
 
 # Database connection settings for Neon serverless
-DB_CONN_MAX_AGE=0
+# These are now the defaults in settings.py — only override if needed
+# DB_CONN_MAX_AGE=0                    # default: 0 (close after each request)
+# DB_DISABLE_SERVER_SIDE_CURSORS=True  # default: True (required for Neon pooler)
 DB_HEALTH_CHECKS=True
 DB_SSL_REQUIRE=True
-DB_DISABLE_SERVER_SIDE_CURSORS=True
 DB_CONNECT_TIMEOUT_S=10
 DB_APP_NAME=atproject-railway
 
@@ -255,10 +256,10 @@ curl https://your-app.up.railway.app/health/
 | `DATABASE_URL` | Yes | - | Neon PostgreSQL connection string |
 | `REDIS_URL` | Yes | - | Redis connection string |
 | `NEON_ENDPOINT_ID` | No | - | Neon endpoint for pooled connections |
-| `DB_CONN_MAX_AGE` | No | `60` | Connection reuse time (0 for serverless) |
+| `DB_CONN_MAX_AGE` | No | `0` | Connection reuse time (0 = close after each request) |
 | `DB_HEALTH_CHECKS` | No | `True` | Verify connections before reuse |
 | `DB_SSL_REQUIRE` | No | `True` | Require SSL for database |
-| `DB_DISABLE_SERVER_SIDE_CURSORS` | No | `False` | Required for Neon pooler |
+| `DB_DISABLE_SERVER_SIDE_CURSORS` | No | `True` | Required for Neon pooler |
 | `R2_ACCESS_KEY_ID` | Yes* | - | R2/S3 access key |
 | `R2_SECRET_ACCESS_KEY` | Yes* | - | R2/S3 secret key |
 | `R2_BUCKET_NAME` | Yes* | - | Storage bucket name |
