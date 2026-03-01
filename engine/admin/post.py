@@ -99,7 +99,7 @@ class PostAssetInline(admin.StackedInline):
     def asset_preview(self, obj):
         """Show enhanced preview in inline."""
         if not obj or not obj.asset or not obj.asset.file:
-            return format_html(
+            return mark_safe(
                 '<div style="width: 120px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; '
                 'background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 6px; color: #6c757d;">'
                 '<span style="font-size: 32px; margin-bottom: 4px;">📎</span>'
@@ -899,7 +899,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
     @admin.display(description="Type")
     def link_type_badge(self, obj):
         """Display link direction."""
-        return format_html(
+        return mark_safe(
             '<span style="background: #e7f3ff; color: #004085; padding: 4px 8px; '
             'border-radius: 4px; font-size: 10px; font-weight: 500;">Internal Link</span>'
         )

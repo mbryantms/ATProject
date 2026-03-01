@@ -960,7 +960,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         # Preview what will be generated
         if not obj.title:
-            return format_html(
+            return mark_safe(
                 "<p><em>⚠ Enter a title to see auto-generated key preview</em></p>"
             )
 
@@ -2024,7 +2024,7 @@ class AssetCollectionAdmin(admin.ModelAdmin):
         """Display number of assets in collection."""
         count = obj.asset_count()
         if count == 0:
-            return format_html(
+            return mark_safe(
                 '<span style="color: #999; font-style: italic;">No assets yet</span>'
             )
         return format_html(
