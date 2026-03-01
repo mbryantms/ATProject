@@ -345,26 +345,26 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(file_size__gte=0) | models.Q(file_size__isnull=True),
+                condition=models.Q(file_size__gte=0) | models.Q(file_size__isnull=True),
                 name="asset_file_size_positive",
             ),
             models.CheckConstraint(
-                check=models.Q(width__gte=0) | models.Q(width__isnull=True),
+                condition=models.Q(width__gte=0) | models.Q(width__isnull=True),
                 name="asset_width_positive",
             ),
             models.CheckConstraint(
-                check=models.Q(height__gte=0) | models.Q(height__isnull=True),
+                condition=models.Q(height__gte=0) | models.Q(height__isnull=True),
                 name="asset_height_positive",
             ),
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(focal_point_x__gte=0.0, focal_point_x__lte=1.0)
                     | models.Q(focal_point_x__isnull=True)
                 ),
                 name="asset_focal_point_x_range",
             ),
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(focal_point_y__gte=0.0, focal_point_y__lte=1.0)
                     | models.Q(focal_point_y__isnull=True)
                 ),

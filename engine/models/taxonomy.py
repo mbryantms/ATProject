@@ -166,7 +166,7 @@ class Tag(TimeStampedModel, UniqueSlugMixin):
             ),
             # Prevent self-referencing parent
             models.CheckConstraint(
-                check=~models.Q(parent=models.F("id")),
+                condition=~models.Q(parent=models.F("id")),
                 name="tag_no_self_parent",
             ),
         ]

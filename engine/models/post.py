@@ -291,7 +291,7 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         constraints = [
             models.CheckConstraint(
                 name="published_or_scheduled_requires_published_at",
-                check=(
+                condition=(
                     Q(status__in=["draft", "archived"]) | Q(published_at__isnull=False)
                 ),
             ),
