@@ -35,6 +35,13 @@ def post_fork(server, worker):
     forces each worker to establish its own connection on the first request,
     which Django then closes per CONN_MAX_AGE=0.
     """
+    import django
+    from django.conf import settings
+
+    if not settings.configured:
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ATProject.settings")
+        django.setup()
+
     from django import db
 
     db.connections.close_all()
