@@ -102,7 +102,8 @@ This guide walks through deploying ATProject to **Neon** (serverless PostgreSQL)
 2. In service settings:
    - Rename to `beat`
    - Go to **Settings** → **Deploy**
-   - Set **Start Command** to: `celery -A ATProject beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler`
+   - Set **Start Command** to: `celery -A ATProject beat --loglevel=info`
+   - **Note**: The default scheduler is file-based (`celery.beat:PersistentScheduler`), which avoids constant DB polling. Only use `--scheduler django_celery_beat.schedulers:DatabaseScheduler` if you need to edit schedules dynamically via the Django admin (this polls the DB every 5 seconds, adding ~17K queries/day).
 
 ---
 
@@ -132,7 +133,7 @@ NEON_ENDPOINT_ID=ep-xxx-xxx
 
 # Database connection settings for Neon serverless
 # These are now the defaults in settings.py — only override if needed
-# DB_CONN_MAX_AGE=0                    # default: 0 (close after each request)
+# DB_CONN_MAX_AGE=600                  # default: 600 (reuse connections for 10 min)
 # DB_DISABLE_SERVER_SIDE_CURSORS=True  # default: True (required for Neon pooler)
 DB_HEALTH_CHECKS=True
 DB_SSL_REQUIRE=True
@@ -256,7 +257,7 @@ curl https://your-app.up.railway.app/health/
 | `DATABASE_URL` | Yes | - | Neon PostgreSQL connection string |
 | `REDIS_URL` | Yes | - | Redis connection string |
 | `NEON_ENDPOINT_ID` | No | - | Neon endpoint for pooled connections |
-| `DB_CONN_MAX_AGE` | No | `0` | Connection reuse time (0 = close after each request) |
+| `DB_CONN_MAX_AGE` | No | `600` | Connection reuse time in seconds (600 = 10 min) |
 | `DB_HEALTH_CHECKS` | No | `True` | Verify connections before reuse |
 | `DB_SSL_REQUIRE` | No | `True` | Require SSL for database |
 | `DB_DISABLE_SERVER_SIDE_CURSORS` | No | `True` | Required for Neon pooler |
@@ -332,7 +333,7 @@ curl https://your-app.up.railway.app/health/
 2. Scale down worker concurrency: `--concurrency=1`
 3. Consider combining worker and beat into one service for small deployments:
    ```bash
-   celery -A ATProject worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+   celery -A ATProject worker --beat --loglevel=info
    ```
 
 ---

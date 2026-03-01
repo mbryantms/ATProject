@@ -27,5 +27,5 @@ class SiteSettings(models.Model):
         settings = cache.get("site_settings")
         if settings is None:
             settings, _ = cls.objects.get_or_create(pk=1)
-            cache.set("site_settings", settings, timeout=300)
+            cache.set("site_settings", settings, timeout=3600)
         return settings
