@@ -1,7 +1,7 @@
 import os
 
 from celery import Celery
-from celery.signals import task_postrun
+from celery.signals import task_postrun, worker_ready
 
 # Ensure Django settings are loaded for Celery workers
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ATProject.settings")
@@ -16,6 +16,20 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 from django.conf import settings
 
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+
+
+@worker_ready.connect
+def close_db_connections_on_worker_ready(**kwargs):
+    """
+    Close any DB connections opened during worker startup.
+
+    Django/app setup (autodiscover, AppConfig.ready(), etc.) may open
+    connections.  If they aren't closed, the idle worker holds them open
+    indefinitely, preventing Neon from auto-suspending.
+    """
+    from django import db
+
+    db.connections.close_all()
 
 
 @task_postrun.connect

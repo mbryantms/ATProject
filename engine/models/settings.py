@@ -22,10 +22,14 @@ class SiteSettings(models.Model):
         super().save(*args, **kwargs)
         cache.delete("site_settings")
 
+    # Cache site settings for 24 hours to minimize DB wake-ups.
+    # Saving via admin invalidates the cache immediately.
+    CACHE_TIMEOUT = 60 * 60 * 24  # 24 hours
+
     @classmethod
     def load(cls):
         settings = cache.get("site_settings")
         if settings is None:
             settings, _ = cls.objects.get_or_create(pk=1)
-            cache.set("site_settings", settings, timeout=3600)
+            cache.set("site_settings", settings, timeout=cls.CACHE_TIMEOUT)
         return settings
