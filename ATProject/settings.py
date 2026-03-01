@@ -19,7 +19,7 @@ env = environ.Env(
     # set casting, default value
     DEBUG=(bool, False),
     # DB settings
-    DB_CONN_MAX_AGE=(int, 60),  # persistent connections (seconds)
+    DB_CONN_MAX_AGE=(int, 0),  # 0 = close after each request (required for Neon auto-suspend)
     DB_HEALTH_CHECKS=(bool, True),  # ping the DB when reusing connections (Django 4.2+)
     DB_USE_ATOMIC_REQUESTS=(
         bool,
@@ -37,8 +37,8 @@ env = environ.Env(
     ),  # avoid accidentally hitting read-only endpoints
     DB_DISABLE_SERVER_SIDE_CURSORS=(
         bool,
-        False,
-    ),  # set True for PgBouncer (txn pooling)
+        True,
+    ),  # True required for Neon pooler / PgBouncer (txn pooling)
     # R2 / S3 params
     R2_ACCESS_KEY_ID=(str, ""),
     R2_SECRET_ACCESS_KEY=(str, ""),
@@ -228,8 +228,8 @@ DATABASES = {"default": env.db("DATABASE_URL")}
 db = DATABASES["default"]
 
 # 1) Connection reuse & health
-# For Neon serverless: use shorter CONN_MAX_AGE (0-60s) as connections may be recycled
-db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # e.g. 60s in prod, 0 in dev/tests
+# For Neon serverless: CONN_MAX_AGE=0 closes connections immediately, allowing auto-suspend
+db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # 0 = close after each request
 db["CONN_HEALTH_CHECKS"] = env.bool(
     "DB_HEALTH_CHECKS"
 )  # ping on reuse to avoid stale sockets
@@ -384,8 +384,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Celery (Redis)
 CELERY_BROKER_URL = env("REDIS_URL")
-CELERY_RESULT_BACKEND = "django-db"
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
+CELERY_BEAT_SCHEDULER = env(
+    "CELERY_BEAT_SCHEDULER",
+    default="celery.beat:PersistentScheduler",  # file-based; no DB polling
+)
 
 
 # Recommended dev defaults
@@ -416,6 +419,9 @@ if REDIS_URL:
             "KEY_PREFIX": "architextual",
         }
     }
+    # Use Redis for sessions instead of the database
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "default"
 else:
     # Fallback to local memory cache for development without Redis
     CACHES = {

@@ -32,4 +32,4 @@ ENV PORT=8000
 EXPOSE $PORT
 
 # Run migrations then start gunicorn (shell form to expand $PORT)
-CMD python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:$PORT ATProject.wsgi:application
+CMD python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:$PORT --max-requests 1000 --max-requests-jitter 50 ATProject.wsgi:application
