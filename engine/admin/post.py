@@ -531,8 +531,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 f'<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px; font-size: 10px;">📌 PIN {obj.pin_order}</span>'
             )
         if not badges:
-            return format_html('<span style="color: #999;">—</span>')
-        return format_html(" ".join(badges))
+            return mark_safe('<span style="color: #999;">—</span>')
+        return mark_safe(" ".join(badges))
 
     @admin.display(description="Stats")
     def stats_compact(self, obj):

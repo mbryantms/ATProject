@@ -17,6 +17,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import path
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from engine.models import (
     Asset,
@@ -125,7 +126,7 @@ class AssetMetadataInline(admin.StackedInline):
     def gps_map_display(self, obj):
         """Display GPS coordinates with map link."""
         if not obj.has_gps:
-            return format_html('<em style="color: #999;">No GPS data available</em>')
+            return mark_safe('<em style="color: #999;">No GPS data available</em>')
 
         # Google Maps link
         maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
@@ -144,7 +145,7 @@ class AssetMetadataInline(admin.StackedInline):
     def color_preview_display(self, obj):
         """Display visual color preview."""
         if not obj.average_color and not obj.dominant_colors:
-            return format_html('<em style="color: #999;">No color data available</em>')
+            return mark_safe('<em style="color: #999;">No color data available</em>')
 
         html_parts = []
 
@@ -176,7 +177,7 @@ class AssetMetadataInline(admin.StackedInline):
                     f"</div>"
                 )
 
-        return format_html(
+        return mark_safe(
             "".join(html_parts)
             if html_parts
             else '<em style="color: #999;">No color preview available</em>'
@@ -815,7 +816,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def folder_badge(self, obj):
         """Display asset folder."""
         if not obj.asset_folder:
-            return format_html('<span style="color: #999;">—</span>')
+            return mark_safe('<span style="color: #999;">—</span>')
 
         # Show folder icon and name
         depth = obj.asset_folder.path.count("/")
@@ -834,7 +835,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Display collections as badges."""
         collections = obj.collections.all()[:3]  # Show up to 3 collections
         if not collections:
-            return format_html('<span style="color: #999;">—</span>')
+            return mark_safe('<span style="color: #999;">—</span>')
 
         badges = []
         for collection in collections:
@@ -848,7 +849,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 f'<span style="color: #999; font-size: 11px;">+{obj.collections.count() - 3} more</span>'
             )
 
-        return format_html("".join(badges))
+        return mark_safe("".join(badges))
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
@@ -876,7 +877,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def usage_indicator(self, obj):
         """Visual indicator of asset usage."""
         if obj.usage_count == 0:
-            return format_html('<span style="color: #999;">Unused</span>')
+            return mark_safe('<span style="color: #999;">Unused</span>')
         elif obj.usage_count <= 3:
             color = "#0288d1"  # blue
         elif obj.usage_count <= 10:
@@ -948,7 +949,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             )
             status_html += '<em style="color: #666;">Use "Populate metadata" action to auto-fill</em>'
 
-        return format_html(status_html)
+        return mark_safe(status_html)
 
     @admin.display(description="Auto-Generated Key Preview")
     def key_preview(self, obj):
@@ -1047,7 +1048,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Show list of posts using this asset."""
         usages = obj.post_usages.select_related("post")[:10]
         if not usages:
-            return format_html('<em style="color: #999;">Not used in any posts</em>')
+            return mark_safe('<em style="color: #999;">Not used in any posts</em>')
 
         html = '<ul style="margin: 0; padding-left: 20px;">'
         for usage in usages:
@@ -1064,7 +1065,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         if total > 10:
             html += f'<p style="margin: 8px 0 0 0; color: #666;"><em>...and {total - 10} more</em></p>'
 
-        return format_html(html)
+        return mark_safe(html)
 
     @admin.action(description="Generate renditions for selected images")
     def generate_renditions(self, request, queryset):
@@ -1578,7 +1579,7 @@ class AssetMetadataAdmin(admin.ModelAdmin):
             )
 
         if not info_parts:
-            return format_html('<em style="color: #999;">No metadata</em>')
+            return mark_safe('<em style="color: #999;">No metadata</em>')
 
         # Join with separator and mark as safe since we control the HTML
         return mark_safe(
@@ -1609,7 +1610,7 @@ class AssetMetadataAdmin(admin.ModelAdmin):
     def gps_map_display(self, obj):
         """Display GPS coordinates with map link."""
         if not obj.has_gps:
-            return format_html('<em style="color: #999;">No GPS data available</em>')
+            return mark_safe('<em style="color: #999;">No GPS data available</em>')
 
         # Google Maps link
         maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
@@ -1628,7 +1629,7 @@ class AssetMetadataAdmin(admin.ModelAdmin):
     def color_preview_display(self, obj):
         """Display visual color preview."""
         if not obj.average_color and not obj.dominant_colors:
-            return format_html('<em style="color: #999;">No color data available</em>')
+            return mark_safe('<em style="color: #999;">No color data available</em>')
 
         html_parts = []
 
@@ -1660,7 +1661,7 @@ class AssetMetadataAdmin(admin.ModelAdmin):
                     f"</div>"
                 )
 
-        return format_html(
+        return mark_safe(
             "".join(html_parts)
             if html_parts
             else '<em style="color: #999;">No color preview available</em>'
@@ -1777,7 +1778,7 @@ class AssetRenditionAdmin(admin.ModelAdmin):
     def preset_badge(self, obj):
         """Display preset as badge."""
         if not obj.preset:
-            return format_html('<span style="color: #999;">—</span>')
+            return mark_safe('<span style="color: #999;">—</span>')
         return format_html(
             '<span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 11px;">{}</span>',
             obj.preset,
@@ -1877,7 +1878,7 @@ class AssetFolderAdmin(admin.ModelAdmin):
         """Display number of assets in folder."""
         count = obj.folder_assets.count()
         if count == 0:
-            return format_html('<span style="color: #999;">0</span>')
+            return mark_safe('<span style="color: #999;">0</span>')
         return format_html(
             '<span style="background: #e7f3ff; color: #004085; padding: 2px 8px; border-radius: 3px; font-weight: 500;">{}</span>',
             count,
@@ -1919,7 +1920,7 @@ class AssetTagAdmin(admin.ModelAdmin):
         """Display number of assets with this tag."""
         count = obj.tagged_assets.count()
         if count == 0:
-            return format_html('<span style="color: #999;">0</span>')
+            return mark_safe('<span style="color: #999;">0</span>')
         return format_html(
             '<span style="background: {}20; color: {}; padding: 2px 8px; border-radius: 3px; font-weight: 500;">{}</span>',
             obj.color,

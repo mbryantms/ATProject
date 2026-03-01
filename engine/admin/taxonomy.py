@@ -385,7 +385,7 @@ class CategoryAdmin(admin.ModelAdmin):
     def post_count(self, obj):
         count = obj.posts.count()
         if count == 0:
-            return format_html('<span style="color: #999;">0</span>')
+            return mark_safe('<span style="color: #999;">0</span>')
         return format_html(
             '<a href="/admin/engine/post/?categories__id__exact={}" style="font-weight: 500;">{}</a>',
             obj.pk,
@@ -426,7 +426,7 @@ class SeriesAdmin(admin.ModelAdmin):
     def post_count(self, obj):
         count = obj.posts.count()
         if count == 0:
-            return format_html('<span style="color: #999;">0</span>')
+            return mark_safe('<span style="color: #999;">0</span>')
         return format_html(
             '<a href="/admin/engine/post/?series__id__exact={}" style="font-weight: 500;">{}</a>',
             obj.pk,
