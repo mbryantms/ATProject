@@ -19,7 +19,10 @@ env = environ.Env(
     # set casting, default value
     DEBUG=(bool, False),
     # DB settings
-    DB_CONN_MAX_AGE=(int, 600),  # 600s = reuse connections for 10 min; Neon auto-suspends after idle gap
+    DB_CONN_MAX_AGE=(
+        int,
+        0,
+    ),  # 0 = close after each request; lets Neon auto-suspend when idle
     DB_HEALTH_CHECKS=(bool, True),  # ping the DB when reusing connections (Django 4.2+)
     DB_USE_ATOMIC_REQUESTS=(
         bool,
@@ -228,14 +231,15 @@ DATABASES = {"default": env.db("DATABASE_URL")}
 # ---- Recommended tweaks ----
 db = DATABASES["default"]
 
-# 1) Connection reuse & health
-# Reuse connections to avoid repeated TCP+TLS+auth overhead with Neon.
-# Neon auto-suspends after 5 min of *no active connections*; with low traffic,
-# connections naturally close between request gaps > CONN_MAX_AGE.
-db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # 600 = reuse for 10 min
+# 1) Connection lifetime
+# CONN_MAX_AGE=0 closes the DB connection at the end of every request/task.
+# This lets Neon detect zero active connections and auto-suspend its compute.
+# The Neon *pooler* endpoint handles server-side connection reuse, so the
+# per-request TCP+TLS handshake is to the pooler — not cold-starting compute.
+db["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE")  # 0 = close after each request
 db["CONN_HEALTH_CHECKS"] = env.bool(
     "DB_HEALTH_CHECKS"
-)  # ping on reuse to avoid stale sockets
+)  # ping on reuse (only relevant when CONN_MAX_AGE > 0)
 
 # 2) Safety/ergonomics per request
 db["ATOMIC_REQUESTS"] = env.bool("DB_USE_ATOMIC_REQUESTS")  # see notes below

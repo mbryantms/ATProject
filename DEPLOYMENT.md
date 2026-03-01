@@ -133,7 +133,7 @@ NEON_ENDPOINT_ID=ep-xxx-xxx
 
 # Database connection settings for Neon serverless
 # These are now the defaults in settings.py — only override if needed
-# DB_CONN_MAX_AGE=600                  # default: 600 (reuse connections for 10 min)
+# DB_CONN_MAX_AGE=0                    # default: 0 (close after each request; enables Neon auto-suspend)
 # DB_DISABLE_SERVER_SIDE_CURSORS=True  # default: True (required for Neon pooler)
 DB_HEALTH_CHECKS=True
 DB_SSL_REQUIRE=True
@@ -257,7 +257,7 @@ curl https://your-app.up.railway.app/health/
 | `DATABASE_URL` | Yes | - | Neon PostgreSQL connection string |
 | `REDIS_URL` | Yes | - | Redis connection string |
 | `NEON_ENDPOINT_ID` | No | - | Neon endpoint for pooled connections |
-| `DB_CONN_MAX_AGE` | No | `600` | Connection reuse time in seconds (600 = 10 min) |
+| `DB_CONN_MAX_AGE` | No | `0` | Connection lifetime in seconds (0 = close after each request, enables Neon auto-suspend) |
 | `DB_HEALTH_CHECKS` | No | `True` | Verify connections before reuse |
 | `DB_SSL_REQUIRE` | No | `True` | Require SSL for database |
 | `DB_DISABLE_SERVER_SIDE_CURSORS` | No | `True` | Required for Neon pooler |
