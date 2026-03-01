@@ -487,3 +487,29 @@ ASSET_MAX_SIZES = {
     "archive": 2 * 1024 * 1024 * 1024,  # 2GB
     "other": 500 * 1024 * 1024,  # 500MB
 }
+
+
+# ==============================================================================
+# LOGGING
+# ==============================================================================
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
