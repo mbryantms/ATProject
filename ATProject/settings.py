@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import environ
+from csp.constants import NONCE
 
 env = environ.Env(
     # set casting, default value
@@ -137,16 +138,17 @@ _CSP_MEDIA_SRC = ["'self'"]
 _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 
 # Shared CSP directives
+# NONCE is a sentinel from django-csp that gets replaced with a per-request
+# 'nonce-<value>' in the header. 'unsafe-inline' is ignored by browsers that
+# support nonces but provides a fallback for older browsers.
+# 'strict-dynamic' lets nonced scripts load additional scripts (MathJax).
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
-    # Nonces are added automatically by django-csp via INCLUDE_NONCE_IN.
-    # 'strict-dynamic' lets nonced scripts load additional scripts (MathJax).
-    # 'unsafe-inline' is ignored by browsers that support nonces but provides
-    # a fallback for older browsers.
     "script-src": [
         "'self'",
         "'unsafe-inline'",
         "'strict-dynamic'",
+        NONCE,
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
     ],
@@ -162,17 +164,11 @@ _CSP_DIRECTIVES = {
     "base-uri": ["'self'"],
 }
 
-# INCLUDE_NONCE_IN is a top-level django-csp key, NOT a CSP directive
-_CSP_CONFIG = {
-    "DIRECTIVES": _CSP_DIRECTIVES,
-    "INCLUDE_NONCE_IN": ["script-src"],
-}
-
 # Enforced policy (production) or report-only (development)
 if DEBUG:
-    CONTENT_SECURITY_POLICY_REPORT_ONLY = _CSP_CONFIG
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": _CSP_DIRECTIVES}
 else:
-    CONTENT_SECURITY_POLICY = _CSP_CONFIG
+    CONTENT_SECURITY_POLICY = {"DIRECTIVES": _CSP_DIRECTIVES}
 
 
 # Application definition
