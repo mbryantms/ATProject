@@ -139,13 +139,17 @@ _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 # Shared CSP directives
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
-    # Scripts require a nonce (set via include-nonce-in below)
+    # Nonces are added automatically by django-csp via INCLUDE_NONCE_IN.
+    # 'strict-dynamic' lets nonced scripts load additional scripts (MathJax).
+    # 'unsafe-inline' is ignored by browsers that support nonces but provides
+    # a fallback for older browsers.
     "script-src": [
         "'self'",
+        "'unsafe-inline'",
+        "'strict-dynamic'",
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
     ],
-    "include-nonce-in": ["script-src"],
     # MathJax requires 'unsafe-inline' for dynamic styles
     "style-src": ["'self'", "'unsafe-inline'"],
     # MathJax loads fonts from jsdelivr CDN
@@ -158,11 +162,17 @@ _CSP_DIRECTIVES = {
     "base-uri": ["'self'"],
 }
 
+# INCLUDE_NONCE_IN is a top-level django-csp key, NOT a CSP directive
+_CSP_CONFIG = {
+    "DIRECTIVES": _CSP_DIRECTIVES,
+    "INCLUDE_NONCE_IN": ["script-src"],
+}
+
 # Enforced policy (production) or report-only (development)
 if DEBUG:
-    CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": _CSP_DIRECTIVES}
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = _CSP_CONFIG
 else:
-    CONTENT_SECURITY_POLICY = {"DIRECTIVES": _CSP_DIRECTIVES}
+    CONTENT_SECURITY_POLICY = _CSP_CONFIG
 
 
 # Application definition
