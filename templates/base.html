@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script>
+    <script nonce="{{ request.csp_nonce }}">
       // Theme initialization - MUST run before CSS to prevent flash
       (function() {
         var theme = 'auto';
@@ -29,14 +29,14 @@
     <link rel="stylesheet" href="/static/css/dist/colors.css">
     <link rel="stylesheet" href="/static/css/dist/link-icons.css">
     <link rel="stylesheet" href="/static/css/dist/image-focus.css">
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="/static/js/dist/marginnotes-standalone.js" defer></script>
-    <script src="/static/js/dist/sidenotes-standalone.js" defer></script>
-    <script src="/static/js/dist/math-copy.js" defer></script>
-    <script src="/static/js/dist/tablesorter-standalone.js" defer></script>
-    <script src="/static/js/dist/fullwidth-standalone.js" defer></script>
-    <script src="/static/js/dist/image-focus.js" defer></script>
-    <script src="/static/js/dist/main.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/marginnotes-standalone.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/sidenotes-standalone.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/math-copy.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/tablesorter-standalone.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/fullwidth-standalone.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/image-focus.js" defer></script>
+    <script nonce="{{ request.csp_nonce }}" src="/static/js/dist/main.js" defer></script>
     {% block head_extra %}
     {% endblock head_extra %}
     <title>

@@ -8,6 +8,7 @@ This module provides:
 - generate_upload_token(): Generate a secure random token for upload verification
 """
 
+import os
 import secrets
 from datetime import timedelta
 
@@ -38,7 +39,9 @@ def get_s3_client():
     )
 
 
-def generate_presigned_put_url(key, content_type, expiry_seconds=None):
+def generate_presigned_put_url(
+    key, content_type, expiry_seconds=None, extra_params=None
+):
     """
     Generate a presigned PUT URL for direct file upload to R2.
 
@@ -46,6 +49,7 @@ def generate_presigned_put_url(key, content_type, expiry_seconds=None):
         key: The object key (path) in the bucket
         content_type: The Content-Type of the file being uploaded
         expiry_seconds: URL expiry time in seconds (default: from settings)
+        extra_params: Additional S3 params (e.g., ContentDisposition)
 
     Returns:
         tuple: (presigned_url, expires_at_datetime)
@@ -55,13 +59,17 @@ def generate_presigned_put_url(key, content_type, expiry_seconds=None):
 
     client = get_s3_client()
 
+    params = {
+        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+        "Key": key,
+        "ContentType": content_type,
+    }
+    if extra_params:
+        params.update(extra_params)
+
     url = client.generate_presigned_url(
         ClientMethod="put_object",
-        Params={
-            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-            "Key": key,
-            "ContentType": content_type,
-        },
+        Params=params,
         ExpiresIn=expiry_seconds,
     )
 
@@ -124,4 +132,5 @@ def get_asset_upload_key(filename, asset_type):
         str: The object key path
     """
     now = timezone.now()
-    return f"assets/{now.year}/{now.month:02d}/{filename}"
+    safe_filename = os.path.basename(filename)
+    return f"assets/{now.year}/{now.month:02d}/{safe_filename}"

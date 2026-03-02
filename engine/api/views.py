@@ -13,8 +13,8 @@ import os
 from django.conf import settings
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
 
 from .auth import api_auth_required
 from .presigned import (
@@ -153,7 +153,7 @@ def validate_file_size(file_size, asset_type):
     return True, None
 
 
-@csrf_exempt
+@ratelimit(key="user_or_ip", rate="30/m", block=True)
 @require_http_methods(["POST"])
 @api_auth_required
 def request_presigned_upload(request):
@@ -227,8 +227,13 @@ def request_presigned_upload(request):
         # Generate the object key for R2
         object_key = get_asset_upload_key(filename, asset_type)
 
-        # Generate presigned URL
-        upload_url, expires_at = generate_presigned_put_url(object_key, content_type)
+        # Generate presigned URL (SVGs served as attachments to prevent XSS)
+        extra_params = {}
+        if content_type == "image/svg+xml":
+            extra_params["ContentDisposition"] = "attachment"
+        upload_url, expires_at = generate_presigned_put_url(
+            object_key, content_type, extra_params=extra_params
+        )
 
         # Generate upload token
         upload_token = generate_upload_token()
@@ -283,12 +288,12 @@ def request_presigned_upload(request):
     except Exception as e:
         logger.exception(f"Presigned upload error: {e}")
         return JsonResponse(
-            {"error": f"Server error: {str(e)}"},
+            {"error": "Internal server error"},
             status=500,
         )
 
 
-@csrf_exempt
+@ratelimit(key="user_or_ip", rate="30/m", block=True)
 @require_http_methods(["POST"])
 @api_auth_required
 def confirm_upload(request, asset_id):
@@ -368,7 +373,7 @@ def confirm_upload(request, asset_id):
     )
 
 
-@csrf_exempt
+@ratelimit(key="user_or_ip", rate="30/m", block=True)
 @require_http_methods(["DELETE"])
 @api_auth_required
 def cancel_upload(request, asset_id):

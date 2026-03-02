@@ -105,9 +105,8 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = env.bool("DJANGO_CSRF_COOKIE_SECURE", default=True)
 
     # --- HSTS (HTTP Strict Transport Security) ---
-    # Manually enable this after confirming your site works perfectly over HTTPS.
-    # Start with a small value (e.g., 3600) and gradually increase.
-    SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=0)
+    # Default: 1 year. Override via DJANGO_SECURE_HSTS_SECONDS env var if needed.
+    SECURE_HSTS_SECONDS = env.int("DJANGO_SECURE_HSTS_SECONDS", default=31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
         "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
     )
@@ -120,6 +119,12 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = env.bool(
         "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", default=True
     )
+
+    # --- Explicit security defaults (Django defaults are safe, but explicit is better) ---
+    SESSION_COOKIE_HTTPONLY = True
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_REFERRER_POLICY = "same-origin"
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ==============================================================================
 # CONTENT SECURITY POLICY (django-csp 4.0+)
@@ -134,13 +139,13 @@ _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 # Shared CSP directives
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
-    # MathJax requires 'unsafe-inline' for dynamic script creation
+    # Scripts require a nonce (set via include-nonce-in below)
     "script-src": [
         "'self'",
-        "'unsafe-inline'",
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
     ],
+    "include-nonce-in": ["script-src"],
     # MathJax requires 'unsafe-inline' for dynamic styles
     "style-src": ["'self'", "'unsafe-inline'"],
     # MathJax loads fonts from jsdelivr CDN
@@ -461,6 +466,7 @@ else:
 # ==============================================================================
 
 # Customize admin site header and title
+ADMIN_URL = env("ADMIN_URL", default="manage/")
 ADMIN_SITE_HEADER = "Architextual Admin"
 ADMIN_SITE_TITLE = "Architextual"
 ADMIN_INDEX_TITLE = "Site Administration"

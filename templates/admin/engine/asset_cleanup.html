@@ -209,7 +209,7 @@
     </p>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.getElementById('delete-files-checkbox').addEventListener('change', function() {
     const btn = document.getElementById('cleanup-button');
     if (this.checked) {

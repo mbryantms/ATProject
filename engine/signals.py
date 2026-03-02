@@ -100,7 +100,6 @@ def cleanup_internal_links_on_delete(sender, instance, **kwargs):
         )
 
 
-
 # NOTE: Previous handlers update_backlinks_when_slug_changes and
 # rebuild_links_on_publish were removed — they re-queried the database inside
 # post_save (after the row was already written), so the "old vs new" comparison

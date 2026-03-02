@@ -183,11 +183,7 @@ def sanitize_html(html, context):
     Sanitize HTML output using nh3.
     This is the FIRST post-processor and should run before any other HTML modifications.
     """
-    try:
-        import nh3
-    except ImportError:
-        logger.warning("nh3 not installed - HTML sanitization disabled")
-        return html
+    import nh3
 
     try:
         sanitized = nh3.clean(
@@ -197,11 +193,11 @@ def sanitize_html(html, context):
             url_schemes=ALLOWED_URL_SCHEMES,
             generic_attribute_prefixes={"data-", "aria-"},
             clean_content_tags={"script", "style"},
-            link_rel=None,
+            link_rel="noopener noreferrer",
         )
 
         return sanitized
 
     except Exception as e:
         logger.error(f"nh3 sanitization failed: {e}", exc_info=True)
-        return html
+        return ""

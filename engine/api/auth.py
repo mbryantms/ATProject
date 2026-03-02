@@ -7,10 +7,12 @@ Provides @api_auth_required decorator supporting:
 - Requires is_staff permission
 """
 
+import hmac
 from functools import wraps
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.middleware.csrf import CsrfViewMiddleware
 
 
 def api_auth_required(view_func):
@@ -33,29 +35,34 @@ def api_auth_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         user = None
+        is_bearer = False
 
-        # Method 1: Check Django session authentication
-        if request.user.is_authenticated:
+        # Method 1: Check Bearer token authentication first
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            is_bearer = True
+            token = auth_header[7:]  # Strip "Bearer " prefix
+            api_token = getattr(settings, "PRESIGNED_UPLOAD_API_TOKEN", None)
+
+            if api_token and hmac.compare_digest(token, api_token):
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                user = User.objects.filter(is_superuser=True).first()
+                if user is None:
+                    user = User.objects.filter(is_staff=True).first()
+
+        # Method 2: Check Django session authentication
+        if user is None and not is_bearer and request.user.is_authenticated:
+            # Verify CSRF for session-authenticated requests
+            csrf_middleware = CsrfViewMiddleware(lambda req: None)
+            csrf_result = csrf_middleware.process_view(request, view_func, args, kwargs)
+            if csrf_result is not None:
+                return JsonResponse(
+                    {"error": "CSRF verification failed"},
+                    status=403,
+                )
             user = request.user
-
-        # Method 2: Check Bearer token authentication
-        if user is None:
-            auth_header = request.headers.get("Authorization", "")
-            if auth_header.startswith("Bearer "):
-                token = auth_header[7:]  # Strip "Bearer " prefix
-                api_token = getattr(settings, "PRESIGNED_UPLOAD_API_TOKEN", None)
-
-                if api_token and token == api_token:
-                    # Token auth doesn't have a user object, but we need to
-                    # create a minimal user-like object for the view
-                    from django.contrib.auth import get_user_model
-
-                    User = get_user_model()
-                    # For token auth, we use the first superuser as the authenticated user
-                    # This ensures proper ownership tracking
-                    user = User.objects.filter(is_superuser=True).first()
-                    if user is None:
-                        user = User.objects.filter(is_staff=True).first()
 
         # Check authentication
         if user is None:
@@ -76,4 +83,6 @@ def api_auth_required(view_func):
 
         return view_func(request, *args, **kwargs)
 
+    # Mark as csrf_exempt so middleware skips it; we handle CSRF manually above
+    wrapper.csrf_exempt = True
     return wrapper

@@ -18,8 +18,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create non-root user
+RUN adduser --disabled-password --gecos '' appuser
+
 # Copy project files
-COPY . .
+COPY --chown=appuser:appuser . .
 
 # Collect static files (uses dummy values for required env vars during build)
 RUN SECRET_KEY=build-placeholder \
@@ -30,6 +33,9 @@ RUN SECRET_KEY=build-placeholder \
 # Railway uses dynamic PORT env var
 ENV PORT=8000
 EXPOSE $PORT
+
+# Switch to non-root user
+USER appuser
 
 # Run migrations then start gunicorn (shell form to expand $PORT)
 # The -c flag loads gunicorn.conf.py which includes post_fork hooks
