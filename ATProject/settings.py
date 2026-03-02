@@ -415,6 +415,7 @@ CELERY_RESULT_BACKEND = _celery_result_backend
 # Beat scheduler — file-based to avoid DB polling.
 # DatabaseScheduler polls the DB every 5 seconds (~17K queries/day).
 CELERY_BEAT_SCHEDULER = "celery.beat:PersistentScheduler"
+CELERY_BEAT_SCHEDULE_FILENAME = "/tmp/celerybeat-schedule"
 
 
 # Recommended dev defaults
