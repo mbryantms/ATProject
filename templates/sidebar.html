@@ -6,8 +6,10 @@
     <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts">Posts</a>
     <span class="sidebar-separator"></span>
     <a class="sidebar-link{% if '/library' in request.path %} active{% endif %}" href="/library">Library</a>
-    <span class="sidebar-version">v1.0</span>
     <a class="sidebar-link{% if '/about' in request.path %} active{% endif %}" href="/about">About</a>
+  </div>
+  <div class="sidebar-meta">
+    <span class="sidebar-version">v1.0</span>
     <button class="theme-toggle" data-theme-toggle aria-label="Toggle theme" title="Toggle theme">
       <svg class="theme-icon theme-icon-auto" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>

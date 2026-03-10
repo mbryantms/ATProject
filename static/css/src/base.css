@@ -207,6 +207,13 @@ div.sans-serif {
   opacity: 0.3;
 }
 
+.sidebar-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-left: auto;
+}
+
 .sidebar-version {
   font-family: var(--AT-monospaced-font-stack);
   font-size: 0.8em;
@@ -223,7 +230,6 @@ div.sans-serif {
   width: 1.75em;
   height: 1.75em;
   padding: 0.25em;
-  margin-left: auto;
   border: none;
   border-radius: 50%;
   background: transparent;
