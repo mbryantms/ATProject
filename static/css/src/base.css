@@ -303,8 +303,11 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
 
 .footer-epigraph {
   font-size: 0.9em;
-  padding-bottom: 2.5em;
   margin-bottom: 1.5rem;
+}
+
+.footer-epigraph > blockquote {
+  margin-bottom: 2em;
 }
 
 .footer-bottom {
