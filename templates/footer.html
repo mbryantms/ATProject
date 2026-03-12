@@ -1,9 +1,51 @@
 <footer class="site-footer">
-  <span class="footer-copyright">&copy; 2026 Architextual</span>
-  <nav class="footer-nav">
-    <a href="/">Home</a>
-    <a href="/posts">Posts</a>
-    <a href="/tags">Tags</a>
-    <a href="/about">About</a>
-  </nav>
+  <hr class="index-divider index-divider-decorated">
+
+  <div class="footer-epigraph epigraph">
+    <blockquote>
+      <p class="footer-quote-text"></p>
+      <p class="footer-quote-attribution"></p>
+    </blockquote>
+  </div>
+
+  <div class="footer-bottom">
+    <span class="footer-copyright">&copy; 2026 Architextual</span>
+    <nav class="footer-nav">
+      <a href="/">Home</a>
+      <a href="/posts">Posts</a>
+      <a href="/tags">Tags</a>
+      <a href="/about">About</a>
+    </nav>
+    <a href="#" class="footer-scroll-top" aria-label="Scroll to top" title="Scroll to top">&uarr;</a>
+  </div>
 </footer>
+
+<script nonce="{{ request.csp_nonce }}">
+  (function() {
+    var quotes = [
+      { text: "The limits of my language mean the limits of my world.", author: "Ludwig Wittgenstein" },
+      { text: "A word after a word after a word is power.", author: "Margaret Atwood" },
+      { text: "Read, read, read. Read everything\u2014trash, classics, good and bad, and see how they do it.", author: "William Faulkner" },
+      { text: "The universe is made of stories, not of atoms.", author: "Muriel Rukeyser" },
+      { text: "If you want to be a writer, you must do two things above all others: read a lot and write a lot.", author: "Stephen King" },
+      { text: "We read to know we are not alone.", author: "C.\u2009S. Lewis" },
+      { text: "A book must be the axe for the frozen sea inside us.", author: "Franz Kafka" },
+      { text: "There is no frigate like a book to take us lands away.", author: "Emily Dickinson" },
+      { text: "The only thing that you absolutely have to know, is the location of the library.", author: "Albert Einstein" },
+      { text: "I cannot live without books.", author: "Thomas Jefferson" },
+      { text: "One must be an inventor to read well.", author: "Ralph Waldo Emerson" },
+      { text: "Language is the house of being.", author: "Martin Heidegger" },
+      { text: "Words are, of course, the most powerful drug used by mankind.", author: "Rudyard Kipling" },
+      { text: "The art of writing is the art of discovering what you believe.", author: "Gustave Flaubert" },
+      { text: "To write well, express yourself like the common people, but think like a wise man.", author: "Aristotle" },
+      { text: "Either write something worth reading or do something worth writing.", author: "Benjamin Franklin" }
+    ];
+    var q = quotes[Math.floor(Math.random() * quotes.length)];
+    var textEl = document.querySelector('.footer-quote-text');
+    var attrEl = document.querySelector('.footer-quote-attribution');
+    if (textEl && attrEl) {
+      textEl.textContent = q.text;
+      attrEl.textContent = q.author;
+    }
+  })();
+</script>
