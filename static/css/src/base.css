@@ -292,7 +292,9 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
 /*****************/
 
 .site-footer {
+  display: block;
   margin-top: 3rem;
+  width: 100%;
 }
 
 .site-footer .index-divider-decorated {
@@ -301,7 +303,7 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
 
 .footer-epigraph {
   font-size: 0.9em;
-  margin-bottom: 2rem;
+  margin-bottom: 3.5rem;
 }
 
 .footer-bottom {
