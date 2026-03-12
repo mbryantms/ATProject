@@ -303,17 +303,13 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
 
 .footer-epigraph {
   font-size: 0.9em;
-  margin-bottom: 1.5rem;
-}
-
-.footer-epigraph > blockquote {
-  margin-bottom: 2em;
 }
 
 .footer-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: 1.5em;
   padding: 0.75em 0;
   border-top: 1px solid var(--AT-horizontal-rule-stroke-color, #ddd);
   font-family: var(--AT-sans-serif-font-stack);
