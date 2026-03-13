@@ -264,6 +264,9 @@ def update_post_derived_content(self, post_id: int):
             content_html_cached=html,
         )
 
+        # Invalidate search cache so results stay fresh
+        _clear_search_cache()
+
         return {
             "success": True,
             "post_id": post_id,
@@ -737,6 +740,17 @@ def cleanup_orphaned_assets(
     results["total_size_freed_human"] = _format_bytes(results["total_size_freed"])
 
     return results
+
+
+def _clear_search_cache():
+    """Clear all cached search results."""
+    from django.core.cache import cache
+
+    try:
+        cache.delete_pattern("search:*")
+    except (AttributeError, NotImplementedError):
+        # Fallback for cache backends that don't support delete_pattern
+        pass
 
 
 def _format_bytes(size_bytes):
