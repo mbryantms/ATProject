@@ -314,11 +314,22 @@ def build_search_results(
     did_you_mean = None
     fuzzy_results = []
 
-    # If no full-text results, try fuzzy fallback
+    # If no full-text results, try fuzzy title match then plain-text content search
     if total == 0 and parsed.fulltext_query.strip():
         fuzzy_results, did_you_mean = search_posts_fuzzy(
             parsed.fulltext_query, limit=5, user=user
         )
+        # Final fallback: plain-text icontains on content fields.
+        # Catches words missed by the tsvector parser (e.g. slash-joined tokens).
+        if not fuzzy_results:
+            fuzzy_results = list(
+                _base_post_queryset(user)
+                .filter(
+                    Q(content_markdown__icontains=parsed.fulltext_query)
+                    | Q(title__icontains=parsed.fulltext_query)
+                )
+                .order_by("-published_at")[:limit]
+            )
 
     # Build post data
     posts_data = []
