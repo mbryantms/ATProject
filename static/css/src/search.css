@@ -297,15 +297,22 @@
 
 .search-page-result {
   display: block;
-  padding: 16px 0;
+  padding: 16px 12px;
+  margin: 0 -12px;
   border-bottom: 1px solid var(--AT-TOC-border-color);
+  border-radius: 4px;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
+  transition: background-color 0.1s;
 }
 
 .search-page-result:last-child {
   border-bottom: none;
+}
+
+.search-page-result:hover {
+  background: var(--AT-TOC-link-hover-background-color);
 }
 
 .search-page-result:hover .search-page-result-title {
