@@ -428,9 +428,11 @@
 
   function renderPageResults(container, data) {
     var posts = (data.results && data.results.posts) || [];
+    var pages = (data.results && data.results.pages) || [];
+    var tags = (data.results && data.results.tags) || [];
     container.innerHTML = '';
 
-    if (posts.length === 0) {
+    if (posts.length === 0 && pages.length === 0 && tags.length === 0) {
       var empty = document.createElement('p');
       empty.className = 'search-page-empty';
       if (data.did_you_mean) {
@@ -445,51 +447,116 @@
 
     var heading = document.createElement('p');
     heading.className = 'search-page-count';
+    var totalCount = data.total || posts.length + pages.length + tags.length;
     heading.textContent =
-      data.total + ' result' + (data.total !== 1 ? 's' : '') + ' found';
+      totalCount + ' result' + (totalCount !== 1 ? 's' : '') + ' found';
     container.appendChild(heading);
 
-    posts.forEach(function (post) {
-      var card = document.createElement('div');
-      card.className = 'search-page-result';
+    var pi = document.querySelector('[data-search-page-input]');
+    var queryStr = pi ? pi.value.trim() : data.query || '';
 
-      var link = document.createElement('a');
-      var pi = document.querySelector('[data-search-page-input]');
-      link.href = addHighlightParam(post.url, pi ? pi.value.trim() : data.query || '');
-      link.className = 'search-page-result-title';
-      link.textContent = post.title;
-      card.appendChild(link);
+    // Pages
+    if (pages.length > 0) {
+      var pagesHeader = document.createElement('h2');
+      pagesHeader.className = 'search-page-section-header';
+      pagesHeader.textContent = 'Pages';
+      container.appendChild(pagesHeader);
 
-      if (post.snippet) {
-        var snippet = document.createElement('div');
-        snippet.className = 'search-page-result-snippet';
-        snippet.innerHTML = post.snippet;
-        card.appendChild(snippet);
-      }
+      pages.forEach(function (page) {
+        var card = document.createElement('div');
+        card.className = 'search-page-result';
 
-      var meta = document.createElement('div');
-      meta.className = 'search-page-result-meta';
-      var parts = [];
-      if (post.published_at) {
-        parts.push(new Date(post.published_at).toLocaleDateString());
-      }
-      if (post.reading_time) {
-        parts.push(post.reading_time + ' min read');
-      }
-      if (post.tags && post.tags.length > 0) {
-        parts.push(
-          post.tags
-            .map(function (t) {
-              return t.name;
-            })
-            .join(', '),
-        );
-      }
-      meta.textContent = parts.join(' \u2014 ');
-      card.appendChild(meta);
+        var link = document.createElement('a');
+        link.href = page.url;
+        link.className = 'search-page-result-title';
+        link.textContent = page.title;
+        card.appendChild(link);
 
-      container.appendChild(card);
-    });
+        container.appendChild(card);
+      });
+    }
+
+    // Tags
+    if (tags.length > 0) {
+      var tagsHeader = document.createElement('h2');
+      tagsHeader.className = 'search-page-section-header';
+      tagsHeader.textContent = 'Tags';
+      container.appendChild(tagsHeader);
+
+      tags.forEach(function (tag) {
+        var card = document.createElement('div');
+        card.className = 'search-page-result';
+
+        var link = document.createElement('a');
+        link.href = tag.url;
+        link.className = 'search-page-result-title';
+        link.textContent = tag.name;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + tag.post_count + ')';
+        link.appendChild(countEl);
+        card.appendChild(link);
+
+        if (tag.description) {
+          var desc = document.createElement('div');
+          desc.className = 'search-page-result-snippet';
+          desc.textContent = tag.description;
+          card.appendChild(desc);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    // Posts
+    if (posts.length > 0) {
+      var postsHeader = document.createElement('h2');
+      postsHeader.className = 'search-page-section-header';
+      postsHeader.textContent = 'Posts';
+      container.appendChild(postsHeader);
+
+      posts.forEach(function (post) {
+        var card = document.createElement('div');
+        card.className = 'search-page-result';
+
+        var link = document.createElement('a');
+        link.href = addHighlightParam(post.url, queryStr);
+        link.className = 'search-page-result-title';
+        link.textContent = post.title;
+        card.appendChild(link);
+
+        if (post.snippet) {
+          var snippet = document.createElement('div');
+          snippet.className = 'search-page-result-snippet';
+          snippet.innerHTML = post.snippet;
+          card.appendChild(snippet);
+        }
+
+        var meta = document.createElement('div');
+        meta.className = 'search-page-result-meta';
+        var parts = [];
+        if (post.published_at) {
+          parts.push(new Date(post.published_at).toLocaleDateString());
+        }
+        if (post.reading_time) {
+          parts.push(post.reading_time + ' min read');
+        }
+        if (post.tags && post.tags.length > 0) {
+          parts.push(
+            post.tags
+              .map(function (t) {
+                return t.name;
+              })
+              .join(', '),
+          );
+        }
+        meta.textContent = parts.join(' \u2014 ');
+        card.appendChild(meta);
+
+        container.appendChild(card);
+      });
+    }
   }
 
   /* ── URL helpers ────────────────────────────────────────── */

@@ -14,19 +14,41 @@
   {% if search_results %}
     {% if search_results.total > 0 %}
       <p class="search-page-count">{{ search_results.total }} result{{ search_results.total|pluralize }} found</p>
-      {% for post in search_results.results.posts %}
-        <div class="search-page-result">
-          <a class="search-page-result-title" href="{{ post.url }}?highlight={{ query|urlencode }}">{{ post.title }}</a>
-          {% if post.snippet %}
-            <div class="search-page-result-snippet">{{ post.snippet|safe }}</div>
-          {% endif %}
-          <div class="search-page-result-meta">
-            {% if post.published_at %}{{ post.published_at|slice:":10" }}{% endif %}
-            {% if post.reading_time %} — {{ post.reading_time }} min read{% endif %}
-            {% if post.tags %} — {% for tag in post.tags %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+      {% if search_results.results.pages %}
+        <h2 class="search-page-section-header">Pages</h2>
+        {% for page in search_results.results.pages %}
+          <div class="search-page-result">
+            <a class="search-page-result-title" href="{{ page.url }}">{{ page.title }}</a>
           </div>
-        </div>
-      {% endfor %}
+        {% endfor %}
+      {% endif %}
+      {% if search_results.results.tags %}
+        <h2 class="search-page-section-header">Tags</h2>
+        {% for tag in search_results.results.tags %}
+          <div class="search-page-result">
+            <a class="search-page-result-title" href="{{ tag.url }}">{{ tag.name }} <span class="search-result-count">({{ tag.post_count }})</span></a>
+            {% if tag.description %}
+              <div class="search-page-result-snippet">{{ tag.description }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% if search_results.results.posts %}
+        <h2 class="search-page-section-header">Posts</h2>
+        {% for post in search_results.results.posts %}
+          <div class="search-page-result">
+            <a class="search-page-result-title" href="{{ post.url }}?highlight={{ query|urlencode }}">{{ post.title }}</a>
+            {% if post.snippet %}
+              <div class="search-page-result-snippet">{{ post.snippet|safe }}</div>
+            {% endif %}
+            <div class="search-page-result-meta">
+              {% if post.published_at %}{{ post.published_at|slice:":10" }}{% endif %}
+              {% if post.reading_time %} — {{ post.reading_time }} min read{% endif %}
+              {% if post.tags %} — {% for tag in post.tags %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
     {% else %}
       <p class="search-page-empty">
         No results found{% if search_results.did_you_mean %}. Did you mean "{{ search_results.did_you_mean }}"?{% endif %}

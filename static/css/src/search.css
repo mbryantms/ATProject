@@ -284,6 +284,17 @@
   padding: 24px 0;
 }
 
+.search-page-section-header {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.8em;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  color: var(--AT-body-link-hover-color);
+  margin: 20px 0 4px;
+  padding: 0;
+}
+
 .search-page-result {
   padding: 16px 0;
   border-bottom: 1px solid var(--AT-TOC-border-color);
