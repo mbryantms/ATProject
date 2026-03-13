@@ -522,6 +522,12 @@
     var raw = params.get('highlight');
     if (!raw) return;
 
+    // Strip quotes and field prefixes (same cleanup as addHighlightParam)
+    raw = raw
+      .replace(/\b(?:title|tag|author|category|series):\S+/g, '')
+      .replace(/"/g, '')
+      .trim();
+
     var terms = raw
       .split(/\s+/)
       .filter(function (t) {
