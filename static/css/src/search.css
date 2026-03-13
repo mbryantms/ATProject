@@ -335,6 +335,7 @@ mark.search-highlight {
   border-radius: 2px;
   padding: 0 1px;
   box-decoration-break: clone;
+  text-shadow: none;
 }
 
 .search-highlight-banner {
