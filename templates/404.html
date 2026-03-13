@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found — Architextual{% endblock %}
+
+{% block page_title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <p>The page you're looking for doesn't exist, may have been moved, or is otherwise unavailable.</p>
+
+  <p>Here are a few ways to find what you're looking for:</p>
+
+  <ul class="list-level-1 list block">
+    <li class="in-list">Use the <a href="/search/">search page</a> or press <kbd>Ctrl+K</kbd> / <kbd>Cmd+K</kbd> to search</li>
+    <li class="in-list">Browse the <a href="/posts/">post archive</a></li>
+    <li class="in-list">Explore posts by <a href="/tags/">tag</a></li>
+    <li class="in-list">Return to the <a href="/">home page</a></li>
+  </ul>
+
+  <p>If you followed a link to get here, the content may have been moved or removed.</p>
+</div>
+{% endblock content %}
