@@ -296,23 +296,26 @@
 }
 
 .search-page-result {
+  display: block;
   padding: 16px 0;
   border-bottom: 1px solid var(--AT-TOC-border-color);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .search-page-result:last-child {
   border-bottom: none;
 }
 
+.search-page-result:hover .search-page-result-title {
+  color: var(--AT-body-link-hover-color);
+}
+
 .search-page-result-title {
   font-size: 1.05em;
   font-weight: 500;
   color: var(--AT-body-link-color);
-  text-decoration: none;
-}
-
-.search-page-result-title:hover {
-  color: var(--AT-body-link-hover-color);
 }
 
 .search-page-result-snippet {

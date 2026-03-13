@@ -50,6 +50,17 @@ def _clean_snippet(snippet):
     return snippet.strip()
 
 
+# Pages whose content is embedded elsewhere rather than served at /{slug}/.
+_PAGE_URL_OVERRIDES = {
+    "home-intro": "/",
+}
+
+
+def _page_url(slug):
+    """Return the URL for a Page, respecting overrides for embedded pages."""
+    return _PAGE_URL_OVERRIDES.get(slug, f"/{slug}/")
+
+
 def _base_post_queryset(user=None):
     """Return base queryset respecting visibility rules."""
     if user and user.is_authenticated and (user.is_staff or user.is_superuser):
@@ -374,7 +385,7 @@ def build_search_results(
                 {
                     "title": page.title or page.slug,
                     "slug": page.slug,
-                    "url": f"/{page.slug}/",
+                    "url": _page_url(page.slug),
                 }
             )
 

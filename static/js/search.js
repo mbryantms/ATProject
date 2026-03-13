@@ -463,14 +463,14 @@
       container.appendChild(pagesHeader);
 
       pages.forEach(function (page) {
-        var card = document.createElement('div');
+        var card = document.createElement('a');
         card.className = 'search-page-result';
+        card.href = page.url;
 
-        var link = document.createElement('a');
-        link.href = page.url;
-        link.className = 'search-page-result-title';
-        link.textContent = page.title;
-        card.appendChild(link);
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = page.title;
+        card.appendChild(title);
 
         container.appendChild(card);
       });
@@ -484,19 +484,19 @@
       container.appendChild(tagsHeader);
 
       tags.forEach(function (tag) {
-        var card = document.createElement('div');
+        var card = document.createElement('a');
         card.className = 'search-page-result';
+        card.href = tag.url;
 
-        var link = document.createElement('a');
-        link.href = tag.url;
-        link.className = 'search-page-result-title';
-        link.textContent = tag.name;
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = tag.name;
 
         var countEl = document.createElement('span');
         countEl.className = 'search-result-count';
         countEl.textContent = ' (' + tag.post_count + ')';
-        link.appendChild(countEl);
-        card.appendChild(link);
+        title.appendChild(countEl);
+        card.appendChild(title);
 
         if (tag.description) {
           var desc = document.createElement('div');
@@ -517,14 +517,14 @@
       container.appendChild(postsHeader);
 
       posts.forEach(function (post) {
-        var card = document.createElement('div');
+        var card = document.createElement('a');
         card.className = 'search-page-result';
+        card.href = addHighlightParam(post.url, queryStr);
 
-        var link = document.createElement('a');
-        link.href = addHighlightParam(post.url, queryStr);
-        link.className = 'search-page-result-title';
-        link.textContent = post.title;
-        card.appendChild(link);
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = post.title;
+        card.appendChild(title);
 
         if (post.snippet) {
           var snippet = document.createElement('div');

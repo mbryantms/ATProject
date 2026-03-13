@@ -17,27 +17,27 @@
       {% if search_results.results.pages %}
         <h2 class="search-page-section-header">Pages</h2>
         {% for page in search_results.results.pages %}
-          <div class="search-page-result">
-            <a class="search-page-result-title" href="{{ page.url }}">{{ page.title }}</a>
-          </div>
+          <a class="search-page-result" href="{{ page.url }}">
+            <div class="search-page-result-title">{{ page.title }}</div>
+          </a>
         {% endfor %}
       {% endif %}
       {% if search_results.results.tags %}
         <h2 class="search-page-section-header">Tags</h2>
         {% for tag in search_results.results.tags %}
-          <div class="search-page-result">
-            <a class="search-page-result-title" href="{{ tag.url }}">{{ tag.name }} <span class="search-result-count">({{ tag.post_count }})</span></a>
+          <a class="search-page-result" href="{{ tag.url }}">
+            <div class="search-page-result-title">{{ tag.name }} <span class="search-result-count">({{ tag.post_count }})</span></div>
             {% if tag.description %}
               <div class="search-page-result-snippet">{{ tag.description }}</div>
             {% endif %}
-          </div>
+          </a>
         {% endfor %}
       {% endif %}
       {% if search_results.results.posts %}
         <h2 class="search-page-section-header">Posts</h2>
         {% for post in search_results.results.posts %}
-          <div class="search-page-result">
-            <a class="search-page-result-title" href="{{ post.url }}?highlight={{ query|urlencode }}">{{ post.title }}</a>
+          <a class="search-page-result" href="{{ post.url }}?highlight={{ query|urlencode }}">
+            <div class="search-page-result-title">{{ post.title }}</div>
             {% if post.snippet %}
               <div class="search-page-result-snippet">{{ post.snippet|safe }}</div>
             {% endif %}
@@ -46,7 +46,7 @@
               {% if post.reading_time %} — {{ post.reading_time }} min read{% endif %}
               {% if post.tags %} — {% for tag in post.tags %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}
             </div>
-          </div>
+          </a>
         {% endfor %}
       {% endif %}
     {% else %}
