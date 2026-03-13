@@ -1,7 +1,8 @@
 """
-URL patterns for the presigned upload API.
+URL patterns for the engine API.
 
 Endpoints:
+- GET  /api/v1/search/ - Full-text search
 - POST /api/v1/assets/presigned-upload/ - Request presigned URL
 - POST /api/v1/assets/<id>/confirm-upload/ - Confirm upload complete
 - DELETE /api/v1/assets/<id>/cancel-upload/ - Cancel upload
@@ -9,11 +10,14 @@ Endpoints:
 
 from django.urls import path
 
+from engine.search.views import SearchAPIView
+
 from .views import cancel_upload, confirm_upload, request_presigned_upload
 
 app_name = "api"
 
 urlpatterns = [
+    path("v1/search/", SearchAPIView.as_view(), name="search-api"),
     path(
         "v1/assets/presigned-upload/",
         request_presigned_upload,

@@ -110,7 +110,7 @@ ALLOWED_TAGS = {
 
 ALLOWED_ATTRIBUTES = {
     "*": {"class", "id", "title"},
-    "a": {"href", "title", "rel", "target"},
+    "a": {"href", "title", "target"},
     "img": {"src", "alt", "title", "width", "height", "loading", "decoding"},
     "video": {
         "src",

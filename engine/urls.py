@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .search.views import SearchPageView
 from .views import (
     IndexView,
     PageView,
@@ -10,6 +11,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("search/", SearchPageView.as_view(), name="search"),
     path("", IndexView.as_view(), name="index"),
     path("posts/", PostArchiveView.as_view(), name="post-archive"),
     path("posts/<slug:slug>/", PostDetailView.as_view(), name="post-detail"),
