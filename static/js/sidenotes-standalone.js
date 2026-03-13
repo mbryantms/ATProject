@@ -824,9 +824,21 @@
       requestAnimationFrame(() => {
         SidenotesStandalone.updateSidenotePositions();
 
-        // Make sidenotes visible
-        SidenotesStandalone.sidenotes.forEach((sn) => {
+        // Fade sidenotes in with a subtle stagger
+        SidenotesStandalone.sidenotes.forEach((sn, i) => {
+          // Temporarily disable top transition so sidenotes don't slide
+          // from their initial position; only animate opacity.
+          sn.style.transition = 'opacity 0.3s ease-out';
           sn.style.visibility = '';
+          sn.style.opacity = '0';
+
+          setTimeout(() => {
+            sn.style.opacity = '';  // reverts to CSS default (0.85)
+            // Restore full transitions after fade-in completes
+            setTimeout(() => {
+              sn.style.transition = '';
+            }, 300);
+          }, i * 40);
         });
       });
     },
