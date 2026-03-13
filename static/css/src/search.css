@@ -133,8 +133,8 @@
 }
 
 .search-result-snippet mark {
-  background: var(--AT-text-selection-background-color);
-  color: var(--AT-text-selection-color);
+  background: rgba(200, 150, 50, 0.3);
+  color: inherit;
   border-radius: 2px;
   padding: 0 1px;
 }
@@ -312,8 +312,8 @@
 }
 
 .search-page-result-snippet mark {
-  background: var(--AT-text-selection-background-color);
-  color: var(--AT-text-selection-color);
+  background: rgba(200, 150, 50, 0.3);
+  color: inherit;
   border-radius: 2px;
   padding: 0 2px;
 }
@@ -330,10 +330,11 @@
 /*=------------------------------=*/
 
 mark.search-highlight {
-  background: var(--AT-text-selection-background-color);
-  color: var(--AT-text-selection-color);
+  background: rgba(200, 150, 50, 0.35);
+  color: inherit;
   border-radius: 2px;
   padding: 0 1px;
+  box-decoration-break: clone;
 }
 
 .search-highlight-banner {
