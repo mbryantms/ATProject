@@ -139,15 +139,17 @@ _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 
 # Shared CSP directives
 # NONCE is a sentinel from django-csp that gets replaced with a per-request
-# 'nonce-<value>' in the header. 'unsafe-inline' is ignored by browsers that
-# support nonces but provides a fallback for older browsers.
-# 'strict-dynamic' lets nonced scripts load additional scripts (MathJax).
+# 'nonce-<value>' in the header.
+# NONCE lets nonced scripts run; 'unsafe-inline' is the fallback for older
+# browsers (ignored when a nonce is present). 'self' + explicit origins cover
+# Django admin scripts, MathJax (jsdelivr), and Cloudflare analytics.
+# Note: 'strict-dynamic' was removed because it causes browsers to ignore the
+# 'self' and URL allowlists, which blocks Django admin scripts.
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
     "script-src": [
         "'self'",
         "'unsafe-inline'",
-        "'strict-dynamic'",
         NONCE,
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
