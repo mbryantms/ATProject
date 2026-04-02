@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 import environ
-from csp.constants import NONCE
+from django.utils.csp import CSP
 
 env = environ.Env(
     # set casting, default value
@@ -128,8 +128,8 @@ if not DEBUG:
     SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ==============================================================================
-# CONTENT SECURITY POLICY (django-csp 4.0+)
-# https://django-csp.readthedocs.io/en/latest/configuration.html
+# CONTENT SECURITY POLICY (Django 6.0 built-in)
+# https://docs.djangoproject.com/en/6.0/ref/csp/
 # ==============================================================================
 
 # Base CSP directives (R2 domain added dynamically below)
@@ -137,10 +137,8 @@ _CSP_IMG_SRC = ["'self'", "data:"]
 _CSP_MEDIA_SRC = ["'self'"]
 _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 
-# Shared CSP directives
-# NONCE is a sentinel from django-csp that gets replaced with a per-request
-# 'nonce-<value>' in the header.
-# NONCE lets nonced scripts run; 'unsafe-inline' is the fallback for older
+# CSP.NONCE is replaced with a per-request 'nonce-<value>' in the header.
+# It lets nonced scripts run; 'unsafe-inline' is the fallback for older
 # browsers (ignored when a nonce is present). 'self' + explicit origins cover
 # Django admin scripts, MathJax (jsdelivr), and Cloudflare analytics.
 # Note: 'strict-dynamic' was removed because it causes browsers to ignore the
@@ -150,7 +148,7 @@ _CSP_DIRECTIVES = {
     "script-src": [
         "'self'",
         "'unsafe-inline'",
-        NONCE,
+        CSP.NONCE,
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
     ],
@@ -168,9 +166,9 @@ _CSP_DIRECTIVES = {
 
 # Enforced policy (production) or report-only (development)
 if DEBUG:
-    CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": _CSP_DIRECTIVES}
+    SECURE_CSP_REPORT_ONLY = _CSP_DIRECTIVES
 else:
-    CONTENT_SECURITY_POLICY = {"DIRECTIVES": _CSP_DIRECTIVES}
+    SECURE_CSP = _CSP_DIRECTIVES
 
 
 # Application definition
@@ -196,7 +194,7 @@ INSTALLED_APPS += [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "csp.middleware.CSPMiddleware",
+    "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -219,6 +217,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.csp",
                 "engine.context_processors.site_settings",
             ],
         },
