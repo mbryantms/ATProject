@@ -38,8 +38,13 @@ class AssetFolder(TimeStampedModel):
     )
 
     class Meta:
-        unique_together = [["user", "parent", "name"]]
         ordering = ["path"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "parent", "name"],
+                name="unique_asset_folder_path",
+            ),
+        ]
         verbose_name = "Asset Folder"
         verbose_name_plural = "Asset Folders"
 

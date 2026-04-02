@@ -891,12 +891,17 @@ class AssetRendition(TimeStampedModel):
 
     class Meta:
         ordering = ["width"]
-        unique_together = ["asset", "width", "format", "quality"]
         indexes = [
             models.Index(fields=["asset", "width", "format"]),
             models.Index(fields=["status"]),
             models.Index(fields=["preset", "asset"]),
             models.Index(fields=["codec", "format"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset", "width", "format", "quality"],
+                name="unique_asset_rendition",
+            ),
         ]
 
     def __str__(self):

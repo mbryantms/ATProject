@@ -504,12 +504,17 @@ class InternalLink(TimeStampedModel, SoftDeleteModel):
     all_objects = models.Manager()
 
     class Meta:
-        unique_together = [["source_post", "target_post"]]
         indexes = [
             models.Index(fields=["source_post"]),
             models.Index(fields=["target_post"]),
             models.Index(fields=["is_deleted", "source_post"]),
             models.Index(fields=["is_deleted", "target_post"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_post", "target_post"],
+                name="unique_internal_link",
+            ),
         ]
         verbose_name = "Internal Link"
         verbose_name_plural = "Internal Links"

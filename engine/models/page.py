@@ -113,7 +113,12 @@ class PageFeaturedTag(models.Model):
 
     class Meta:
         ordering = ["order"]
-        unique_together = [["page", "tag"]]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page", "tag"],
+                name="unique_page_featured_tag",
+            ),
+        ]
         verbose_name = "Featured Tag"
         verbose_name_plural = "Featured Tags"
 
