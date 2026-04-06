@@ -22,8 +22,8 @@
     {% else %}
       {% markdown_with_context post.content_markdown %}
     {% endif %}
+    {% include "posts/series_nav.html" %}
     {% include "posts/backlinks.html" %}
     {% include "posts/similar_posts.html" %}
   </div>
-  {% include "posts/series_nav.html" %}
 {% endblock content %}

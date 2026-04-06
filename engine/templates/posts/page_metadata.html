@@ -23,16 +23,6 @@
     {% endif %}
     {# Metadata fields #}
     <div class="page-metadata-fields">
-      {# Series #}
-      {% if post.series %}
-        <span class="page-series">
-          {% tooltip position="top" theme="dark" %}
-          <a href="{{ post.series.get_absolute_url }}">{{ post.series.title }}</a>
-          {% tooltip_content %}
-          This post is part of the "{{ post.series.title }}" series.
-        {% endtooltip %}
-      </span>
-      {% endif %}
       {# Author: if published #}
       {% if post.author %}<span class="page-author">by: {{ post.author.get_full_name|default:post.author.username }}</span>{% endif %}
       {# Date range: published to updated #}
@@ -138,6 +128,13 @@
 {#          {% if not forloop.last %},{% endif %}{% endfor %}</span>#}
 {#      {% endif %}#}
 </div>
+{# Series #}
+{% if post.series %}
+  <div class="page-series">
+    <p>Series: <a href="{{ post.series.get_absolute_url }}"
+       class="link-annotated link-page has-icon has-annotation spawns-popup">{{ post.series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a></p>
+  </div>
+{% endif %}
 {# Staff-only indicators #}
 {% if user.is_staff %}
   <div class="page-staff-bar">

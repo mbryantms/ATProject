@@ -482,7 +482,6 @@ header h1 em {
 
 /*  No separator at line end.
  */
-#page-metadata .page-metadata-fields .page-importance::after,
 #page-metadata .page-metadata-fields > span:last-child::after {
   display: none;
 }
@@ -519,7 +518,7 @@ header h1 em {
 #page-metadata .page-metadata-fields .page-backlinks,
 #page-metadata .page-metadata-fields .page-similars,
 #page-metadata .page-metadata-fields .page-link-bibliography {
-  order: 5;
+  order: 3;
 }
 
 /*  Author.
@@ -733,19 +732,6 @@ header h1 em {
 
 /*  Series navigation block at the bottom of post detail pages.
  */
-.series-nav {
-  border-top: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
-  margin-top: 2em;
-  padding-top: 1.5em;
-}
-
-.series-nav-title {
-  text-align: center;
-  font-family: var(--AT-sans-serif-font-stack);
-  font-size: 0.9em;
-  color: var(--AT-body-text-secondary-color, #666);
-  margin-bottom: 1em;
-}
 
 .series-nav-links {
   display: flex;
@@ -777,10 +763,16 @@ header h1 em {
   font-size: 1em;
 }
 
-/*  Series metadata in page-metadata bar.
+/*  Series metadata — standalone line below the metadata fields.
  */
-#page-metadata .page-metadata-fields .page-series {
-  order: 1;
+#page-metadata .page-series {
+  text-align: center;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.9em;
+}
+
+#page-metadata .page-series p {
+  margin: 0.25em 0 0;
 }
 
 /*******************/

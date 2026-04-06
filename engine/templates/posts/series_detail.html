@@ -26,10 +26,9 @@
   </div>
 
   {% if posts %}
-    <ul class="archive-list series-posts list list-level-1 block">
+    <ol class="archive-list series-posts block">
       {% for post in posts %}
-      <li class="in-list">
-        <span class="archive-date series-order">{{ forloop.counter }}.</span>
+      <li>
         <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
         {% if post.published_at %}
           <span class="archive-date">{{ post.published_at|date:"Y-m-d" }}</span>
@@ -38,7 +37,7 @@
         {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
       </li>
       {% endfor %}
-    </ul>
+    </ol>
   {% else %}
     <p>No posts in this series yet.</p>
   {% endif %}
