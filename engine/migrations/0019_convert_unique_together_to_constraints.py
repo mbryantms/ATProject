@@ -5,43 +5,51 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0018_add_pg_trgm_extension'),
+        ("engine", "0018_add_pg_trgm_extension"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='assetfolder',
+            name="assetfolder",
             unique_together=set(),
         ),
         migrations.AlterUniqueTogether(
-            name='assetrendition',
+            name="assetrendition",
             unique_together=set(),
         ),
         migrations.AlterUniqueTogether(
-            name='internallink',
+            name="internallink",
             unique_together=set(),
         ),
         migrations.AlterUniqueTogether(
-            name='pagefeaturedtag',
+            name="pagefeaturedtag",
             unique_together=set(),
         ),
         migrations.AddConstraint(
-            model_name='assetfolder',
-            constraint=models.UniqueConstraint(fields=('user', 'parent', 'name'), name='unique_asset_folder_path'),
+            model_name="assetfolder",
+            constraint=models.UniqueConstraint(
+                fields=("user", "parent", "name"), name="unique_asset_folder_path"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='assetrendition',
-            constraint=models.UniqueConstraint(fields=('asset', 'width', 'format', 'quality'), name='unique_asset_rendition'),
+            model_name="assetrendition",
+            constraint=models.UniqueConstraint(
+                fields=("asset", "width", "format", "quality"),
+                name="unique_asset_rendition",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='internallink',
-            constraint=models.UniqueConstraint(fields=('source_post', 'target_post'), name='unique_internal_link'),
+            model_name="internallink",
+            constraint=models.UniqueConstraint(
+                fields=("source_post", "target_post"), name="unique_internal_link"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='pagefeaturedtag',
-            constraint=models.UniqueConstraint(fields=('page', 'tag'), name='unique_page_featured_tag'),
+            model_name="pagefeaturedtag",
+            constraint=models.UniqueConstraint(
+                fields=("page", "tag"), name="unique_page_featured_tag"
+            ),
         ),
     ]

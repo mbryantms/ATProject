@@ -831,15 +831,18 @@
           sn.style.transform = 'translateY(8px)';
           sn.style.transition = 'none';
 
-          setTimeout(() => {
-            sn.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-            sn.style.opacity = '';  // reverts to CSS default (0.85)
-            sn.style.transform = '';
-            // Restore full transitions after animation completes
-            setTimeout(() => {
-              sn.style.transition = '';
-            }, 500);
-          }, 80 + i * 60);
+          setTimeout(
+            () => {
+              sn.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+              sn.style.opacity = ''; // reverts to CSS default (0.85)
+              sn.style.transform = '';
+              // Restore full transitions after animation completes
+              setTimeout(() => {
+                sn.style.transition = '';
+              }, 500);
+            },
+            80 + i * 60,
+          );
         });
       });
     },
