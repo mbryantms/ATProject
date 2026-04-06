@@ -4,6 +4,7 @@
     <a class="sidebar-link{% if request.path == '/' %} active{% endif %}" href="/">Home</a>
     <a class="sidebar-link{% if '/tags' in request.path %} active{% endif %}" href="/tags">Tags</a>
     <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts">Posts</a>
+    <a class="sidebar-link{% if '/series' in request.path %} active{% endif %}" href="/series">Series</a>
     <span class="sidebar-separator"></span>
     <a class="sidebar-link{% if '/library' in request.path %} active{% endif %}" href="/library">Library</a>
     <a class="sidebar-link{% if '/about' in request.path %} active{% endif %}" href="/about">About</a>

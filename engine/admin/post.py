@@ -360,7 +360,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "Organization & Taxonomy",
             {
                 "fields": (
-                    ("series",),
+                    ("series", "series_order"),
                     ("categories", "tags"),
                     ("related_posts", "certainty", "importance"),
                     (

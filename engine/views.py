@@ -5,9 +5,9 @@ from django.db.models import Count, F, Q
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.views.generic import DetailView, TemplateView
+from django.views.generic import DetailView, ListView, TemplateView
 
-from .models import Page, Post, Tag, TagAlias
+from .models import Page, Post, Series, Tag, TagAlias
 
 
 class IndexView(TemplateView):
@@ -447,4 +447,101 @@ class PostDetailView(DetailView):
         else:
             context["toc_nodes"] = []
 
+        # Series prev/next navigation
+        if post.series:
+            user = self.request.user
+            is_staff = user.is_authenticated and (user.is_staff or user.is_superuser)
+            if is_staff:
+                siblings = (
+                    Post.all_objects.filter(series=post.series, is_deleted=False)
+                    .order_by(F("series_order").asc(nulls_last=True), "published_at")
+                    .only("pk", "title", "slug", "series_order", "published_at")
+                )
+            else:
+                siblings = (
+                    Post.objects.published()
+                    .public()
+                    .filter(series=post.series)
+                    .order_by(F("series_order").asc(nulls_last=True), "published_at")
+                    .only("pk", "title", "slug", "series_order", "published_at")
+                )
+            sibling_list = list(siblings)
+            current_idx = None
+            for i, s in enumerate(sibling_list):
+                if s.pk == post.pk:
+                    current_idx = i
+                    break
+            if current_idx is not None:
+                context["series_prev"] = (
+                    sibling_list[current_idx - 1] if current_idx > 0 else None
+                )
+                context["series_next"] = (
+                    sibling_list[current_idx + 1]
+                    if current_idx < len(sibling_list) - 1
+                    else None
+                )
+
+        return context
+
+
+class SeriesListView(ListView):
+    """List all series that have at least one published, public post."""
+
+    model = Series
+    template_name = "posts/series_list.html"
+    context_object_name = "series_list"
+
+    def get_queryset(self):
+        user = self.request.user
+        now = timezone.now()
+
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            post_filter = Q(posts__is_deleted=False)
+        else:
+            post_filter = Q(
+                posts__is_deleted=False,
+                posts__status=Post.Status.PUBLISHED,
+                posts__visibility=Post.Visibility.PUBLIC,
+                posts__published_at__isnull=False,
+                posts__published_at__lte=now,
+            )
+
+        return (
+            Series.objects.annotate(post_count=Count("posts", filter=post_filter))
+            .filter(post_count__gt=0)
+            .order_by("title")
+        )
+
+
+class SeriesDetailView(DetailView):
+    """Display a single series with its posts in order."""
+
+    model = Series
+    slug_field = "slug"
+    slug_url_kwarg = "slug"
+    template_name = "posts/series_detail.html"
+    context_object_name = "series"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        series = self.object
+        user = self.request.user
+
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            posts = (
+                Post.all_objects.filter(series=series, is_deleted=False)
+                .select_related("author")
+                .order_by(F("series_order").asc(nulls_last=True), "published_at")
+            )
+        else:
+            posts = (
+                Post.objects.published()
+                .public()
+                .filter(series=series)
+                .select_related("author")
+                .order_by(F("series_order").asc(nulls_last=True), "published_at")
+            )
+
+        context["posts"] = posts
+        context["total_posts"] = posts.count()
         return context

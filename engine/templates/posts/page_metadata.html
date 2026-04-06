@@ -23,6 +23,16 @@
     {% endif %}
     {# Metadata fields #}
     <div class="page-metadata-fields">
+      {# Series #}
+      {% if post.series %}
+        <span class="page-series">
+          {% tooltip position="top" theme="dark" %}
+          <a href="{{ post.series.get_absolute_url }}">{{ post.series.title }}</a>
+          {% tooltip_content %}
+          This post is part of the "{{ post.series.title }}" series.
+        {% endtooltip %}
+      </span>
+      {% endif %}
       {# Author: if published #}
       {% if post.author %}<span class="page-author">by: {{ post.author.get_full_name|default:post.author.username }}</span>{% endif %}
       {# Date range: published to updated #}

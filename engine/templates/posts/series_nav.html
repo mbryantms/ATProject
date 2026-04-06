@@ -1,0 +1,28 @@
+{% if post.series %}
+<nav class="series-nav" aria-label="Series navigation">
+  <p class="series-nav-title">
+    Part of the series: <a href="{{ post.series.get_absolute_url }}"
+       class="link-annotated link-page has-icon has-annotation spawns-popup">{{ post.series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
+  </p>
+  <div class="series-nav-links">
+    {% if series_prev %}
+    <a href="{{ series_prev.get_absolute_url }}" class="series-nav-prev link-annotated link-page has-icon has-annotation spawns-popup">
+      <span class="series-nav-direction">&larr; Previous</span>
+      <span class="series-nav-post-title">{{ series_prev.title }}</span>
+      <span class="link-icon-hook dark-mode-invert">&NoBreak;</span>
+    </a>
+    {% else %}
+    <span class="series-nav-prev series-nav-disabled"></span>
+    {% endif %}
+    {% if series_next %}
+    <a href="{{ series_next.get_absolute_url }}" class="series-nav-next link-annotated link-page has-icon has-annotation spawns-popup">
+      <span class="series-nav-direction">Next &rarr;</span>
+      <span class="series-nav-post-title">{{ series_next.title }}</span>
+      <span class="link-icon-hook dark-mode-invert">&NoBreak;</span>
+    </a>
+    {% else %}
+    <span class="series-nav-next series-nav-disabled"></span>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

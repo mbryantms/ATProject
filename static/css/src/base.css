@@ -705,6 +705,84 @@ header h1 em {
   margin-right: 0.5em;
 }
 
+/*****************/
+/* SERIES STYLES */
+/*****************/
+
+/*  Series post count on index page.
+ */
+.series-post-count {
+  font-family: var(--AT-monospaced-font-stack);
+  font-size: 0.9em;
+  color: var(--AT-body-text-secondary-color, #666);
+}
+
+/*  Series description snippet on index page.
+ */
+.series-description {
+  color: var(--AT-body-text-secondary-color, #666);
+}
+
+/*  Series order number on detail page.
+ */
+.series-order {
+  font-weight: 600;
+  min-width: 2em;
+  display: inline-block;
+}
+
+/*  Series navigation block at the bottom of post detail pages.
+ */
+.series-nav {
+  border-top: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
+  margin-top: 2em;
+  padding-top: 1.5em;
+}
+
+.series-nav-title {
+  text-align: center;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.9em;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-bottom: 1em;
+}
+
+.series-nav-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5em;
+}
+
+.series-nav-prev,
+.series-nav-next {
+  display: flex;
+  flex-direction: column;
+  max-width: 45%;
+}
+
+.series-nav-next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.series-nav-direction {
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.85em;
+  color: var(--AT-body-text-secondary-color, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.series-nav-post-title {
+  font-size: 1em;
+}
+
+/*  Series metadata in page-metadata bar.
+ */
+#page-metadata .page-metadata-fields .page-series {
+  order: 1;
+}
+
 /*******************/
 /* TAG LIST STYLES */
 /*******************/

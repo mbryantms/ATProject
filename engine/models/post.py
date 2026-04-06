@@ -214,6 +214,11 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         on_delete=models.SET_NULL,
         related_name="posts",
     )
+    series_order = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Manual ordering within a series (lower numbers appear first).",
+    )
     categories = models.ManyToManyField(
         "engine.Category", blank=True, related_name="posts"
     )

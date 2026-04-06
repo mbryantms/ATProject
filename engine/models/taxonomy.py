@@ -9,6 +9,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.template.defaultfilters import slugify
+from django.urls import reverse
 
 from .base import TimeStampedModel, UniqueSlugMixin
 
@@ -429,6 +430,9 @@ class Series(TimeStampedModel, UniqueSlugMixin):
 
     def __str__(self) -> str:
         return self.title
+
+    def get_absolute_url(self):
+        return reverse("series-detail", kwargs={"slug": self.slug})
 
     def save(self, *args, **kwargs):
         if not self.slug:

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load tooltip_tags %}
+
+{% block title %}{{ series.title }} - Series - Architextual{% endblock %}
+
+{% block page_title %}{{ series.title }}{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <div class="markdownBody" id="page-metadata">
+    {% if series.description %}
+      <div class="page-description">
+        <p>{{ series.description }}</p>
+      </div>
+    {% endif %}
+
+    <div class="page-metadata-fields">
+      <span class="page-post-count">
+        {% tooltip position="top" theme="dark" %}
+        <span>{{ total_posts }} post{{ total_posts|pluralize }}</span>
+        {% tooltip_content %}
+        {{ total_posts }} post{{ total_posts|pluralize }} in this series.
+        {% endtooltip %}
+      </span>
+    </div>
+  </div>
+
+  {% if posts %}
+    <ul class="archive-list series-posts list list-level-1 block">
+      {% for post in posts %}
+      <li class="in-list">
+        <span class="archive-date series-order">{{ forloop.counter }}.</span>
+        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+        {% if post.published_at %}
+          <span class="archive-date">{{ post.published_at|date:"Y-m-d" }}</span>
+        {% endif %}
+        {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+        {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No posts in this series yet.</p>
+  {% endif %}
+</div>
+{% endblock content %}
