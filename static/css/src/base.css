@@ -697,6 +697,16 @@ header h1 em {
   margin-bottom: 1.5em;
 }
 
+ol.archive-list {
+  --list-left-padding: 2.5em;
+  list-style-type: none;
+  padding-left: 0;
+}
+
+ol.archive-list > li {
+  padding-left: var(--list-left-padding);
+}
+
 .archive-date {
   font-family: var(--AT-monospaced-font-stack);
   font-size: 0.9em;

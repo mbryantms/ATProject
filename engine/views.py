@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 from django.core.cache import cache
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Max, Min, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -544,4 +544,13 @@ class SeriesDetailView(DetailView):
 
         context["posts"] = posts
         context["total_posts"] = posts.count()
+
+        stats = posts.aggregate(
+            first_published=Min("published_at"),
+            last_published=Max("published_at"),
+            total_words=Sum("word_count"),
+            total_reading_time=Sum("reading_time_minutes"),
+        )
+        context.update(stats)
+
         return context

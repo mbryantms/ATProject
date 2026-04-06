@@ -22,6 +22,24 @@
         {{ total_posts }} post{{ total_posts|pluralize }} in this series.
         {% endtooltip %}
       </span>
+      {% if total_reading_time %}
+        <span class="page-reading-time">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ total_reading_time }} min read</span>
+          {% tooltip_content %}
+          Total estimated reading time for the entire series.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+      {% if first_published %}
+        <span class="page-date-range">
+          {% tooltip position="top" theme="dark" %}
+          <time datetime="{{ first_published|date:'c' }}">{{ first_published|date:"Y-m-d" }}</time>{% if last_published and last_published != first_published %} – <time datetime="{{ last_published|date:'c' }}">{{ last_published|date:"Y-m-d" }}</time>{% endif %}
+          {% tooltip_content %}
+          Date range of published posts in this series.
+          {% endtooltip %}
+        </span>
+      {% endif %}
     </div>
   </div>
 
@@ -35,6 +53,9 @@
         {% endif %}
         {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
         {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+        {% if post.description %}
+          <span class="series-description"> &mdash; {{ post.description|truncatewords:25 }}</span>
+        {% endif %}
       </li>
       {% endfor %}
     </ol>

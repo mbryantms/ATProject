@@ -15,12 +15,12 @@
     </h1>
     <p class="first-graf block">
       Part of the series: <a href="{{ post.series.get_absolute_url }}"
-         class="link-annotated link-page has-icon has-annotation spawns-popup">{{ post.series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
+         class="link-annotated link-page has-icon has-annotation">{{ post.series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
     </p>
     <nav class="series-nav" aria-label="Series navigation">
       <div class="series-nav-links">
         {% if series_prev %}
-        <a href="{{ series_prev.get_absolute_url }}" class="series-nav-prev link-annotated link-page has-icon has-annotation spawns-popup">
+        <a href="{{ series_prev.get_absolute_url }}" class="series-nav-prev link-annotated link-page has-icon has-annotation">
           <span class="series-nav-direction">&larr; Previous</span>
           <span class="series-nav-post-title">{{ series_prev.title }}</span>
           <span class="link-icon-hook dark-mode-invert">&NoBreak;</span>
@@ -29,7 +29,7 @@
         <span class="series-nav-prev series-nav-disabled"></span>
         {% endif %}
         {% if series_next %}
-        <a href="{{ series_next.get_absolute_url }}" class="series-nav-next link-annotated link-page has-icon has-annotation spawns-popup">
+        <a href="{{ series_next.get_absolute_url }}" class="series-nav-next link-annotated link-page has-icon has-annotation">
           <span class="series-nav-direction">Next &rarr;</span>
           <span class="series-nav-post-title">{{ series_next.title }}</span>
           <span class="link-icon-hook dark-mode-invert">&NoBreak;</span>

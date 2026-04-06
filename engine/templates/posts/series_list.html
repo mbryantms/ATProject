@@ -11,7 +11,7 @@
       {% for series in series_list %}
       <li class="in-list">
         <a href="{{ series.get_absolute_url }}"
-           class="link-annotated link-page has-icon has-annotation spawns-popup">{{ series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
+           class="link-annotated link-page has-icon has-annotation">{{ series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
         <span class="series-post-count">({{ series.post_count }} post{{ series.post_count|pluralize }})</span>
         {% if series.description %}
           <span class="series-description"> &mdash; {{ series.description|truncatewords:20 }}</span>
