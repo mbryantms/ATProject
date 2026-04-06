@@ -753,11 +753,12 @@ ol.archive-list > li {
 .series-nav-next {
   display: flex;
   flex-direction: column;
-  max-width: 45%;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
 }
 
 .series-nav-next {
-  margin-left: auto;
   text-align: right;
 }
 
