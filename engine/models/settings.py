@@ -9,6 +9,10 @@ class SiteSettings(models.Model):
         default=True,
         help_text="Show admin edit links on post detail pages for staff users.",
     )
+    enable_scheduled_publishing = models.BooleanField(
+        default=False,
+        help_text="When enabled, a Celery Beat task runs every minute to publish posts whose published_at time has passed.",
+    )
 
     class Meta:
         verbose_name = "site settings"

@@ -216,6 +216,34 @@ def bulk_generate_renditions(asset_ids, widths=None, formats=None):
     return results
 
 
+@shared_task
+def publish_scheduled_posts():
+    """
+    Transition scheduled posts to published when their published_at time has passed.
+
+    Controlled by SiteSettings.enable_scheduled_publishing — exits immediately
+    when disabled to save resources. Designed to run every minute via Celery Beat.
+    """
+    from django.utils import timezone
+
+    from .models import Post, SiteSettings
+
+    settings = SiteSettings.load()
+    if not settings.enable_scheduled_publishing:
+        return {"skipped": True, "reason": "Scheduled publishing is disabled."}
+
+    now = timezone.now()
+    due = Post.objects.filter(
+        status=Post.Status.SCHEDULED,
+        published_at__isnull=False,
+        published_at__lte=now,
+    )
+
+    count = due.update(status=Post.Status.PUBLISHED)
+
+    return {"success": True, "published": count}
+
+
 @shared_task(
     bind=True,
     autoretry_for=(Exception,),

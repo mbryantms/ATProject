@@ -423,6 +423,12 @@ CELERY_RESULT_BACKEND = _celery_result_backend
 # DatabaseScheduler polls the DB every 5 seconds (~17K queries/day).
 CELERY_BEAT_SCHEDULER = "celery.beat:PersistentScheduler"
 CELERY_BEAT_SCHEDULE_FILENAME = "/tmp/celerybeat-schedule"
+CELERY_BEAT_SCHEDULE = {
+    "publish-scheduled-posts": {
+        "task": "engine.tasks.publish_scheduled_posts",
+        "schedule": 60.0,  # every 60 seconds
+    },
+}
 
 
 # Recommended dev defaults

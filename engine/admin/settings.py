@@ -5,7 +5,7 @@ from engine.models import SiteSettings
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "show_edit_buttons")
+    list_display = ("__str__", "show_edit_buttons", "enable_scheduled_publishing")
 
     def has_add_permission(self, request):
         return False
