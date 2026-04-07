@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
 
-from .models import Page, Post, Series, Tag, TagAlias
+from .models import Category, Page, Post, Series, Tag, TagAlias
 
 
 class IndexView(TemplateView):
@@ -319,6 +319,131 @@ class TagListView(TemplateView):
         context["total_tags"] = tags.count()
         context["total_posts"] = sum(t.post_count for t in tags)
 
+        return context
+
+
+class CategoryArchiveView(TemplateView):
+    """
+    Display all posts in a specific category, grouped by year.
+    Includes hierarchical navigation (ancestors, children, siblings).
+    """
+
+    template_name = "posts/category_archive.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        slug = self.kwargs.get("slug")
+        user = self.request.user
+
+        try:
+            category = Category.objects.select_related("parent").get(slug=slug)
+        except Category.DoesNotExist:
+            raise Http404("Category not found")
+
+        # Get posts in this category
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            posts = (
+                Post.all_objects.filter(is_deleted=False, categories=category)
+                .select_related("author")
+                .order_by("-published_at")
+            )
+        else:
+            posts = (
+                Post.objects.published()
+                .public()
+                .filter(categories=category)
+                .select_related("author")
+                .order_by("-published_at")
+            )
+
+        # Group posts by year
+        posts_by_year = OrderedDict()
+        for post in posts:
+            if post.published_at:
+                year = post.published_at.year
+                if year not in posts_by_year:
+                    posts_by_year[year] = []
+                posts_by_year[year].append(post)
+
+        # Hierarchical navigation
+        ancestors = category.get_ancestors()
+        children = category.children.order_by("name")
+
+        if category.parent:
+            siblings = (
+                category.parent.children.exclude(pk=category.pk).order_by("name")
+            )
+        else:
+            siblings = (
+                Category.objects.filter(parent__isnull=True)
+                .exclude(pk=category.pk)
+                .order_by("name")
+            )
+
+        context["category"] = category
+        context["posts_by_year"] = posts_by_year
+        context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        context["ancestors"] = ancestors
+        context["children"] = children
+        context["siblings"] = siblings
+        return context
+
+
+class CategoryListView(TemplateView):
+    """
+    Display all categories with post counts.
+
+    Supports query parameters:
+    - sort=name|count (default: name)
+    - show=description,hierarchy (comma-separated)
+    """
+
+    template_name = "posts/category_list.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        now = timezone.now()
+
+        show_param = self.request.GET.get("show", "")
+        show_options = [opt.strip() for opt in show_param.split(",") if opt.strip()]
+        sort_by = self.request.GET.get("sort", "name")
+
+        # Build post count filter based on user permissions
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            post_filter = Q(posts__is_deleted=False)
+        else:
+            post_filter = Q(
+                posts__is_deleted=False,
+                posts__status=Post.Status.PUBLISHED,
+                posts__visibility__in=[
+                    Post.Visibility.PUBLIC,
+                    Post.Visibility.UNLISTED,
+                ],
+                posts__published_at__isnull=False,
+                posts__published_at__lte=now,
+            )
+
+        categories = (
+            Category.objects.annotate(
+                post_count=Count("posts", filter=post_filter)
+            ).select_related("parent")
+        )
+
+        if sort_by == "count":
+            categories = categories.order_by("-post_count", "name")
+        else:
+            categories = categories.order_by("name")
+
+        context["categories"] = categories
+        context["show_description"] = "description" in show_options
+        context["show_hierarchy"] = "hierarchy" in show_options
+        context["show_any_extra"] = bool(show_options)
+        context["current_show"] = show_options
+        context["current_sort"] = sort_by
+        context["base_url"] = f"?sort={sort_by}"
+        context["total_categories"] = categories.count()
+        context["total_posts"] = sum(c.post_count for c in categories)
         return context
 
 

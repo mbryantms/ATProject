@@ -410,6 +410,64 @@ class Category(TimeStampedModel, UniqueSlugMixin):
     def __str__(self) -> str:
         return self.name
 
+    def get_absolute_url(self):
+        return reverse("category-archive", kwargs={"slug": self.slug})
+
+    def get_ancestors(self, include_self=False):
+        """
+        Get all ancestor categories up the hierarchy using a recursive CTE.
+        Returns a list of categories from immediate parent to root.
+        """
+        query = """
+            WITH RECURSIVE "ancestors" (id, parent_id, level) AS (
+                SELECT id, parent_id, 0 as level FROM engine_category WHERE id = %s
+                UNION ALL
+                SELECT c.id, c.parent_id, a.level + 1
+                FROM engine_category c JOIN ancestors a ON c.id = a.parent_id
+            )
+            SELECT id FROM ancestors ORDER BY level;
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query, [self.pk])
+            ancestor_ids = [row[0] for row in cursor.fetchall()]
+
+        start_index = 1 if not include_self else 0
+        ids_to_fetch = ancestor_ids[start_index:]
+
+        if not ids_to_fetch:
+            return []
+
+        id_map = {
+            cat.pk: cat for cat in Category.objects.filter(pk__in=ids_to_fetch)
+        }
+        return [id_map[pk] for pk in ids_to_fetch if pk in id_map]
+
+    def get_descendants(self, include_self=False):
+        """
+        Get all descendant categories using a recursive CTE.
+        Returns a queryset of all children, grandchildren, etc.
+        """
+        query = """
+            WITH RECURSIVE "descendants" (id, level) AS (
+                SELECT id, 0 as level FROM engine_category WHERE id = %s
+                UNION ALL
+                SELECT c.id, d.level + 1
+                FROM engine_category c JOIN descendants d ON c.parent_id = d.id
+            )
+            SELECT id FROM descendants ORDER BY level;
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query, [self.pk])
+            descendant_ids = [row[0] for row in cursor.fetchall()]
+
+        if not include_self:
+            descendant_ids = descendant_ids[1:]
+
+        preserved_order = models.Case(
+            *[models.When(pk=pk, then=pos) for pos, pk in enumerate(descendant_ids)]
+        )
+        return Category.objects.filter(pk__in=descendant_ids).order_by(preserved_order)
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base = slugify(self.name) or "category"

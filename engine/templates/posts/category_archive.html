@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load tooltip_tags %}
+
+{% block title %}{{ category.name }} - Category Archive - Architextual{% endblock %}
+
+{% block page_title %}{{ category.name }}{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <div class="markdownBody" id="page-metadata">
+    {# Hierarchy breadcrumb #}
+    {% if ancestors %}
+      <div class="link-tags">
+        <p>
+          {% for ancestor in ancestors reversed %}
+            <a href="{% url 'category-archive' slug=ancestor.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               title="View posts in '{{ ancestor.name }}'">{{ ancestor.name }}</a>
+            <span class="breadcrumb-separator">&gt;</span>
+          {% endfor %}
+          <span class="tag-current">{{ category.name }}</span>
+        </p>
+      </div>
+    {% endif %}
+
+    {# Category description #}
+    {% if category.description %}
+      <div class="page-description">
+        <p>{{ category.description }}</p>
+      </div>
+    {% endif %}
+
+    {# Metadata fields row #}
+    <div class="page-metadata-fields">
+      <span class="page-post-count">
+        {% tooltip position="top" theme="dark" %}
+        <span>{{ total_posts }} post{{ total_posts|pluralize }}</span>
+        {% tooltip_content %}
+        {{ total_posts }} post{{ total_posts|pluralize }} in "{{ category.name }}".
+        {% endtooltip %}
+      </span>
+
+      {% if children %}
+        <span class="page-subtags">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ children|length }} subcategor{{ children|length|pluralize:"y,ies" }}</span>
+          {% tooltip_content %}
+          This category has {{ children|length }} subcategor{{ children|length|pluralize:"y,ies" }}.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+
+      {% if siblings %}
+        <span class="page-related">
+          {% tooltip position="top" theme="dark" %}
+          <span>{{ siblings|length }} related</span>
+          {% tooltip_content %}
+          {{ siblings|length }} related categor{{ siblings|length|pluralize:"y,ies" }} at the same level.
+          {% endtooltip %}
+        </span>
+      {% endif %}
+    </div>
+
+    {# Subcategories list #}
+    {% if children %}
+      <div class="link-tags tag-subtags">
+        <p>
+          <span class="tag-nav-label">Subcategories:</span>
+          {% for child in children %}
+            <a href="{% url 'category-archive' slug=child.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               title="View posts in '{{ child.name }}'">{{ child.name }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
+
+    {# Sibling categories list #}
+    {% if siblings %}
+      <div class="link-tags tag-related">
+        <p>
+          <span class="tag-nav-label">Related:</span>
+          {% for sibling in siblings %}
+            <a href="{% url 'category-archive' slug=sibling.slug %}"
+               class="link-tag link-page link-annotated icon-not has-annotation"
+               title="View posts in '{{ sibling.name }}'">{{ sibling.name }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Posts grouped by year #}
+  {% if posts_by_year %}
+    {% for year, posts in posts_by_year.items %}
+    <section class="archive-year">
+      <h2>{{ year }}</h2>
+      <ul class="archive-list list list-level-1 block">
+        {% for post in posts %}
+        <li class="in-list">
+          <span class="archive-date">{{ post.published_at|date:"m-d" }}:</span>
+          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+  {% else %}
+    <p>No posts in this category yet.</p>
+  {% endif %}
+</div>
+{% endblock content %}
