@@ -23,7 +23,9 @@
       {% markdown_with_context post.content_markdown %}
     {% endif %}
     {% include "posts/series_nav.html" %}
+    {% if post.series %}<hr>{% endif %}
     {% include "posts/backlinks.html" %}
+    {% if backlinks_count > 0 %}<hr>{% endif %}
     {% include "posts/similar_posts.html" %}
   </div>
 {% endblock content %}
