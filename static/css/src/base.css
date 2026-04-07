@@ -2041,6 +2041,40 @@ span.smallcaps {
 }
 
 /*********************/
+/* SECTION DIVIDER (arabesque) */
+/*******************************/
+
+.section-divider-arabesque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 2em 0;
+  opacity: 0.5;
+}
+
+.section-divider-arabesque svg {
+  fill: currentColor;
+  color: var(--AT-body-text-color, #999);
+}
+
+.section-divider-arabesque .section-divider-left,
+.section-divider-arabesque .section-divider-right {
+  flex: 1 1 0;
+  height: 14px;
+  min-width: 0;
+}
+
+.section-divider-arabesque .section-divider-right {
+  transform: scaleX(-1);
+}
+
+.section-divider-arabesque .section-divider-center {
+  flex: 0 0 auto;
+  width: 80px;
+  height: 20px;
+}
+
 /* SECTION SEPARATOR */
 /*********************/
 
