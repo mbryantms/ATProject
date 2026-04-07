@@ -2049,8 +2049,9 @@ span.smallcaps {
   align-items: center;
   justify-content: center;
   gap: 0;
-  margin: 2em 0;
-  opacity: 0.5;
+  margin: 2.5em 0;
+  opacity: 0.6;
+  width: 100%;
 }
 
 .section-divider-arabesque svg {
@@ -2061,7 +2062,7 @@ span.smallcaps {
 .section-divider-arabesque .section-divider-left,
 .section-divider-arabesque .section-divider-right {
   flex: 1 1 0;
-  height: 14px;
+  height: auto;
   min-width: 0;
 }
 
@@ -2071,8 +2072,8 @@ span.smallcaps {
 
 .section-divider-arabesque .section-divider-center {
   flex: 0 0 auto;
-  width: 80px;
-  height: 20px;
+  width: 120px;
+  height: auto;
 }
 
 /* SECTION SEPARATOR */
