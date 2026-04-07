@@ -14,10 +14,10 @@
       </button>
     </h1>
     <div id="similars" class="include-wrapper-block">
+      <p class="first-graf block">
+        {{ similar_posts_count }} related post{{ similar_posts_count|pluralize }} you might enjoy:
+      </p>
       <div class="columns block">
-        <p class="first-graf block">
-          {{ similar_posts_count }} related post{{ similar_posts_count|pluralize }} you might enjoy:
-        </p>
         <ul class="aux-links-list similars-list list list-level1">
           {% for similar in similar_posts %}
             <li class="block" data-similarity-score="{{ similar.similarity_score }}">
