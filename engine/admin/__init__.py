@@ -32,7 +32,7 @@ from .asset import (
 )
 from .mixins import SoftDeleteAdminMixin
 from .page import PageAdmin
-from .post import InternalLinkAdmin, PostAdmin
+from .post import InternalLinkAdmin, PostAdmin, PostRevisionAdmin
 from .settings import SiteSettingsAdmin
 from .task_result import TaskResultAdmin
 from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
@@ -49,6 +49,7 @@ __all__ = [
     # Post
     "PostAdmin",
     "InternalLinkAdmin",
+    "PostRevisionAdmin",
     # Page
     "PageAdmin",
     # Asset

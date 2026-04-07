@@ -315,20 +315,25 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
 
         # --- Check for content changes to trigger async tasks ---
         run_async_tasks = False
+        content_changed = False
         is_new = self.pk is None
         if is_new:
             run_async_tasks = True
+            content_changed = True
         else:
             try:
                 # Fetch the original object from DB
                 original = Post.objects.get(pk=self.pk)
                 if original.content_markdown != self.content_markdown:
                     run_async_tasks = True
+                    content_changed = True
+                    self.version = original.version + 1
                     # Clear stale content that will be regenerated
                     self.table_of_contents = []
             except Post.DoesNotExist:
                 # This case is unlikely but good to handle
                 run_async_tasks = True
+                content_changed = True
 
         # --- Update fast-running derived stats synchronously ---
         self.word_count = self._compute_word_count(self.content_markdown or "")
@@ -336,6 +341,15 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
 
         # --- Save the model ---
         super().save(*args, **kwargs)
+
+        # --- Create a revision snapshot when content changes ---
+        if content_changed and self.content_markdown:
+            PostRevision.objects.create(
+                post=self,
+                version=self.version,
+                content_markdown=self.content_markdown,
+                created_by=self.last_edited_by,
+            )
 
         # --- Schedule slow tasks after transaction commits ---
         if run_async_tasks:
@@ -477,6 +491,35 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         if not text:
             return 0
         return len(re.findall(r"\w+", text))
+
+
+class PostRevision(models.Model):
+    """Stores a snapshot of content_markdown each time it changes."""
+
+    post = models.ForeignKey(
+        "Post",
+        on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    version = models.PositiveIntegerField()
+    content_markdown = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="post_revisions",
+    )
+
+    class Meta:
+        ordering = ["-version"]
+        unique_together = [("post", "version")]
+        verbose_name = "Post Revision"
+        verbose_name_plural = "Post Revisions"
+
+    def __str__(self) -> str:
+        return f"{self.post.title} (v{self.version})"
 
 
 class InternalLink(TimeStampedModel, SoftDeleteModel):

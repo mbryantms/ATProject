@@ -2,17 +2,20 @@
 Admin classes for Post model and related inlines.
 
 This module contains the admin configuration for posts, including
-internal links (backlinks) and post-asset relationships.
+internal links (backlinks), post-asset relationships, and revision history.
 """
 
 import csv
+import difflib
 
 from django.contrib import admin, messages
-from django.http import HttpResponse
-from django.utils.html import format_html
+from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 
-from engine.models import InternalLink, Post, PostAsset
+from engine.models import InternalLink, Post, PostAsset, PostRevision
 
 from .mixins import SoftDeleteAdminMixin
 
@@ -208,12 +211,43 @@ class IncomingLinksInline(admin.TabularInline):
         )
 
 
+class PostRevisionInline(admin.TabularInline):
+    model = PostRevision
+    extra = 0
+    can_delete = False
+    max_num = 0
+    verbose_name = "Revision"
+    verbose_name_plural = "Revision History"
+
+    fields = ("version_link", "created_by", "created_at", "size_display")
+    readonly_fields = ("version_link", "created_by", "created_at", "size_display")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Version")
+    def version_link(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        diff_url = reverse("admin:engine_post_revision_diff", args=[obj.post_id, obj.pk])
+        return format_html('<a href="{}">v{}</a>', diff_url, obj.version)
+
+    @admin.display(description="Size")
+    def size_display(self, obj):
+        if not obj or not obj.pk:
+            return "-"
+        size = len(obj.content_markdown)
+        if size < 1024:
+            return f"{size} B"
+        return f"{size / 1024:.1f} KB"
+
+
 # --------------------------
 # Post admin
 # --------------------------
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
-    inlines = [PostAssetInline, IncomingLinksInline]
+    inlines = [PostAssetInline, IncomingLinksInline, PostRevisionInline]
     save_on_top = True
     date_hierarchy = "published_at"
 
@@ -328,6 +362,87 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             )
             return super().formfield_for_dbfield(db_field, request, **kwargs)
         return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "<int:post_id>/revision/<int:revision_id>/diff/",
+                self.admin_site.admin_view(self.revision_diff_view),
+                name="engine_post_revision_diff",
+            ),
+            path(
+                "<int:post_id>/revision/<int:revision_id>/restore/",
+                self.admin_site.admin_view(self.revision_restore_view),
+                name="engine_post_revision_restore",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def revision_diff_view(self, request, post_id, revision_id):
+        post = Post.all_objects.get(pk=post_id)
+        revision = PostRevision.objects.get(pk=revision_id, post=post)
+
+        # Find the previous revision for diffing
+        prev_revision = (
+            PostRevision.objects.filter(post=post, version__lt=revision.version)
+            .order_by("-version")
+            .first()
+        )
+
+        left_label = f"v{prev_revision.version}" if prev_revision else "(empty)"
+        right_label = f"v{revision.version}"
+        left_lines = (prev_revision.content_markdown if prev_revision else "").splitlines(keepends=True)
+        right_lines = revision.content_markdown.splitlines(keepends=True)
+
+        diff_html = difflib.HtmlDiff(wrapcolumn=80).make_table(
+            left_lines,
+            right_lines,
+            fromdesc=left_label,
+            todesc=right_label,
+            context=True,
+            numlines=5,
+        )
+
+        # All revisions for this post for the sidebar
+        all_revisions = PostRevision.objects.filter(post=post).order_by("-version")
+
+        restore_url = reverse(
+            "admin:engine_post_revision_restore",
+            args=[post_id, revision_id],
+        )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": f"Revision diff: {post.title}",
+            "post": post,
+            "revision": revision,
+            "prev_revision": prev_revision,
+            "diff_html": mark_safe(diff_html),
+            "all_revisions": all_revisions,
+            "restore_url": restore_url,
+            "opts": self.model._meta,
+        }
+        return TemplateResponse(
+            request, "admin/engine/post/revision_diff.html", context
+        )
+
+    def revision_restore_view(self, request, post_id, revision_id):
+        if request.method != "POST":
+            raise Http404
+        post = Post.all_objects.get(pk=post_id)
+        revision = PostRevision.objects.get(pk=revision_id, post=post)
+
+        post.content_markdown = revision.content_markdown
+        post.last_edited_by = request.user
+        post.save()
+
+        messages.success(
+            request,
+            f'Restored "{post.title}" to revision v{revision.version}.',
+        )
+        return HttpResponseRedirect(
+            reverse("admin:engine_post_change", args=[post_id])
+        )
 
     fieldsets = (
         (
@@ -903,3 +1018,29 @@ class InternalLinkAdmin(admin.ModelAdmin):
             '<span style="background: #e7f3ff; color: #004085; padding: 4px 8px; '
             'border-radius: 4px; font-size: 10px; font-weight: 500;">Internal Link</span>'
         )
+
+
+# --------------------------
+# Post Revisions
+# --------------------------
+@admin.register(PostRevision)
+class PostRevisionAdmin(admin.ModelAdmin):
+    list_display = ("post", "version", "created_by", "created_at", "size_display")
+    list_filter = ("created_at",)
+    list_select_related = ("post", "created_by")
+    search_fields = ("post__title",)
+    readonly_fields = ("post", "version", "content_markdown", "created_by", "created_at")
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Size")
+    def size_display(self, obj):
+        size = len(obj.content_markdown)
+        if size < 1024:
+            return f"{size} B"
+        return f"{size / 1024:.1f} KB"
