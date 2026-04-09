@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0021_add_postrevision'),
+        ("engine", "0021_add_postrevision"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sitesettings',
-            name='enable_scheduled_publishing',
-            field=models.BooleanField(default=False, help_text='When enabled, a Celery Beat task runs every minute to publish posts whose published_at time has passed.'),
+            model_name="sitesettings",
+            name="enable_scheduled_publishing",
+            field=models.BooleanField(
+                default=False,
+                help_text="When enabled, a Celery Beat task runs every minute to publish posts whose published_at time has passed.",
+            ),
         ),
     ]

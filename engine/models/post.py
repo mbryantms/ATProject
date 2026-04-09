@@ -228,23 +228,26 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
     )
 
     # --- Media ---
-    # hero_image = models.ImageField(upload_to="posts/hero/", null=True, blank=True)
-    # thumbnail_image = models.ImageField(upload_to="posts/thumbs/", null=True, blank=True)
-    # hero_image_url = models.URLField(blank=True)
-    # thumbnail_image_url = models.URLField(blank=True)
-    # image_alt = models.CharField(max_length=200, blank=True)
+    hero_image_url = models.URLField(
+        blank=True, help_text="Featured image URL for social sharing and cards."
+    )
 
     # --- SEO / Social ---
-    # canonical_url = models.URLField(blank=True)
-    # meta_title = models.CharField(max_length=255, blank=True)
-    # meta_description = models.CharField(max_length=300, blank=True)
-    # og_title = models.CharField(max_length=255, blank=True)
-    # og_description = models.CharField(max_length=300, blank=True)
-    # og_image_url = models.URLField(blank=True)
-    # twitter_card = models.CharField(max_length=20, blank=True, help_text="e.g., summary, summary_large_image")
-    # noindex = models.BooleanField(default=False)
-    # nofollow = models.BooleanField(default=False)
-    # schema_org = models.JSONField(blank=True, null=True)
+    canonical_url = models.URLField(
+        blank=True,
+        help_text="Override canonical URL for syndicated/cross-posted content.",
+    )
+    meta_description = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Override meta description (falls back to description field).",
+    )
+    og_image_url = models.URLField(
+        blank=True, help_text="Override Open Graph image URL."
+    )
+    noindex = models.BooleanField(
+        default=False, help_text="Prevent search engines from indexing this post."
+    )
 
     # --- Interactions / Metrics ---
     allow_comments = models.BooleanField(default=True)
@@ -373,6 +376,55 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
             and self.published_at <= timezone.now()
             and not self.is_deleted
         )
+
+    # ---------------------------
+    # SEO helpers
+    # ---------------------------
+
+    def get_meta_description(self) -> str:
+        """Return best available meta description: override → description → truncated abstract."""
+        if self.meta_description:
+            return self.meta_description
+        if self.description:
+            return self.description[:300]
+        if self.abstract:
+            plain = re.sub(r"[#*_`\[\]()]", "", self.abstract)
+            if len(plain) > 300:
+                return plain[:300].rsplit(" ", 1)[0] + "…"
+            return plain
+        return ""
+
+    def get_og_image_url(self) -> str:
+        """Return best available OG image: override → hero → first image asset rendition."""
+        if self.og_image_url:
+            return self.og_image_url
+        if self.hero_image_url:
+            return self.hero_image_url
+        first_image = (
+            self.post_assets.filter(asset__asset_type="image", asset__status="ready")
+            .select_related("asset")
+            .first()
+        )
+        if first_image:
+            rendition = first_image.asset.renditions.filter(
+                width=1200, status="completed"
+            ).first()
+            if rendition:
+                return rendition.url
+            return first_image.asset.url
+        return ""
+
+    def get_canonical_url(self, site_url: str = "") -> str:
+        """Return canonical URL: override or site_url + absolute path."""
+        if self.canonical_url:
+            return self.canonical_url
+        return f"{site_url}{self.get_absolute_url()}"
+
+    def should_noindex(self) -> bool:
+        """Return True if the post should not be indexed by search engines."""
+        if self.noindex:
+            return True
+        return self.visibility in (self.Visibility.PRIVATE, self.Visibility.UNLISTED)
 
     @property
     def completion_status_label(self) -> str:

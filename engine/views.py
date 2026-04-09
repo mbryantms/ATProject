@@ -7,10 +7,11 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
 
-from .models import Category, Page, Post, Series, Tag, TagAlias
+from .mixins import SEOContextMixin
+from .models import Category, Page, Post, Series, SiteSettings, Tag, TagAlias
 
 
-class IndexView(TemplateView):
+class IndexView(SEOContextMixin, TemplateView):
     """
     Homepage showing an intro section and multi-column content sections.
 
@@ -79,13 +80,14 @@ class IndexView(TemplateView):
         return context
 
 
-class PostArchiveView(TemplateView):
+class PostArchiveView(SEOContextMixin, TemplateView):
     """
     Landing page showing all published posts in reverse chronological order,
     grouped by year.
     """
 
     template_name = "posts/post_archive.html"
+    seo_title = "All Posts"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -124,7 +126,7 @@ class PostArchiveView(TemplateView):
         return context
 
 
-class TagArchiveView(TemplateView):
+class TagArchiveView(SEOContextMixin, TemplateView):
     """
     Display all posts with a specific tag, grouped by year.
     Includes hierarchical navigation (ancestors and children).
@@ -218,10 +220,16 @@ class TagArchiveView(TemplateView):
         context["children"] = children
         context["siblings"] = siblings
         context["aliases"] = tag.aliases.all()
+
+        # SEO overrides
+        context["seo_title"] = f"Posts tagged: {tag.name}"
+        if tag.description:
+            context["seo_description"] = tag.description[:300]
+
         return context
 
 
-class TagListView(TemplateView):
+class TagListView(SEOContextMixin, TemplateView):
     """
     Display all active tags with post counts.
 
@@ -232,6 +240,7 @@ class TagListView(TemplateView):
     """
 
     template_name = "posts/tag_list.html"
+    seo_title = "Tags"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -322,7 +331,7 @@ class TagListView(TemplateView):
         return context
 
 
-class CategoryArchiveView(TemplateView):
+class CategoryArchiveView(SEOContextMixin, TemplateView):
     """
     Display all posts in a specific category, grouped by year.
     Includes hierarchical navigation (ancestors, children, siblings).
@@ -370,9 +379,7 @@ class CategoryArchiveView(TemplateView):
         children = category.children.order_by("name")
 
         if category.parent:
-            siblings = (
-                category.parent.children.exclude(pk=category.pk).order_by("name")
-            )
+            siblings = category.parent.children.exclude(pk=category.pk).order_by("name")
         else:
             siblings = (
                 Category.objects.filter(parent__isnull=True)
@@ -386,10 +393,16 @@ class CategoryArchiveView(TemplateView):
         context["ancestors"] = ancestors
         context["children"] = children
         context["siblings"] = siblings
+
+        # SEO overrides
+        context["seo_title"] = f"Category: {category.name}"
+        if category.description:
+            context["seo_description"] = category.description[:300]
+
         return context
 
 
-class CategoryListView(TemplateView):
+class CategoryListView(SEOContextMixin, TemplateView):
     """
     Display all categories with post counts.
 
@@ -399,6 +412,7 @@ class CategoryListView(TemplateView):
     """
 
     template_name = "posts/category_list.html"
+    seo_title = "Categories"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -424,11 +438,9 @@ class CategoryListView(TemplateView):
                 posts__published_at__lte=now,
             )
 
-        categories = (
-            Category.objects.annotate(
-                post_count=Count("posts", filter=post_filter)
-            ).select_related("parent")
-        )
+        categories = Category.objects.annotate(
+            post_count=Count("posts", filter=post_filter)
+        ).select_related("parent")
 
         if sort_by == "count":
             categories = categories.order_by("-post_count", "name")
@@ -469,7 +481,7 @@ def links(request):
     return render(request, "delete/links.html", {"page_title": "Links"})
 
 
-class PageView(TemplateView):
+class PageView(SEOContextMixin, TemplateView):
     """
     Render a static page from the Page model.
 
@@ -492,13 +504,14 @@ class PageView(TemplateView):
             context["page"] = page
             context["page_title"] = page.title
             context["content_html"] = page.content_html
+            context["seo_title"] = page.title
         except Page.DoesNotExist:
             raise Http404(f"Page '{slug}' not found")
 
         return context
 
 
-class PostDetailView(DetailView):
+class PostDetailView(SEOContextMixin, DetailView):
     """
     Shows a single post. Anonymous users can see only published+visible posts.
     Staff can see any status via direct slug.
@@ -509,6 +522,7 @@ class PostDetailView(DetailView):
     slug_url_kwarg = "slug"
     template_name = "posts/post_detail.html"
     context_object_name = "post"
+    seo_og_type = "article"
 
     def get_queryset(self):
         qs = Post.all_objects.select_related("author", "series").prefetch_related(
@@ -606,15 +620,50 @@ class PostDetailView(DetailView):
                     else None
                 )
 
+        # --- SEO context ---
+        settings = SiteSettings.load()
+        site_url = settings.site_url.rstrip("/") if settings.site_url else ""
+        og_image = post.get_og_image_url() or settings.default_og_image_url
+
+        context["seo_title"] = post.title
+        context["seo_description"] = post.get_meta_description()
+        context["seo_canonical"] = post.get_canonical_url(site_url)
+        context["seo_image"] = og_image
+        context["seo_og_type"] = "article"
+        context["seo_twitter_card"] = "summary_large_image" if og_image else "summary"
+        context["seo_noindex"] = post.should_noindex()
+        context["seo_published_time"] = post.published_at
+        context["seo_modified_time"] = post.updated_at
+        context["seo_author"] = post.author.get_full_name() or post.author.username
+        context["seo_tags"] = list(post.tags.values_list("name", flat=True))
+        context["seo_word_count"] = post.word_count
+        context["seo_language"] = post.language
+
+        # Breadcrumbs
+        breadcrumbs = [{"name": "Home", "url": f"{site_url}/"}]
+        first_cat = post.categories.first()
+        if first_cat:
+            breadcrumbs.append(
+                {
+                    "name": first_cat.name,
+                    "url": f"{site_url}{first_cat.get_absolute_url()}",
+                }
+            )
+        breadcrumbs.append(
+            {"name": post.title, "url": f"{site_url}{post.get_absolute_url()}"}
+        )
+        context["seo_breadcrumbs"] = breadcrumbs
+
         return context
 
 
-class SeriesListView(ListView):
+class SeriesListView(SEOContextMixin, ListView):
     """List all series that have at least one published, public post."""
 
     model = Series
     template_name = "posts/series_list.html"
     context_object_name = "series_list"
+    seo_title = "Series"
 
     def get_queryset(self):
         user = self.request.user
@@ -638,7 +687,7 @@ class SeriesListView(ListView):
         )
 
 
-class SeriesDetailView(DetailView):
+class SeriesDetailView(SEOContextMixin, DetailView):
     """Display a single series with its posts in order."""
 
     model = Series
@@ -677,5 +726,10 @@ class SeriesDetailView(DetailView):
             total_reading_time=Sum("reading_time_minutes"),
         )
         context.update(stats)
+
+        # SEO overrides
+        context["seo_title"] = series.title
+        if series.description:
+            context["seo_description"] = series.description[:300]
 
         return context

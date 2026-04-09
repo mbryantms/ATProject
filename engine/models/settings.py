@@ -14,6 +14,31 @@ class SiteSettings(models.Model):
         help_text="When enabled, a Celery Beat task runs every minute to publish posts whose published_at time has passed.",
     )
 
+    # --- SEO & Social ---
+    site_name = models.CharField(
+        max_length=100,
+        default="Architextual",
+        help_text="Site name used in OpenGraph tags and structured data.",
+    )
+    site_description = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Default meta description for pages without their own.",
+    )
+    site_url = models.URLField(
+        blank=True,
+        help_text="Canonical base URL, no trailing slash (e.g. https://architextual.net).",
+    )
+    default_og_image_url = models.URLField(
+        blank=True,
+        help_text="Default Open Graph image URL when no page-specific image exists.",
+    )
+    twitter_handle = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Twitter/X handle for twitter:site tag (e.g. @username).",
+    )
+
     class Meta:
         verbose_name = "site settings"
         verbose_name_plural = "site settings"

@@ -12,7 +12,7 @@ from django.contrib import admin, messages
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
-from django.utils.html import escape, format_html
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from engine.models import InternalLink, Post, PostAsset, PostRevision
@@ -229,7 +229,9 @@ class PostRevisionInline(admin.TabularInline):
     def version_link(self, obj):
         if not obj or not obj.pk:
             return "-"
-        diff_url = reverse("admin:engine_post_revision_diff", args=[obj.post_id, obj.pk])
+        diff_url = reverse(
+            "admin:engine_post_revision_diff", args=[obj.post_id, obj.pk]
+        )
         return format_html('<a href="{}">v{}</a>', diff_url, obj.version)
 
     @admin.display(description="Size")
@@ -391,7 +393,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         left_label = f"v{prev_revision.version}" if prev_revision else "(empty)"
         right_label = f"v{revision.version}"
-        left_lines = (prev_revision.content_markdown if prev_revision else "").splitlines(keepends=True)
+        left_lines = (
+            prev_revision.content_markdown if prev_revision else ""
+        ).splitlines(keepends=True)
         right_lines = revision.content_markdown.splitlines(keepends=True)
 
         diff_html = difflib.HtmlDiff(wrapcolumn=80).make_table(
@@ -440,9 +444,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             request,
             f'Restored "{post.title}" to revision v{revision.version}.',
         )
-        return HttpResponseRedirect(
-            reverse("admin:engine_post_change", args=[post_id])
-        )
+        return HttpResponseRedirect(reverse("admin:engine_post_change", args=[post_id]))
 
     fieldsets = (
         (
@@ -509,6 +511,19 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 ),
                 "classes": [],
                 "description": "User engagement metrics and reading statistics",
+            },
+        ),
+        (
+            "SEO & Social Sharing",
+            {
+                "fields": (
+                    ("meta_description",),
+                    ("hero_image_url", "og_image_url"),
+                    ("canonical_url",),
+                    ("noindex",),
+                ),
+                "classes": ["collapse"],
+                "description": "Override auto-generated SEO metadata. Leave blank to use defaults.",
             },
         ),
         (
@@ -1029,7 +1044,13 @@ class PostRevisionAdmin(admin.ModelAdmin):
     list_filter = ("created_at",)
     list_select_related = ("post", "created_by")
     search_fields = ("post__title",)
-    readonly_fields = ("post", "version", "content_markdown", "created_by", "created_at")
+    readonly_fields = (
+        "post",
+        "version",
+        "content_markdown",
+        "created_by",
+        "created_at",
+    )
     ordering = ("-created_at",)
 
     def has_add_permission(self, request):

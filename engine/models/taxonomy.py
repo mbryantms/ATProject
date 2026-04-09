@@ -184,6 +184,9 @@ class Tag(TimeStampedModel, UniqueSlugMixin):
             return f"{self.namespace}:{self.name}"
         return self.name
 
+    def get_absolute_url(self):
+        return reverse("tag-archive", kwargs={"slug": self.slug})
+
     @property
     def breadcrumb(self) -> str:
         """Return hierarchical path (e.g., 'Technology > Python > Django')."""
@@ -437,9 +440,7 @@ class Category(TimeStampedModel, UniqueSlugMixin):
         if not ids_to_fetch:
             return []
 
-        id_map = {
-            cat.pk: cat for cat in Category.objects.filter(pk__in=ids_to_fetch)
-        }
+        id_map = {cat.pk: cat for cat in Category.objects.filter(pk__in=ids_to_fetch)}
         return [id_map[pk] for pk in ids_to_fetch if pk in id_map]
 
     def get_descendants(self, include_self=False):

@@ -23,6 +23,16 @@
         document.head.appendChild(meta);
       })();
     </script>
+    {% block seo_meta %}{% include "includes/seo_meta.html" %}{% endblock seo_meta %}
+    {% block jsonld %}{% include "includes/jsonld.html" %}{% endblock jsonld %}
+    <script nonce="{{ csp_nonce }}" type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "{{ site_settings.site_name|default:'Architextual' }}",
+      "url": "{{ site_settings.site_url|default:'/' }}"
+    }
+    </script>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="icon" type="image/png" href="/static/img/favicon.png">
     <link rel="stylesheet" href="/static/css/dist/base.css">

@@ -13,6 +13,8 @@ from django.views import View
 from django.views.generic import TemplateView
 from django_ratelimit.decorators import ratelimit
 
+from engine.mixins import SEOContextMixin
+
 from .service import build_search_results
 
 
@@ -126,7 +128,7 @@ class SearchAPIView(View):
         return JsonResponse(results)
 
 
-class SearchPageView(TemplateView):
+class SearchPageView(SEOContextMixin, TemplateView):
     """
     GET /search/
 
@@ -135,9 +137,11 @@ class SearchPageView(TemplateView):
     """
 
     template_name = "search.html"
+    seo_title = "Search"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["seo_noindex"] = True
         q = self.request.GET.get("q", "").strip()
         context["query"] = q
 

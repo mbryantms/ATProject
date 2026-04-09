@@ -1,0 +1,48 @@
+{% comment %}
+JSON-LD structured data for SEO.
+Article schema rendered on post pages; BreadcrumbList on pages with breadcrumbs.
+{% endcomment %}
+
+{% if seo_og_type == 'article' %}
+<script nonce="{{ csp_nonce }}" type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ seo_title|escapejs }}",
+  {% if seo_description %}"description": "{{ seo_description|escapejs }}",{% endif %}
+  "url": "{{ seo_canonical }}",
+  {% if seo_image %}"image": "{{ seo_image }}",{% endif %}
+  {% if seo_published_time %}"datePublished": "{{ seo_published_time|date:'c' }}",{% endif %}
+  {% if seo_modified_time %}"dateModified": "{{ seo_modified_time|date:'c' }}",{% endif %}
+  {% if seo_author %}"author": {
+    "@type": "Person",
+    "name": "{{ seo_author|escapejs }}"
+  },{% endif %}
+  "publisher": {
+    "@type": "Organization",
+    "name": "{{ site_settings.site_name|default:'Architextual'|escapejs }}"
+  },
+  {% if seo_word_count %}"wordCount": {{ seo_word_count }},{% endif %}
+  "inLanguage": "{{ seo_language|default:'en' }}"
+}
+</script>
+{% endif %}
+
+{% if seo_breadcrumbs %}
+<script nonce="{{ csp_nonce }}" type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {% for crumb in seo_breadcrumbs %}
+    {
+      "@type": "ListItem",
+      "position": {{ forloop.counter }},
+      "name": "{{ crumb.name|escapejs }}",
+      "item": "{{ crumb.url }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}

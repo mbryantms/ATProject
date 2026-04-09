@@ -18,9 +18,18 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import JsonResponse
+from django.contrib.sitemaps.views import sitemap
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import include, path
+
+from engine.sitemaps import (
+    CategorySitemap,
+    PostSitemap,
+    SeriesSitemap,
+    StaticSitemap,
+    TagSitemap,
+)
 
 
 def health_check(request):
@@ -31,8 +40,37 @@ def health_check(request):
     return JsonResponse({"status": "ok"}, status=200)
 
 
+def robots_txt(request):
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "",
+        f"Disallow: /{settings.ADMIN_URL}",
+        "Disallow: /api/",
+        "Disallow: /search/",
+        "",
+        f"Sitemap: {request.scheme}://{request.get_host()}/sitemap.xml",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain")
+
+
+sitemaps = {
+    "posts": PostSitemap,
+    "series": SeriesSitemap,
+    "categories": CategorySitemap,
+    "tags": TagSitemap,
+    "static": StaticSitemap,
+}
+
 urlpatterns = [
     path("health/", health_check, name="health_check"),
+    path("robots.txt", robots_txt, name="robots-txt"),
+    path(
+        "sitemap.xml",
+        sitemap,
+        {"sitemaps": sitemaps},
+        name="django.contrib.sitemaps.views.sitemap",
+    ),
     path("api/", include("engine.api.urls")),
     path("", include("engine.urls")),
     path(settings.ADMIN_URL, admin.site.urls),

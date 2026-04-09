@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0019_convert_unique_together_to_constraints'),
+        ("engine", "0019_convert_unique_together_to_constraints"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='post',
-            name='series_order',
-            field=models.PositiveIntegerField(blank=True, help_text='Manual ordering within a series (lower numbers appear first).', null=True),
+            model_name="post",
+            name="series_order",
+            field=models.PositiveIntegerField(
+                blank=True,
+                help_text="Manual ordering within a series (lower numbers appear first).",
+                null=True,
+            ),
         ),
     ]
