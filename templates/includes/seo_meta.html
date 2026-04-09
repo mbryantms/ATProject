@@ -23,7 +23,8 @@ All values come from seo_* context variables set by views.
 {% if seo_modified_time %}<meta property="article:modified_time" content="{{ seo_modified_time|date:'c' }}">{% endif %}
 {% if seo_author %}<meta property="article:author" content="{{ seo_author }}">{% endif %}
 {% for tag in seo_tags %}<meta property="article:tag" content="{{ tag }}">
-{% endfor %}{% endif %}
+{% endfor %}{% if seo_section %}<meta property="article:section" content="{{ seo_section }}">
+{% endif %}{% endif %}
 
 {% comment %} Twitter Card {% endcomment %}
 <meta name="twitter:card" content="{{ seo_twitter_card|default:'summary' }}">

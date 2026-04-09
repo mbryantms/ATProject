@@ -437,6 +437,24 @@ header h1 em {
   margin-left: 0.1em;
 }
 
+/*********************/
+/*  Page categories.
+ */
+#page-metadata .link-categories {
+  font-family: var(--AT-sans-serif-font-stack);
+  font-variant-caps: small-caps;
+}
+
+#page-metadata .link-categories a {
+  white-space: nowrap;
+  margin-right: 0.05em;
+  background-position: 0 calc(100% - 1px);
+}
+
+#page-metadata .link-categories a:nth-child(n + 2) {
+  margin-left: 0.1em;
+}
+
 /********************/
 /*  Page description.
  */
@@ -549,6 +567,12 @@ header h1 em {
     font-size: calc((16 / 20) * var(--AT-body-text-font-size));
   }
 
+  /*  Page categories.
+   */
+  #page-metadata .link-categories {
+    font-size: calc((16 / 20) * var(--AT-body-text-font-size));
+  }
+
   /*  Page metadata fields.
    */
   #page-metadata .page-metadata-fields,
@@ -577,6 +601,12 @@ header h1 em {
   /*  Page tags.
    */
   #page-metadata .link-tags {
+    font-size: calc((16 / 18) * var(--AT-body-text-font-size));
+  }
+
+  /*  Page categories.
+   */
+  #page-metadata .link-categories {
     font-size: calc((16 / 18) * var(--AT-body-text-font-size));
   }
 

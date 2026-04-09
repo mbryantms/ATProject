@@ -636,6 +636,9 @@ class PostDetailView(SEOContextMixin, DetailView):
         context["seo_modified_time"] = post.updated_at
         context["seo_author"] = post.author.get_full_name() or post.author.username
         context["seo_tags"] = list(post.tags.values_list("name", flat=True))
+        category_names = list(post.categories.values_list("name", flat=True))
+        context["seo_section"] = category_names[0] if category_names else None
+        context["seo_keywords"] = context["seo_tags"] + category_names
         context["seo_word_count"] = post.word_count
         context["seo_language"] = post.language
 

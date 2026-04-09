@@ -3,6 +3,7 @@
   <div class="sidebar-nav">
     <a class="sidebar-link{% if request.path == '/' %} active{% endif %}" href="/">Home</a>
     <a class="sidebar-link{% if '/tags' in request.path %} active{% endif %}" href="/tags">Tags</a>
+    <a class="sidebar-link{% if '/categories' in request.path %} active{% endif %}" href="/categories">Categories</a>
     <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts">Posts</a>
     <a class="sidebar-link{% if '/series' in request.path %} active{% endif %}" href="/series">Series</a>
     <span class="sidebar-separator"></span>

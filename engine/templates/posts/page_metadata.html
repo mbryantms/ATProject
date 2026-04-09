@@ -15,6 +15,20 @@
         </p>
       </div>
     {% endif %}
+    {# Categories #}
+    {% if post.categories.exists %}
+      <div class="link-categories">
+        <p>
+          Filed in:
+          {% for cat in post.categories.all %}
+            <a href="{% url 'category-archive' slug=cat.slug %}"
+               class="link-category link-page link-annotated icon-not has-annotation"
+               title="Link to {{ cat.name }} category index">{{ cat.name }}</a>
+            {% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      </div>
+    {% endif %}
     {# Description #}
     {% if post.description %}
       <div class="page-description">
@@ -121,12 +135,6 @@
 {#        </span>#}
 {#      {% endif %}#}
 {#    #}
-{# Categories #}
-{#      {% if post.categories.exists %}#}
-{#        <span class="page-categories">In {% for cat in post.categories.all %}#}
-{#          <a href="#" class="link-annotated">{{ cat.name }}</a>#}
-{#          {% if not forloop.last %},{% endif %}{% endfor %}</span>#}
-{#      {% endif %}#}
 </div>
 {# Series #}
 {% if post.series %}
