@@ -501,10 +501,11 @@ header h1 em {
 
 /*  Flex order.
  */
-/* date, author, status */
+/* date, author, status, categories */
 #page-metadata .page-metadata-fields .page-author,
 #page-metadata .page-metadata-fields .page-date-range,
-#page-metadata .page-metadata-fields .page-status {
+#page-metadata .page-metadata-fields .page-status,
+#page-metadata .page-metadata-fields .page-categories {
   order: 1;
 }
 
