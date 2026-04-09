@@ -51,6 +51,16 @@
     {{ post.completion_status_label|lower }}
   {% endtooltip %}
 </span>
+{# Categories #}
+{% if post.categories.exists %}
+<span class="page-categories">
+  {% tooltip position="top" theme="dark" %}
+  <span>{% for cat in post.categories.all %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+  {% tooltip_content %}
+  Filed in {% for cat in post.categories.all %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+{% endtooltip %}
+</span>
+{% endif %}
 {# Certainty with gauge #}
 <span class="page-confidence">
   {% tooltip position="top" theme="dark" %}
@@ -96,18 +106,6 @@
     </a>
     {% tooltip_content %}
     {{ similar_posts_count }} similar post{{ similar_posts_count|pluralize }} found automatically.
-  {% endtooltip %}
-</span>
-{% endif %}
-{# Categories #}
-{% if post.categories.exists %}
-  <span class="page-categories">
-    {% tooltip position="top" theme="dark" %}
-    {% for cat in post.categories.all %}<a href="{% url 'category-archive' slug=cat.slug %}"
-       class="link-category link-page link-annotated icon-not has-annotation"
-       title="Link to {{ cat.name }} category index">{{ cat.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
-    {% tooltip_content %}
-    Filed in {% for cat in post.categories.all %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.
   {% endtooltip %}
 </span>
 {% endif %}
