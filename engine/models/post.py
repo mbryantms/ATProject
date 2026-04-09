@@ -382,7 +382,7 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
     # ---------------------------
 
     def get_meta_description(self) -> str:
-        """Return best available meta description: override → description → truncated abstract."""
+        """Return best available meta description: override → description → truncated abstract → title."""
         if self.meta_description:
             return self.meta_description
         if self.description:
@@ -392,7 +392,11 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
             if len(plain) > 300:
                 return plain[:300].rsplit(" ", 1)[0] + "…"
             return plain
-        return ""
+        # Last resort: compose from title and subtitle
+        parts = [self.title]
+        if self.subtitle:
+            parts.append(self.subtitle)
+        return " — ".join(parts)
 
     def get_og_image_url(self) -> str:
         """Return best available OG image: override → hero → first image asset rendition."""

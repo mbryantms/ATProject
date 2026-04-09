@@ -622,7 +622,7 @@ class PostDetailView(SEOContextMixin, DetailView):
 
         # --- SEO context ---
         settings = SiteSettings.load()
-        site_url = settings.site_url.rstrip("/") if settings.site_url else ""
+        site_url = self._get_site_url(settings)
         og_image = post.get_og_image_url() or settings.default_og_image_url
 
         context["seo_title"] = post.title
