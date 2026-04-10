@@ -55,7 +55,7 @@
 {% if post.categories.exists %}
 <span class="page-categories">
   {% tooltip position="top" theme="dark" %}
-  <span>{% for cat in post.categories.all %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+  {% for cat in post.categories.all %}<a href="{% url 'category-archive' slug=cat.slug %}">{{ cat.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
   {% tooltip_content %}
   Filed in the {% for cat in post.categories.all %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %} categor{{ post.categories.count|pluralize:"y,ies" }}.
 {% endtooltip %}
