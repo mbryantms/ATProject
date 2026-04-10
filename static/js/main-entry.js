@@ -3,3 +3,4 @@ import './toc.js';
 import './anchor-links.js';
 import './theme.js';
 import './search.js';
+import './scroll-to-top.js';

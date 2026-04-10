@@ -66,6 +66,30 @@
       {% endif %}
     </div>
     {% endfor %}
+
+    {# Category Section Columns #}
+    {% for section in category_sections %}
+    <div class="index-column">
+      <h2><a href="{% url 'category-archive' section.category.slug %}">{{ section.title }}</a></h2>
+      {% if section.posts %}
+      <ul class="index-post-list list-level-1 list block">
+        {% for post in section.posts %}
+        <li class="index-post-item in-list">
+          <a href="{{ post.get_absolute_url }}" class="index-post-link">{{ post.title }}</a>
+          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+          {% if post.published_at %}
+          <span class="index-post-date">{{ post.published_at|date:"M j" }}</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="index-more"><a href="{% url 'category-archive' section.category.slug %}">More in {{ section.title }} &rarr;</a></p>
+      {% else %}
+      <p class="index-empty">No posts yet.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
   </section>
 
 </div>

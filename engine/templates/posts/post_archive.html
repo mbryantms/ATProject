@@ -1,11 +1,24 @@
 {% extends "base.html" %}
 
-{% block title %}Archive - Architextual{% endblock %}
+{% block title %}All Posts - Architextual{% endblock %}
 
-{% block page_title %}Archive{% endblock %}
+{% block page_title %}All Posts{% endblock %}
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">
+  <div id="page-metadata">
+    <div class="page-metadata-fields">
+      <span class="page-post-count">{{ total_posts }} post{{ total_posts|pluralize }}</span>
+    </div>
+    <div class="tag-list-controls">
+      <span class="control-group">
+        <span class="control-label">Sort:</span>
+        <a href="?sort=date" class="control-option{% if current_sort == 'date' %} active{% endif %}">Date</a>
+        <a href="?sort=title" class="control-option{% if current_sort == 'title' %} active{% endif %}">Title</a>
+      </span>
+    </div>
+  </div>
+
   {% if posts_by_year %}
     {% for year, posts in posts_by_year.items %}
     <section class="archive-year">

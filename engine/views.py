@@ -45,16 +45,19 @@ class IndexView(SEOContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Get the page object for intro content and featured tags config
+        # Get the page object for intro content and featured config
         try:
-            page = Page.objects.prefetch_related("pagefeaturedtag_set__tag").get(
-                slug=self.PAGE_SLUG, is_active=True
-            )
+            page = Page.objects.prefetch_related(
+                "pagefeaturedtag_set__tag",
+                "pagefeaturedcategory_set__category",
+            ).get(slug=self.PAGE_SLUG, is_active=True)
             context["intro_html"] = page.content_html
             featured_tags_config = page.get_featured_tags_config()
+            featured_categories_config = page.get_featured_categories_config()
         except Page.DoesNotExist:
             context["intro_html"] = ""
             featured_tags_config = []
+            featured_categories_config = []
 
         # Get latest posts for "Newest" section
         base_qs = self.get_base_queryset()
@@ -77,6 +80,22 @@ class IndexView(SEOContextMixin, TemplateView):
 
         context["tag_sections"] = tag_sections
 
+        # Get posts for each featured category (configured in admin)
+        category_sections = []
+        for config in featured_categories_config:
+            category = config["category"]
+            posts = base_qs.filter(categories=category)[:5]
+            if posts.exists():
+                category_sections.append(
+                    {
+                        "title": config["display_title"],
+                        "category": category,
+                        "posts": posts,
+                    }
+                )
+
+        context["category_sections"] = category_sections
+
         return context
 
 
@@ -92,25 +111,29 @@ class PostArchiveView(SEOContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        current_sort = self.request.GET.get("sort", "date")
+        if current_sort not in ("date", "title"):
+            current_sort = "date"
 
-        # Get published, public posts ordered by publication date (newest first)
+        # Get published, public posts
         if user.is_authenticated and (user.is_staff or user.is_superuser):
-            # Staff can see all posts
             posts = (
                 Post.all_objects.filter(is_deleted=False)
                 .select_related("author")
                 .prefetch_related("tags")
-                .order_by("-published_at")
             )
         else:
-            # Public visitors see only published, public posts
             posts = (
                 Post.objects.published()
                 .public()
                 .select_related("author")
                 .prefetch_related("tags")
-                .order_by("-published_at")
             )
+
+        if current_sort == "title":
+            posts = posts.order_by("title")
+        else:
+            posts = posts.order_by("-published_at")
 
         # Group posts by year
         posts_by_year = OrderedDict()
@@ -123,6 +146,7 @@ class PostArchiveView(SEOContextMixin, TemplateView):
 
         context["posts_by_year"] = posts_by_year
         context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        context["current_sort"] = current_sort
         return context
 
 
@@ -683,11 +707,29 @@ class SeriesListView(SEOContextMixin, ListView):
                 posts__published_at__lte=now,
             )
 
-        return (
-            Series.objects.annotate(post_count=Count("posts", filter=post_filter))
-            .filter(post_count__gt=0)
-            .order_by("title")
-        )
+        current_sort = self.request.GET.get("sort", "name")
+        if current_sort not in ("name", "count"):
+            current_sort = "name"
+
+        qs = Series.objects.annotate(
+            post_count=Count("posts", filter=post_filter)
+        ).filter(post_count__gt=0)
+
+        if current_sort == "count":
+            qs = qs.order_by("-post_count", "title")
+        else:
+            qs = qs.order_by("title")
+
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        current_sort = self.request.GET.get("sort", "name")
+        if current_sort not in ("name", "count"):
+            current_sort = "name"
+        context["current_sort"] = current_sort
+        context["total_series"] = context["series_list"].count() if hasattr(context["series_list"], "count") else len(context["series_list"])
+        return context
 
 
 class SeriesDetailView(SEOContextMixin, DetailView):

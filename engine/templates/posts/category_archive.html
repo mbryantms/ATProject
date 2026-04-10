@@ -32,6 +32,15 @@
 
     {# Metadata fields row #}
     <div class="page-metadata-fields">
+      {# Type indicator #}
+      <span class="page-type">
+        {% tooltip position="top" theme="dark" %}
+        <span>Category</span>
+        {% tooltip_content %}
+        This is a category.
+        {% endtooltip %}
+      </span>
+
       <span class="page-post-count">
         {% tooltip position="top" theme="dark" %}
         <span>{{ total_posts }} post{{ total_posts|pluralize }}</span>
@@ -61,6 +70,18 @@
       {% endif %}
     </div>
 
+    {# Parent category #}
+    {% if category.parent %}
+      <div class="link-tags tag-parent-link">
+        <p>
+          <span class="tag-nav-label">Parent:</span>
+          <a href="{% url 'category-archive' slug=category.parent.slug %}"
+             class="link-tag link-page link-annotated icon-not has-annotation"
+             title="View posts in '{{ category.parent.name }}'">{{ category.parent.name }}</a><span class="hierarchy-arrow">&thinsp;&#10531;</span>
+        </p>
+      </div>
+    {% endif %}
+
     {# Subcategories list #}
     {% if children %}
       <div class="link-tags tag-subtags">
@@ -69,7 +90,7 @@
           {% for child in children %}
             <a href="{% url 'category-archive' slug=child.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
-               title="View posts in '{{ child.name }}'">{{ child.name }}</a>{% if not forloop.last %},{% endif %}
+               title="View posts in '{{ child.name }}'">{{ child.name }}</a><span class="hierarchy-arrow">&thinsp;&#8600;</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>
@@ -83,7 +104,7 @@
           {% for sibling in siblings %}
             <a href="{% url 'category-archive' slug=sibling.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
-               title="View posts in '{{ sibling.name }}'">{{ sibling.name }}</a>{% if not forloop.last %},{% endif %}
+               title="View posts in '{{ sibling.name }}'">{{ sibling.name }}</a><span class="hierarchy-arrow">&thinsp;&rarr;</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>

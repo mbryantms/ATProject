@@ -54,7 +54,7 @@
         {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
         {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
         {% if post.description %}
-          <span class="series-description"> &mdash; {{ post.description|truncatewords:25 }}</span>
+          <div class="series-description">{{ post.description|truncatewords:25 }}</div>
         {% endif %}
       </li>
       {% endfor %}

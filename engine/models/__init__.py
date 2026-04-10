@@ -34,7 +34,7 @@ from .organization import (
 )
 
 # Page model
-from .page import Page, PageFeaturedTag
+from .page import Page, PageFeaturedCategory, PageFeaturedTag
 
 # Post models
 from .post import (
@@ -80,6 +80,7 @@ __all__ = [
     # Page
     "Page",
     "PageFeaturedTag",
+    "PageFeaturedCategory",
     # Asset
     "Asset",
     "AssetQuerySet",

@@ -337,14 +337,28 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
   color: var(--AT-body-link-hover-color, #888);
 }
 
-.footer-scroll-top {
+/*  Floating scroll-to-top button.
+ */
+.scroll-to-top {
+  position: fixed;
+  bottom: 2em;
+  right: calc(50% - var(--AT-body-max-width) / 2 - 48px);
   font-size: 1.25em;
   color: var(--AT-body-text-color);
   text-decoration: none;
   line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 100;
 }
 
-.footer-scroll-top:hover {
+.scroll-to-top.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scroll-to-top:hover {
   color: var(--AT-body-link-hover-color, #888);
 }
 
@@ -355,8 +369,9 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
     text-align: center;
   }
 
-  .footer-scroll-top {
-    margin-top: 0.25em;
+  .scroll-to-top {
+    right: 1em;
+    bottom: 1em;
   }
 }
 
@@ -667,11 +682,20 @@ header h1 em {
   margin-right: 0.25em;
 }
 
-/*  Subtags and related tags lists.
+/*  Subtags, parent, and related tags lists.
  */
 #page-metadata .tag-subtags,
-#page-metadata .tag-related {
+#page-metadata .tag-related,
+#page-metadata .tag-parent-link {
   font-size: 0.95em;
+}
+
+/*  Hierarchy direction arrows.
+ */
+.hierarchy-arrow {
+  font-style: normal;
+  color: var(--AT-body-text-secondary-color, #666);
+  font-size: 0.85em;
 }
 
 /*  Tag aliases ("Also known as") section.
@@ -727,10 +751,16 @@ ol.archive-list > li {
   color: var(--AT-body-text-secondary-color, #666);
 }
 
-/*  Series description snippet on index page.
+/*  Series description snippet.
  */
 .series-description {
   color: var(--AT-body-text-secondary-color, #666);
+}
+
+.series-posts .series-description {
+  display: block;
+  font-style: italic;
+  margin-top: 0.15em;
 }
 
 /*  Series order number on detail page.
@@ -743,6 +773,10 @@ ol.archive-list > li {
 
 /*  Series navigation block at the bottom of post detail pages.
  */
+
+.series-nav {
+  margin-top: 1em;
+}
 
 .series-nav-links {
   display: flex;

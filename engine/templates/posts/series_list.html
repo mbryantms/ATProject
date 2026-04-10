@@ -6,6 +6,19 @@
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">
+  <div id="page-metadata">
+    <div class="page-metadata-fields">
+      <span class="page-post-count">{{ total_series }} series</span>
+    </div>
+    <div class="tag-list-controls">
+      <span class="control-group">
+        <span class="control-label">Sort:</span>
+        <a href="?sort=name" class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
+        <a href="?sort=count" class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
+      </span>
+    </div>
+  </div>
+
   {% if series_list %}
     <ul class="archive-list series-index list list-level-1 block">
       {% for series in series_list %}

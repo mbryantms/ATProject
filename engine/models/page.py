@@ -49,6 +49,12 @@ class Page(TimeStampedModel):
         blank=True,
         help_text="Tags to feature on this page (with custom titles and ordering)",
     )
+    featured_categories = models.ManyToManyField(
+        "Category",
+        through="PageFeaturedCategory",
+        blank=True,
+        help_text="Categories to feature on this page (with custom titles and ordering)",
+    )
 
     class Meta:
         ordering = ["slug"]
@@ -93,6 +99,23 @@ class Page(TimeStampedModel):
             for pft in self.pagefeaturedtag_set.select_related("tag").order_by("order")
         ]
 
+    def get_featured_categories_config(self):
+        """
+        Get featured categories configuration for this page.
+
+        Returns a list of dicts with 'category' and 'display_title' keys,
+        ordered by the configured order.
+        """
+        return [
+            {
+                "category": pfc.category,
+                "display_title": pfc.display_title or pfc.category.name,
+            }
+            for pfc in self.pagefeaturedcategory_set.select_related("category").order_by(
+                "order"
+            )
+        ]
+
 
 class PageFeaturedTag(models.Model):
     """
@@ -124,3 +147,35 @@ class PageFeaturedTag(models.Model):
 
     def __str__(self):
         return f"{self.page.slug}: {self.tag.name}"
+
+
+class PageFeaturedCategory(models.Model):
+    """
+    Through model for Page featured categories with ordering and custom display titles.
+    """
+
+    page = models.ForeignKey(Page, on_delete=models.CASCADE)
+    category = models.ForeignKey("Category", on_delete=models.CASCADE)
+    display_title = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Custom title for this section (defaults to category name)",
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order (lower numbers appear first)",
+    )
+
+    class Meta:
+        ordering = ["order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page", "category"],
+                name="unique_page_featured_category",
+            ),
+        ]
+        verbose_name = "Featured Category"
+        verbose_name_plural = "Featured Categories"
+
+    def __str__(self):
+        return f"{self.page.slug}: {self.category.name}"

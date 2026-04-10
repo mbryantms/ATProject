@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from engine.models import Page, PageFeaturedTag
+from engine.models import Page, PageFeaturedCategory, PageFeaturedTag
 
 
 class PageFeaturedTagInline(admin.TabularInline):
@@ -15,16 +15,26 @@ class PageFeaturedTagInline(admin.TabularInline):
     ordering = ["order"]
 
 
+class PageFeaturedCategoryInline(admin.TabularInline):
+    """Inline admin for featured categories on a page."""
+
+    model = PageFeaturedCategory
+    extra = 1
+    autocomplete_fields = ["category"]
+    fields = ["category", "display_title", "order"]
+    ordering = ["order"]
+
+
 @admin.register(Page)
 class PageAdmin(admin.ModelAdmin):
     """Admin for editable static page content."""
 
-    list_display = ["slug", "title", "is_active", "featured_tags_count", "updated_at"]
+    list_display = ["slug", "title", "is_active", "featured_tags_count", "featured_categories_count", "updated_at"]
     list_filter = ["is_active"]
     search_fields = ["slug", "title", "content"]
     readonly_fields = ["content_html", "created_at", "updated_at"]
     ordering = ["slug"]
-    inlines = [PageFeaturedTagInline]
+    inlines = [PageFeaturedTagInline, PageFeaturedCategoryInline]
 
     fieldsets = [
         (
@@ -53,3 +63,8 @@ class PageAdmin(admin.ModelAdmin):
         return obj.featured_tags.count()
 
     featured_tags_count.short_description = "Featured Tags"
+
+    def featured_categories_count(self, obj):
+        return obj.featured_categories.count()
+
+    featured_categories_count.short_description = "Featured Categories"

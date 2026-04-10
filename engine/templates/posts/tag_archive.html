@@ -44,6 +44,15 @@
 
     {# Metadata fields row #}
     <div class="page-metadata-fields">
+      {# Type indicator #}
+      <span class="page-type">
+        {% tooltip position="top" theme="dark" %}
+        <span>Tag</span>
+        {% tooltip_content %}
+        This is a tag.
+        {% endtooltip %}
+      </span>
+
       {# Post count #}
       <span class="page-post-count">
         {% tooltip position="top" theme="dark" %}
@@ -87,6 +96,19 @@
       {% endif %}
     </div>
 
+    {# Parent tag #}
+    {% if tag.parent %}
+      <div class="link-tags tag-parent-link">
+        <p>
+          <span class="tag-nav-label">Parent:</span>
+          <a href="{% url 'tag-archive' slug=tag.parent.slug %}"
+             class="link-tag link-page link-annotated icon-not has-annotation"
+             rel="tag"
+             title="View posts tagged '{{ tag.parent.name }}'">{{ tag.parent.name }}</a><span class="hierarchy-arrow">&thinsp;&#10531;</span>
+        </p>
+      </div>
+    {% endif %}
+
     {# Subtags list #}
     {% if children %}
       <div class="link-tags tag-subtags">
@@ -96,7 +118,7 @@
             <a href="{% url 'tag-archive' slug=child.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
                rel="tag"
-               title="View posts tagged '{{ child.name }}'">{{ child.name }}</a>{% if not forloop.last %},{% endif %}
+               title="View posts tagged '{{ child.name }}'">{{ child.name }}</a><span class="hierarchy-arrow">&thinsp;&#8600;</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>
@@ -111,7 +133,7 @@
             <a href="{% url 'tag-archive' slug=sibling.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
                rel="tag"
-               title="View posts tagged '{{ sibling.name }}'">{{ sibling.name }}</a>{% if not forloop.last %},{% endif %}
+               title="View posts tagged '{{ sibling.name }}'">{{ sibling.name }}</a><span class="hierarchy-arrow">&thinsp;&rarr;</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>
