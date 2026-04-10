@@ -342,7 +342,7 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
 .scroll-to-top {
   position: fixed;
   bottom: 2em;
-  right: calc(50% - var(--AT-body-max-width) / 2 + var(--AT-body-side-padding));
+  right: calc(50% - var(--AT-body-max-width) / 2 - 32px);
   font-size: 1.25em;
   color: var(--AT-body-text-color);
   text-decoration: none;
@@ -353,7 +353,6 @@ html[data-theme='dark'] .theme-toggle .theme-icon-dark {
   align-items: center;
   justify-content: center;
   background-color: var(--AT-body-background-color, #fff);
-  border-radius: 50%;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -774,7 +773,10 @@ ol.archive-list > li {
 .series-posts .series-description {
   display: block;
   font-style: italic;
+  font-size: 0.85em;
   margin-top: 0.15em;
+  margin-left: 1em;
+  line-height: 1.4;
 }
 
 /*  Series order number on detail page.
