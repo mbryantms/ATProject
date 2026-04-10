@@ -199,9 +199,17 @@
 
     var posts = (data.results && data.results.posts) || [];
     var tags = (data.results && data.results.tags) || [];
+    var categories = (data.results && data.results.categories) || [];
+    var series = (data.results && data.results.series) || [];
     var pages = (data.results && data.results.pages) || [];
 
-    if (posts.length === 0 && tags.length === 0 && pages.length === 0) {
+    if (
+      posts.length === 0 &&
+      tags.length === 0 &&
+      categories.length === 0 &&
+      series.length === 0 &&
+      pages.length === 0
+    ) {
       if (data.did_you_mean) {
         resultsContainer.innerHTML =
           '<div class="search-empty">No results found. Did you mean <a href="#" class="search-did-you-mean">' +
@@ -246,6 +254,9 @@
         var metaEl = document.createElement('div');
         metaEl.className = 'search-result-meta';
         var metaParts = [];
+        if (post.series) {
+          metaParts.push(post.series.title);
+        }
         if (post.tags && post.tags.length > 0) {
           metaParts.push(
             post.tags
@@ -281,6 +292,50 @@
         var countEl = document.createElement('span');
         countEl.className = 'search-result-count';
         countEl.textContent = ' (' + tag.post_count + ')';
+        titleEl.appendChild(countEl);
+
+        item.appendChild(titleEl);
+        return item;
+      });
+    }
+
+    // Categories
+    if (categories.length > 0) {
+      appendGroup('Categories', categories, function (cat) {
+        var item = document.createElement('a');
+        item.href = cat.url;
+        item.className = 'search-result-item';
+        item.setAttribute('role', 'option');
+
+        var titleEl = document.createElement('div');
+        titleEl.className = 'search-result-title';
+        titleEl.textContent = cat.name;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + cat.post_count + ')';
+        titleEl.appendChild(countEl);
+
+        item.appendChild(titleEl);
+        return item;
+      });
+    }
+
+    // Series
+    if (series.length > 0) {
+      appendGroup('Series', series, function (s) {
+        var item = document.createElement('a');
+        item.href = s.url;
+        item.className = 'search-result-item';
+        item.setAttribute('role', 'option');
+
+        var titleEl = document.createElement('div');
+        titleEl.className = 'search-result-title';
+        titleEl.textContent = s.title;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + s.post_count + ')';
         titleEl.appendChild(countEl);
 
         item.appendChild(titleEl);
@@ -430,9 +485,17 @@
     var posts = (data.results && data.results.posts) || [];
     var pages = (data.results && data.results.pages) || [];
     var tags = (data.results && data.results.tags) || [];
+    var categories = (data.results && data.results.categories) || [];
+    var series = (data.results && data.results.series) || [];
     container.innerHTML = '';
 
-    if (posts.length === 0 && pages.length === 0 && tags.length === 0) {
+    if (
+      posts.length === 0 &&
+      pages.length === 0 &&
+      tags.length === 0 &&
+      categories.length === 0 &&
+      series.length === 0
+    ) {
       var empty = document.createElement('p');
       empty.className = 'search-page-empty';
       if (data.did_you_mean) {
@@ -447,7 +510,9 @@
 
     var heading = document.createElement('p');
     heading.className = 'search-page-count';
-    var totalCount = data.total || posts.length + pages.length + tags.length;
+    var totalCount =
+      data.total ||
+      posts.length + pages.length + tags.length + categories.length + series.length;
     heading.textContent =
       totalCount + ' result' + (totalCount !== 1 ? 's' : '') + ' found';
     container.appendChild(heading);
@@ -509,6 +574,72 @@
       });
     }
 
+    // Categories
+    if (categories.length > 0) {
+      var categoriesHeader = document.createElement('h2');
+      categoriesHeader.className = 'search-page-section-header';
+      categoriesHeader.textContent = 'Categories';
+      container.appendChild(categoriesHeader);
+
+      categories.forEach(function (cat) {
+        var card = document.createElement('a');
+        card.className = 'search-page-result';
+        card.href = cat.url;
+
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = cat.name;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + cat.post_count + ')';
+        title.appendChild(countEl);
+        card.appendChild(title);
+
+        if (cat.description) {
+          var desc = document.createElement('div');
+          desc.className = 'search-page-result-snippet';
+          desc.textContent = cat.description;
+          card.appendChild(desc);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
+    // Series
+    if (series.length > 0) {
+      var seriesHeader = document.createElement('h2');
+      seriesHeader.className = 'search-page-section-header';
+      seriesHeader.textContent = 'Series';
+      container.appendChild(seriesHeader);
+
+      series.forEach(function (s) {
+        var card = document.createElement('a');
+        card.className = 'search-page-result';
+        card.href = s.url;
+
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = s.title;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + s.post_count + ')';
+        title.appendChild(countEl);
+        card.appendChild(title);
+
+        if (s.description) {
+          var desc = document.createElement('div');
+          desc.className = 'search-page-result-snippet';
+          desc.textContent = s.description;
+          card.appendChild(desc);
+        }
+
+        container.appendChild(card);
+      });
+    }
+
     // Posts
     if (posts.length > 0) {
       var postsHeader = document.createElement('h2');
@@ -541,6 +672,18 @@
         }
         if (post.reading_time) {
           parts.push(post.reading_time + ' min read');
+        }
+        if (post.series) {
+          parts.push(post.series.title);
+        }
+        if (post.categories && post.categories.length > 0) {
+          parts.push(
+            post.categories
+              .map(function (c) {
+                return c.name;
+              })
+              .join(', '),
+          );
         }
         if (post.tags && post.tags.length > 0) {
           parts.push(

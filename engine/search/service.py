@@ -15,7 +15,7 @@ from django.contrib.postgres.search import (
 from django.db.models import Count, Q, Value
 from django.db.models.functions import Coalesce, ExtractYear, NullIf
 
-from engine.models import Category, Page, Post, Tag
+from engine.models import Category, Page, Post, Series, Tag
 
 from .parser import parse_query, resolve_tag_aliases
 
@@ -66,13 +66,13 @@ def _base_post_queryset(user=None):
     if user and user.is_authenticated and (user.is_staff or user.is_superuser):
         return (
             Post.all_objects.filter(is_deleted=False)
-            .select_related("author")
+            .select_related("author", "series")
             .prefetch_related("tags", "categories")
         )
     return (
         Post.objects.published()
         .public()
-        .select_related("author")
+        .select_related("author", "series")
         .prefetch_related("tags", "categories")
     )
 
@@ -218,7 +218,14 @@ def search_posts_fuzzy(query_str, limit=5, user=None):
     return results, did_you_mean
 
 
-def search_tags(query_str, limit=5):
+def _visible_post_filter(user=None):
+    """Return a Q filter for counting only visible posts."""
+    if user and user.is_authenticated and (user.is_staff or user.is_superuser):
+        return Q(posts__is_deleted=False)
+    return Q(posts__status="published", posts__visibility="public")
+
+
+def search_tags(query_str, limit=5, user=None):
     """Search active tags by name, including aliases."""
     if not query_str or not query_str.strip():
         return Tag.objects.none()
@@ -227,11 +234,37 @@ def search_tags(query_str, limit=5):
         Tag.objects.active()
         .annotate(similarity=TrigramSimilarity("name", query_str))
         .filter(Q(name__icontains=query_str) | Q(similarity__gt=0.3))
-        .annotate(post_count=Count("posts"))
+        .annotate(post_count=Count("posts", filter=_visible_post_filter(user)))
         .order_by("-similarity", "-usage_count")[:limit]
     )
 
     return qs
+
+
+def search_categories(query_str, limit=5, user=None):
+    """Search categories by name using trigram similarity."""
+    if not query_str or not query_str.strip():
+        return Category.objects.none()
+
+    return (
+        Category.objects.annotate(similarity=TrigramSimilarity("name", query_str))
+        .filter(Q(name__icontains=query_str) | Q(similarity__gt=0.3))
+        .annotate(post_count=Count("posts", filter=_visible_post_filter(user)))
+        .order_by("-similarity", "-post_count")[:limit]
+    )
+
+
+def search_series(query_str, limit=5, user=None):
+    """Search series by title using trigram similarity."""
+    if not query_str or not query_str.strip():
+        return Series.objects.none()
+
+    return (
+        Series.objects.annotate(similarity=TrigramSimilarity("title", query_str))
+        .filter(Q(title__icontains=query_str) | Q(similarity__gt=0.3))
+        .annotate(post_count=Count("posts", filter=_visible_post_filter(user)))
+        .order_by("-similarity", "-post_count")[:limit]
+    )
 
 
 def search_pages(query_str, limit=3):
@@ -272,6 +305,14 @@ def get_facets(base_queryset):
         .order_by("-year")
     )
 
+    # Series with counts
+    series = (
+        Series.objects.filter(posts__in=base_queryset)
+        .annotate(count=Count("posts", filter=Q(posts__in=base_queryset)))
+        .filter(count__gt=0)
+        .order_by("-count")
+    )
+
     # Completion statuses with counts
     completion_statuses = (
         base_queryset.values("completion_status")
@@ -284,6 +325,9 @@ def get_facets(base_queryset):
         "tags": [{"name": t.name, "slug": t.slug, "count": t.count} for t in tags],
         "categories": [
             {"name": c.name, "slug": c.slug, "count": c.count} for c in categories
+        ],
+        "series": [
+            {"title": s.title, "slug": s.slug, "count": s.count} for s in series
         ],
         "years": [{"year": y["year"], "count": y["count"]} for y in years],
         "completion_statuses": [
@@ -307,10 +351,17 @@ def build_search_results(
         return {
             "query": query_string,
             "total": 0,
-            "results": {"posts": [], "tags": [], "pages": []},
+            "results": {
+                "posts": [],
+                "tags": [],
+                "categories": [],
+                "series": [],
+                "pages": [],
+            },
             "facets": {
                 "tags": [],
                 "categories": [],
+                "series": [],
                 "years": [],
                 "completion_statuses": [],
             },
@@ -358,18 +409,29 @@ def build_search_results(
             "categories": [
                 {"name": c.name, "slug": c.slug} for c in post.categories.all()
             ],
+            "series": (
+                {
+                    "title": post.series.title,
+                    "slug": post.series.slug,
+                    "url": post.series.get_absolute_url(),
+                }
+                if post.series_id
+                else None
+            ),
             "completion_status": post.completion_status,
             "reading_time": post.reading_time_minutes,
             "rank": round(float(getattr(post, "rank", 0)), 4),
         }
         posts_data.append(post_data)
 
-    # Search tags and pages (only for first page)
+    # Search tags, categories, series, and pages (only for first page)
     raw_query = parsed.fulltext_query.strip() or query_string.strip()
     tags_data = []
+    categories_data = []
+    series_data = []
     pages_data = []
     if offset == 0 and raw_query:
-        for tag in search_tags(raw_query, limit=5):
+        for tag in search_tags(raw_query, limit=5, user=user):
             tags_data.append(
                 {
                     "name": tag.name,
@@ -377,6 +439,28 @@ def build_search_results(
                     "url": f"/tags/{tag.slug}/",
                     "description": tag.description[:200] if tag.description else "",
                     "post_count": getattr(tag, "post_count", tag.usage_count),
+                }
+            )
+
+        for cat in search_categories(raw_query, limit=5, user=user):
+            categories_data.append(
+                {
+                    "name": cat.name,
+                    "slug": cat.slug,
+                    "url": cat.get_absolute_url(),
+                    "description": cat.description[:200] if cat.description else "",
+                    "post_count": getattr(cat, "post_count", 0),
+                }
+            )
+
+        for s in search_series(raw_query, limit=5, user=user):
+            series_data.append(
+                {
+                    "title": s.title,
+                    "slug": s.slug,
+                    "url": s.get_absolute_url(),
+                    "description": s.description[:200] if s.description else "",
+                    "post_count": getattr(s, "post_count", 0),
                 }
             )
 
@@ -390,7 +474,13 @@ def build_search_results(
             )
 
     # Get facets from the base queryset (before pagination)
-    facets = {"tags": [], "categories": [], "years": [], "completion_statuses": []}
+    facets = {
+        "tags": [],
+        "categories": [],
+        "series": [],
+        "years": [],
+        "completion_statuses": [],
+    }
     if total > 0:
         facets = get_facets(unsliced_qs)
 
@@ -400,6 +490,8 @@ def build_search_results(
         "results": {
             "posts": posts_data,
             "tags": tags_data,
+            "categories": categories_data,
+            "series": series_data,
             "pages": pages_data,
         },
         "facets": facets,

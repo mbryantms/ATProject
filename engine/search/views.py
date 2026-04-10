@@ -34,10 +34,17 @@ class SearchAPIView(View):
                 {
                     "query": "",
                     "total": 0,
-                    "results": {"posts": [], "tags": [], "pages": []},
+                    "results": {
+                        "posts": [],
+                        "tags": [],
+                        "categories": [],
+                        "series": [],
+                        "pages": [],
+                    },
                     "facets": {
                         "tags": [],
                         "categories": [],
+                        "series": [],
                         "years": [],
                         "completion_statuses": [],
                     },
