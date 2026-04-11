@@ -353,11 +353,13 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
 
         # --- Create a revision snapshot when content changes ---
         if content_changed and self.content_markdown:
-            PostRevision.objects.create(
+            PostRevision.objects.get_or_create(
                 post=self,
                 version=self.version,
-                content_markdown=self.content_markdown,
-                created_by=self.last_edited_by,
+                defaults={
+                    "content_markdown": self.content_markdown,
+                    "created_by": self.last_edited_by,
+                },
             )
 
         # --- Schedule slow tasks after transaction commits ---
