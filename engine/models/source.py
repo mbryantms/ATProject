@@ -324,7 +324,7 @@ class Source(TimeStampedModel, SoftDeleteModel):
     )
 
     # -- Search --
-    search_vector = SearchVectorField(null=True)
+    search_vector = SearchVectorField(null=True, blank=True)
 
     # -- Managers --
     objects = SourceManager()
@@ -346,27 +346,40 @@ class Source(TimeStampedModel, SoftDeleteModel):
     def __str__(self):
         return f"{self.citation_key}: {self.title[:80]}"
 
-    def save(self, *args, **kwargs):
-        # Auto-generate citation key if blank
+    def _generate_citation_key(self):
+        """Auto-generate a citation key from author + year + title."""
+        base_key = generate_citation_key(
+            authors=self.authors or [],
+            issued_date=self.issued_date,
+            title=self.title or "",
+        )
+        # Collect existing keys (including soft-deleted) for collision check
+        existing_keys = set(
+            Source.all_objects.values_list("citation_key", flat=True)
+        )
+        # Exclude our own key if updating
+        if self.pk:
+            try:
+                existing_keys.discard(
+                    Source.all_objects.get(pk=self.pk).citation_key
+                )
+            except Source.DoesNotExist:
+                pass
+        return resolve_collision(base_key, existing_keys)
+
+    def clean(self):
+        """Auto-generate citation key and CSL-JSON before validation."""
+        super().clean()
+
         if not self.citation_key:
-            base_key = generate_citation_key(
-                authors=self.authors or [],
-                issued_date=self.issued_date,
-                title=self.title or "",
-            )
-            # Collect existing keys (including soft-deleted) for collision check
-            existing_keys = set(
-                Source.all_objects.values_list("citation_key", flat=True)
-            )
-            # Exclude our own key if updating
-            if self.pk:
-                try:
-                    existing_keys.discard(
-                        Source.all_objects.get(pk=self.pk).citation_key
-                    )
-                except Source.DoesNotExist:
-                    pass
-            self.citation_key = resolve_collision(base_key, existing_keys)
+            self.citation_key = self._generate_citation_key()
+
+        self.csl_json = self._build_csl_json()
+
+    def save(self, *args, **kwargs):
+        # Safety fallback for programmatic use that skips clean()
+        if not self.citation_key:
+            self.citation_key = self._generate_citation_key()
 
         # Auto-rebuild CSL-JSON from structured fields
         self.csl_json = self._build_csl_json()
