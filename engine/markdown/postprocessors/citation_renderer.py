@@ -118,11 +118,24 @@ def citation_renderer(html: str, context: dict) -> str:
                 }
             )
 
-    # 4. Format via citeproc-js
+    # 4. Determine citation style: post override > site default > "apa"
+    style = "apa"
+    post = context.get("post")
+    if post and getattr(post, "citation_style", ""):
+        style = post.citation_style
+    else:
+        try:
+            from engine.models import SiteSettings
+
+            style = SiteSettings.load().default_citation_style or "apa"
+        except Exception:
+            pass
+
+    # 5. Format via citeproc-js
     formatted = format_citations(
         items=csl_items,
         citation_clusters=citeproc_clusters,
-        style="apa",
+        style=style,
     )
 
     # 5. Replace placeholders with formatted inline citations

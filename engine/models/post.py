@@ -171,6 +171,12 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
     language = models.CharField(
         max_length=12, default="en", help_text="IETF tag, e.g., 'en', 'zh-TW'."
     )
+    citation_style = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="CSL citation style override for this post (e.g., 'chicago-author-date'). "
+        "Leave blank to use the site-wide default.",
+    )
 
     # --- Publication ---
     status = models.CharField(

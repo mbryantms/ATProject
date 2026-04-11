@@ -27,6 +27,40 @@ _LOCALES_DIR = _BIBLIOGRAPHY_DIR / "locales"
 # Subprocess timeout in seconds (citeproc-js is fast; 30s is generous)
 _SUBPROCESS_TIMEOUT = 30
 
+# Common short names mapped to actual CSL style filenames (without .csl)
+_STYLE_ALIASES = {
+    "mla": "modern-language-association",
+    "chicago": "chicago-author-date",
+    "chicago-notes": "chicago-notes-bibliography",
+    "harvard": "harvard-cite-them-right",
+}
+
+
+def _resolve_style_name(style: str) -> str:
+    """Resolve a style name, checking aliases and verifying the file exists."""
+    # Check alias first
+    resolved = _STYLE_ALIASES.get(style.lower(), style)
+
+    # Verify the style file exists
+    style_file = _STYLES_DIR / f"{resolved}.csl"
+    if style_file.exists():
+        return resolved
+
+    # Try the original name (in case alias mapping was wrong)
+    if resolved != style:
+        original_file = _STYLES_DIR / f"{style}.csl"
+        if original_file.exists():
+            return style
+
+    logger.warning(
+        "Citation style '%s' not found in %s. Falling back to 'apa'. "
+        "Available styles: %s",
+        style,
+        _STYLES_DIR,
+        ", ".join(get_available_styles()),
+    )
+    return "apa"
+
 
 @dataclass
 class FormattedOutput:
@@ -68,6 +102,9 @@ def format_citations(
     """
     if not items:
         return FormattedOutput()
+
+    # Resolve style aliases and verify file exists
+    style = _resolve_style_name(style)
 
     # Try citeproc-js subprocess
     try:

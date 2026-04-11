@@ -497,6 +497,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     (
                         "show_toc",
                         "first_line_caps",
+                        "citation_style",
                     ),
                 ),
                 "classes": ["collapse"],
