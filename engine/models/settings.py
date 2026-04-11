@@ -39,6 +39,42 @@ class SiteSettings(models.Model):
         help_text="Twitter/X handle for twitter:site tag (e.g. @username).",
     )
 
+    # --- Zotero Integration ---
+    zotero_library_id = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Zotero user or group library ID.",
+    )
+    zotero_library_type = models.CharField(
+        max_length=10,
+        blank=True,
+        choices=[("user", "User"), ("group", "Group")],
+        default="user",
+        help_text="Whether this is a personal or group library.",
+    )
+    zotero_api_key = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Zotero API key (generate at zotero.org/settings/keys).",
+    )
+    zotero_last_sync_version = models.IntegerField(
+        default=0,
+        help_text="Zotero library version at last sync (for incremental sync).",
+    )
+    zotero_last_sync_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last successful Zotero sync.",
+    )
+
+    # --- Bibliography ---
+    default_citation_style = models.CharField(
+        max_length=100,
+        default="apa",
+        blank=True,
+        help_text="Default CSL citation style (e.g., apa, chicago-author-date, mla).",
+    )
+
     class Meta:
         verbose_name = "site settings"
         verbose_name_plural = "site settings"

@@ -173,7 +173,19 @@ def citation_renderer(html: str, context: dict) -> str:
 
     # 6. Append bibliography section
     if formatted.bibliography:
-        bib_html = render_bibliography_section(formatted.bibliography)
+        # Build file URL map for [PDF] links
+        source_files = {}
+        for key in resolved_keys:
+            source = sources[key]
+            if source.archived_file:
+                try:
+                    source_files[key] = source.archived_file.url
+                except ValueError:
+                    pass
+
+        bib_html = render_bibliography_section(
+            formatted.bibliography, source_files=source_files
+        )
         # Insert before footnotes section if present, otherwise append
         footnotes_marker = '<section id="footnotes"'
         footnotes_alt = '<section class="footnotes"'

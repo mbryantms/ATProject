@@ -50,13 +50,17 @@ def render_unresolved_citation(key: str) -> str:
     return f'<span class="citation-unresolved">[??{html.escape(key)}]</span>'
 
 
-def render_bibliography_section(entries: list[tuple[str, str]]) -> str:
+def render_bibliography_section(
+    entries: list[tuple[str, str]],
+    source_files: dict[str, str] | None = None,
+) -> str:
     """
     Render the bibliography section HTML.
 
     Args:
         entries: List of (citation_key, formatted_html) tuples, already sorted
             by the citation formatter according to the active style.
+        source_files: Optional dict mapping citation_key -> file URL for [PDF] links.
 
     Returns:
         Complete HTML for the bibliography section, or empty string if no entries.
@@ -64,12 +68,21 @@ def render_bibliography_section(entries: list[tuple[str, str]]) -> str:
     if not entries:
         return ""
 
+    source_files = source_files or {}
+
     items_html = []
     for key, formatted_html in entries:
         escaped_key = html.escape(key)
+        file_link = ""
+        if key in source_files:
+            file_url = html.escape(source_files[key])
+            file_link = (
+                f' <a href="{file_url}" class="reference-file-link" '
+                f'target="_blank" rel="noopener">[PDF]</a>'
+            )
         items_html.append(
             f'  <li id="ref-{escaped_key}" class="reference-entry">\n'
-            f'    <span class="reference-text">{formatted_html}</span>\n'
+            f'    <span class="reference-text">{formatted_html}</span>{file_link}\n'
             f"  </li>"
         )
 
