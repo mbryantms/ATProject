@@ -247,14 +247,26 @@ class PostRevisionInline(admin.TabularInline):
 class PostCitationInline(admin.TabularInline):
     model = PostCitation
     extra = 0
-    fields = ("source", "position", "annotation")
-    readonly_fields = ("source", "position")
+    fields = ("source_display", "position", "annotation")
+    readonly_fields = ("source_display", "position")
     ordering = ["position"]
     verbose_name = "Cited Source"
     verbose_name_plural = "Cited Sources"
 
+    @admin.display(description="Source")
+    def source_display(self, obj):
+        if obj.pk and obj.source:
+            return f"{obj.source.citation_key}: {obj.source.title[:60]}"
+        return "-"
+
     def has_add_permission(self, request, obj=None):
-        # Citations are auto-managed from content — don't allow manual adds
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Citations are auto-managed from content — don't allow manual deletes
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False
 
 
