@@ -3,10 +3,19 @@ Zotero integration for the bibliography system.
 
 Uses pyzotero to import and incrementally sync sources from a Zotero library.
 Zotero items are mapped to the universal Source model — no separate Zotero-specific model.
+
+Zotero item hierarchy:
+- **Top-level items**: actual sources (articles, books, etc.) — these become Sources.
+- **Child items**: attachments (PDFs, snapshots) and notes — these are NOT separate Sources.
+  PDFs are optionally downloaded and stored as the parent Source's archived_file.
+
+We use zot.top() to fetch only top-level items, not zot.items() which returns everything.
 """
 
+import hashlib
 import logging
 
+from django.core.files.base import ContentFile
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -31,17 +40,26 @@ def get_zotero_client():
     )
 
 
-def sync_zotero_library(full: bool = False, dry_run: bool = False) -> dict:
+def sync_zotero_library(
+    full: bool = False,
+    dry_run: bool = False,
+    download_attachments: bool = True,
+) -> dict:
     """
     Sync sources from a Zotero library.
+
+    Only imports top-level items (actual sources). Child items like PDF
+    attachments and notes are handled separately — PDFs are downloaded
+    and stored on the parent Source's archived_file field.
 
     Args:
         full: If True, re-import all items. If False, only fetch items
               modified since the last sync version.
         dry_run: If True, don't save changes.
+        download_attachments: If True, download PDF attachments from Zotero.
 
     Returns:
-        Stats dict with created, updated, skipped, errors counts.
+        Stats dict with created, updated, skipped, errors, attachments counts.
     """
     from engine.models import SiteSettings, Source
 
@@ -53,6 +71,7 @@ def sync_zotero_library(full: bool = False, dry_run: bool = False) -> dict:
         "updated": 0,
         "skipped": 0,
         "errors": 0,
+        "attachments_downloaded": 0,
         "error_details": [],
     }
 
@@ -67,13 +86,16 @@ def sync_zotero_library(full: bool = False, dry_run: bool = False) -> dict:
     else:
         logger.info("Full sync: fetching all items")
 
-    # Fetch items from Zotero in CSL-JSON format.
+    # Fetch ONLY top-level items in CSL-JSON format.
+    # zot.top() excludes child items (attachments, notes) so each Zotero
+    # entry becomes exactly one Source.
+    #
     # NOTE: pyzotero's everything() breaks with format='csljson' because
-    # csljson returns a dict {"items": [...]}, and everything() tries to
-    # extend() it (iterating over dict keys, not items). We paginate manually.
+    # csljson returns {"items": [...]}, and everything() iterates dict keys.
+    # We paginate manually instead.
     try:
         items = []
-        result = zot.items(**kwargs)
+        result = zot.top(**kwargs)
         if isinstance(result, dict):
             items.extend(result.get("items", []))
         else:
@@ -91,17 +113,22 @@ def sync_zotero_library(full: bool = False, dry_run: bool = False) -> dict:
         stats["error_details"].append(f"Fetch failed: {e}")
         return stats
 
-    logger.info("Fetched %d items from Zotero", len(items))
+    logger.info("Fetched %d top-level items from Zotero", len(items))
 
     # Get existing keys for collision avoidance
     existing_keys = set(Source.all_objects.values_list("citation_key", flat=True))
 
     for item in items:
         try:
-            _process_zotero_item(item, existing_keys, stats, dry_run)
+            source = _process_zotero_item(item, existing_keys, stats, dry_run)
+
+            # Download PDF attachments for this source
+            if source and download_attachments and not dry_run:
+                _download_attachments(zot, source, stats)
+
         except Exception as e:
             stats["errors"] += 1
-            item_id = item.get("id", "unknown")
+            item_id = item.get("id", "unknown") if isinstance(item, dict) else "unknown"
             stats["error_details"].append(f"Item {item_id}: {e}")
             logger.exception("Error processing Zotero item %s", item_id)
 
@@ -124,8 +151,12 @@ def _process_zotero_item(
     existing_keys: set,
     stats: dict,
     dry_run: bool,
-) -> None:
-    """Process a single Zotero CSL-JSON item into a Source record."""
+):
+    """
+    Process a single Zotero CSL-JSON item into a Source record.
+
+    Returns the Source instance (for attachment downloading), or None.
+    """
     from engine.bibliography.citation_keys import (
         generate_citation_key,
         resolve_collision,
@@ -142,17 +173,18 @@ def _process_zotero_item(
         # Update existing source (but never overwrite citation_key)
         if dry_run:
             stats["updated"] += 1
-            return
+            return None
 
         _update_source_from_csl(existing, csl_item)
         existing.zotero_raw = csl_item
         existing.save()
         stats["updated"] += 1
+        return existing
     else:
         # Create new source
         if dry_run:
             stats["created"] += 1
-            return
+            return None
 
         source = Source()
         _update_source_from_csl(source, csl_item)
@@ -170,6 +202,95 @@ def _process_zotero_item(
 
         source.save()
         stats["created"] += 1
+        return source
+
+
+def _download_attachments(zot, source, stats: dict) -> None:
+    """
+    Download PDF attachments from Zotero for a source.
+
+    Checks child items of the Zotero item for PDF attachments. If found,
+    downloads the first PDF and stores it as the source's archived_file.
+    Skips if the source already has an archived file.
+    """
+    if source.archived_file:
+        return  # Already has a file
+
+    if not source.zotero_key:
+        return
+
+    try:
+        children = zot.children(source.zotero_key)
+    except Exception:
+        logger.debug("Could not fetch children for Zotero item %s", source.zotero_key)
+        return
+
+    for child in children:
+        data = child.get("data", {})
+        content_type = data.get("contentType", "")
+        item_type = data.get("itemType", "")
+
+        # Only download PDF attachments (not snapshots, notes, links)
+        if item_type != "attachment" or content_type != "application/pdf":
+            continue
+
+        child_key = child.get("key", "")
+        if not child_key:
+            continue
+
+        try:
+            # pyzotero's file() returns the raw file content as bytes
+            pdf_content = zot.file(child_key)
+            if not pdf_content:
+                continue
+
+            # Compute SHA-256 for deduplication
+            file_hash = hashlib.sha256(pdf_content).hexdigest()
+
+            # Check for duplicate
+            from engine.models import Source as SourceModel
+
+            if (
+                SourceModel.all_objects.filter(archived_file_hash=file_hash)
+                .exclude(pk=source.pk)
+                .exists()
+            ):
+                logger.info(
+                    "Skipping duplicate file (hash %s) for %s",
+                    file_hash[:12],
+                    source.citation_key,
+                )
+                continue
+
+            # Build a filename
+            filename = data.get("filename", f"{source.citation_key}.pdf")
+            if not filename.lower().endswith(".pdf"):
+                filename += ".pdf"
+
+            # Save to the source's archived_file field
+            source.archived_file.save(filename, ContentFile(pdf_content), save=False)
+            source.archived_file_hash = file_hash
+            source.save(
+                update_fields=["archived_file", "archived_file_hash", "updated_at"]
+            )
+
+            stats["attachments_downloaded"] += 1
+            logger.info(
+                "Downloaded PDF for %s (%s, %d bytes)",
+                source.citation_key,
+                filename,
+                len(pdf_content),
+            )
+
+            # Only download the first PDF per source
+            break
+
+        except Exception:
+            logger.debug(
+                "Could not download attachment %s for %s",
+                child_key,
+                source.citation_key,
+            )
 
 
 def _update_source_from_csl(source, csl_item: dict) -> None:
