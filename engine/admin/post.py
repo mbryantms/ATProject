@@ -15,7 +15,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from engine.models import InternalLink, Post, PostAsset, PostRevision
+from engine.models import InternalLink, Post, PostAsset, PostCitation, PostRevision
 
 from .mixins import SoftDeleteAdminMixin
 
@@ -244,12 +244,26 @@ class PostRevisionInline(admin.TabularInline):
         return f"{size / 1024:.1f} KB"
 
 
+class PostCitationInline(admin.TabularInline):
+    model = PostCitation
+    extra = 0
+    fields = ("source", "position", "annotation")
+    readonly_fields = ("source", "position")
+    ordering = ["position"]
+    verbose_name = "Cited Source"
+    verbose_name_plural = "Cited Sources"
+
+    def has_add_permission(self, request, obj=None):
+        # Citations are auto-managed from content — don't allow manual adds
+        return False
+
+
 # --------------------------
 # Post admin
 # --------------------------
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
-    inlines = [PostAssetInline, IncomingLinksInline, PostRevisionInline]
+    inlines = [PostAssetInline, PostCitationInline, IncomingLinksInline, PostRevisionInline]
     save_on_top = True
     date_hierarchy = "published_at"
 

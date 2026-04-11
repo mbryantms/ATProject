@@ -14,8 +14,8 @@ uv run celery -A ATProject worker    # Task worker (optional)
 uv run python manage.py migrate      # Apply migrations
 uv run python manage.py makemigrations
 
-# Frontend builds
-npm run build                        # Production CSS/JS
+# Frontend builds (dist files are gitignored, built in Docker for deploy)
+npm run build                        # Production CSS/JS (local dev only)
 npm run format                       # Prettier formatting
 
 # Code quality
@@ -34,6 +34,7 @@ engine/                 # Primary Django app
   admin/                # Admin customizations
   api/                  # REST API (presigned uploads)
   markdown/             # Markdown processing pipeline
+  bibliography/         # Citation system (citeproc-js bridge, formatter)
   links/                # Internal link/backlinks system
   management/commands/  # Custom management commands
 templates/              # Global templates
@@ -51,7 +52,8 @@ posts-md/               # Markdown content files
 - **Content**: Pandoc via pypandoc, BeautifulSoup4, Bleach (sanitization)
 - **Storage**: Cloudflare R2 via django-storages (S3-compatible)
 - **Frontend**: PostCSS, esbuild (ES2017), @floating-ui/dom
-- **Deployment**: Railway, Docker (Python 3.13-slim), Gunicorn, WhiteNoise
+- **Citations**: citeproc-js via Node.js subprocess, CSL styles
+- **Deployment**: Railway, Docker (multi-stage: Node builder + Python 3.13-slim), Gunicorn, WhiteNoise
 
 ## Key Patterns
 

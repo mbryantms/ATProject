@@ -48,6 +48,18 @@ from .post import (
 # Settings
 from .settings import SiteSettings
 
+# Citation (bibliography)
+from .citation import PostCitation
+
+# Source (bibliography)
+from .source import (
+    Source,
+    SourceManager,
+    SourceQuerySet,
+    SourceType,
+    UrlStatus,
+)
+
 # Taxonomy models
 from .taxonomy import (
     Category,
@@ -94,4 +106,12 @@ __all__ = [
     "AssetCollection",
     # Settings
     "SiteSettings",
+    # Citation (bibliography)
+    "PostCitation",
+    # Source (bibliography)
+    "Source",
+    "SourceQuerySet",
+    "SourceManager",
+    "SourceType",
+    "UrlStatus",
 ]

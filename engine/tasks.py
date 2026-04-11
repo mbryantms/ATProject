@@ -269,7 +269,9 @@ def update_post_derived_content(self, post_id: int):
         return {"success": False, "error": f"Post {post_id} not found."}
 
     try:
-        html = render_markdown(post.content_markdown or "")
+        # Pass post in context so citation preprocessor/postprocessor can access it
+        context = {"post": post}
+        html = render_markdown(post.content_markdown or "", context=context)
         toc = extract_toc_from_html(html)
 
         # Build search vector with weighted fields:
@@ -291,6 +293,13 @@ def update_post_derived_content(self, post_id: int):
             search_vector=search_vector,
             content_html_cached=html,
         )
+
+        # Sync PostCitation records from resolved citations
+        resolved_citations = context.get("resolved_citations")
+        if resolved_citations is not None:
+            from .bibliography.extractor import update_post_citations
+
+            update_post_citations(post, resolved_citations)
 
         # Invalidate search cache so results stay fresh
         _clear_search_cache()

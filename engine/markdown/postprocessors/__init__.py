@@ -16,6 +16,7 @@ from .asset_image_enhancer import asset_image_enhancer_default
 from .asset_video_enhancer import asset_video_enhancer_default
 from .block_marker import block_marker_default
 from .blockquote_enhancer import blockquote_enhancer_default
+from .citation_renderer import citation_renderer_default
 from .columns_enhancer import columns_enhancer_default
 from .date_enhancer_v2 import date_enhancer_v2_default
 from .epigraph_enhancer import epigraph_enhancer_default
@@ -45,6 +46,7 @@ POSTPROCESSORS = [
     typography_enhancer_default,  # Typography enhancements (subsup pairs, etc.)
     date_enhancer_v2_default,  # Add years-ago subscripts to explicitly marked dates
     footnote_enhancer_default,  # Enhance footnotes with self-links and structure
+    citation_renderer_default,  # Resolve citation placeholders and render bibliography
     block_marker_default,  # Mark discrete content blocks with "block" class
     first_paragraph_marker_default,  # Mark first paragraph in each section
     link_decorator_default,  # Unified link handling: external attrs + icon decoration

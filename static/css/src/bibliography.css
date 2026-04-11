@@ -1,0 +1,147 @@
+/*=============================================================================*/
+/*  BIBLIOGRAPHY & CITATIONS                                                   */
+/*=============================================================================*/
+
+/*  CSS custom properties for bibliography (light mode defaults).
+ */
+:root {
+  --AT-citation-color: #555;
+  --AT-citation-hover-color: #000;
+  --AT-citation-unresolved-color: #c0392b;
+  --AT-references-border-color: var(--AT-footnotes-section-top-rule-color, #ccc);
+  --AT-reference-highlight-color: rgba(255, 220, 100, 0.3);
+  --AT-citation-tooltip-background: rgba(255, 255, 255, 0.96);
+  --AT-citation-tooltip-border-color: #ccc;
+  --AT-citation-tooltip-text-color: var(--AT-body-text-color, #000);
+  --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/*  Dark mode overrides.
+ */
+html[data-theme='dark'] {
+  --AT-citation-color: #b4b4b4;
+  --AT-citation-hover-color: #fff;
+  --AT-citation-unresolved-color: #e74c3c;
+  --AT-reference-highlight-color: rgba(255, 220, 100, 0.15);
+  --AT-citation-tooltip-background: rgba(30, 30, 30, 0.96);
+  --AT-citation-tooltip-border-color: #555;
+  --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme='auto'] {
+    --AT-citation-color: #b4b4b4;
+    --AT-citation-hover-color: #fff;
+    --AT-citation-unresolved-color: #e74c3c;
+    --AT-reference-highlight-color: rgba(255, 220, 100, 0.15);
+    --AT-citation-tooltip-background: rgba(30, 30, 30, 0.96);
+    --AT-citation-tooltip-border-color: #555;
+    --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/*  ---------------------------------------------------------------------------
+    Inline citations
+    --------------------------------------------------------------------------- */
+
+a.citation {
+  color: var(--AT-citation-color);
+  text-decoration: none;
+  font-size: 0.92em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+a.citation:hover {
+  color: var(--AT-citation-hover-color);
+}
+
+a.citation:visited {
+  color: var(--AT-citation-color);
+}
+
+.citation-unresolved {
+  color: var(--AT-citation-unresolved-color);
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+/*  ---------------------------------------------------------------------------
+    References / Bibliography section
+    --------------------------------------------------------------------------- */
+
+.references {
+  margin-top: 2em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--AT-references-border-color);
+}
+
+.references h2 {
+  font-size: 1.25em;
+  margin-bottom: 1em;
+}
+
+.reference-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.reference-entry {
+  padding-left: 2em;
+  text-indent: -2em;
+  margin-bottom: 0.75em;
+  font-size: 0.92em;
+  line-height: 1.55;
+  transition: background-color 0.3s ease;
+}
+
+.reference-entry .reference-text .csl-entry {
+  display: inline;
+}
+
+.reference-entry .reference-text .csl-entry i {
+  font-style: italic;
+}
+
+/*  Highlight animation when scrolling to a reference from an inline citation.
+ */
+.reference-highlight {
+  background-color: var(--AT-reference-highlight-color);
+  border-radius: 3px;
+}
+
+/*  ---------------------------------------------------------------------------
+    Citation tooltip
+    --------------------------------------------------------------------------- */
+
+.citation-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  max-width: 360px;
+  padding: 0.75em 1em;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--AT-citation-tooltip-text-color);
+  background: var(--AT-citation-tooltip-background);
+  border: 1px solid var(--AT-citation-tooltip-border-color);
+  border-radius: 6px;
+  box-shadow: var(--AT-citation-tooltip-shadow);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.citation-tooltip .csl-entry {
+  display: inline;
+}
+
+.citation-tooltip .csl-entry i {
+  font-style: italic;
+}
+
+.citation-tooltip[data-show] {
+  display: block;
+}

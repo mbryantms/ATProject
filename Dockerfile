@@ -1,4 +1,29 @@
 # syntax=docker/dockerfile:1
+
+# -- Stage 1: Node.js builder --
+# Builds frontend CSS/JS assets and installs citeproc-js production deps.
+# This stage is discarded — only built artifacts are copied to production.
+FROM node:22-slim AS node-builder
+
+WORKDIR /app
+
+# Install root frontend dependencies (esbuild, PostCSS, etc.)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Install citeproc-js (production runtime dependency, separate package.json)
+COPY engine/bibliography/package.json engine/bibliography/package-lock.json engine/bibliography/
+RUN cd engine/bibliography && npm ci --omit=dev
+
+# Copy source files needed for frontend build
+COPY static/ static/
+COPY postcss.config.js ./
+
+# Build CSS and JS
+RUN npm run build
+
+
+# -- Stage 2: Python production image --
 FROM python:3.13-slim
 
 # Set environment variables
@@ -14,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy Node.js runtime from builder stage (for citeproc-js subprocess only)
+COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -23,6 +51,13 @@ RUN adduser --disabled-password --gecos '' appuser
 
 # Copy project files
 COPY --chown=appuser:appuser . .
+
+# Copy built frontend assets from node-builder (overwrite any local dist files)
+COPY --from=node-builder --chown=appuser:appuser /app/static/css/dist/ static/css/dist/
+COPY --from=node-builder --chown=appuser:appuser /app/static/js/dist/ static/js/dist/
+
+# Copy citeproc-js node_modules (production deps only, no devDependencies)
+COPY --from=node-builder --chown=appuser:appuser /app/engine/bibliography/node_modules/ engine/bibliography/node_modules/
 
 # Collect static files (uses dummy values for required env vars during build)
 RUN SECRET_KEY=build-placeholder \

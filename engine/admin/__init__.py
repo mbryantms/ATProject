@@ -34,6 +34,7 @@ from .mixins import SoftDeleteAdminMixin
 from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin, PostRevisionAdmin
 from .settings import SiteSettingsAdmin
+from .source import SourceAdmin
 from .task_result import TaskResultAdmin
 from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
 
@@ -63,4 +64,6 @@ __all__ = [
     "TaskResultAdmin",
     # Settings
     "SiteSettingsAdmin",
+    # Source (bibliography)
+    "SourceAdmin",
 ]

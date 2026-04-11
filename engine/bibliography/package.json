@@ -1,0 +1,8 @@
+{
+  "name": "atproject-citeproc",
+  "private": true,
+  "description": "Citation formatting engine using citeproc-js. Called as a subprocess from Django.",
+  "dependencies": {
+    "citeproc": "^2.4.63"
+  }
+}

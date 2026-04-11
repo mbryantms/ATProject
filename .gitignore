@@ -302,8 +302,13 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
-!static/css/dist/
-!static/js/dist/
+
+# Frontend build artifacts (built in Docker, not committed)
+static/css/dist/
+static/js/dist/
+
+# Bibliography citeproc-js dependencies (installed in Docker)
+engine/bibliography/node_modules/
 .output
 
 # Gatsby files
