@@ -43,7 +43,7 @@ class SiteSettings(models.Model):
     zotero_library_id = models.CharField(
         max_length=50,
         blank=True,
-        help_text="Zotero user or group library ID.",
+        help_text="Numeric Zotero user or group library ID (find at zotero.org/settings/keys, NOT your username).",
     )
     zotero_library_type = models.CharField(
         max_length=10,

@@ -67,17 +67,29 @@ def sync_zotero_library(full: bool = False, dry_run: bool = False) -> dict:
     else:
         logger.info("Full sync: fetching all items")
 
-    # Fetch items from Zotero in CSL-JSON format
+    # Fetch items from Zotero in CSL-JSON format.
+    # NOTE: pyzotero's everything() breaks with format='csljson' because
+    # csljson returns a dict {"items": [...]}, and everything() tries to
+    # extend() it (iterating over dict keys, not items). We paginate manually.
     try:
-        result = zot.everything(zot.items(**kwargs))
+        items = []
+        result = zot.items(**kwargs)
+        if isinstance(result, dict):
+            items.extend(result.get("items", []))
+        else:
+            items.extend(result)
+
+        while zot.links.get("next"):
+            result = zot.follow()
+            if isinstance(result, dict):
+                items.extend(result.get("items", []))
+            else:
+                items.extend(result)
     except Exception as e:
         logger.exception("Failed to fetch items from Zotero")
         stats["errors"] += 1
         stats["error_details"].append(f"Fetch failed: {e}")
         return stats
-
-    # pyzotero with format='csljson' returns a dict with 'items' key
-    items = result.get("items", []) if isinstance(result, dict) else result
 
     logger.info("Fetched %d items from Zotero", len(items))
 
