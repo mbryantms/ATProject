@@ -44,11 +44,14 @@ def citation_renderer(html: str, context: dict) -> str:
         and "%%MCITE:" not in html
         and "%%SCITE:" not in html
     ):
+        # No citations — signal the task to clean up any stale PostCitation records
+        context["resolved_citations"] = []
         return html
 
     # 1. Collect all placeholders and extract unique keys
     placeholders = list(_PLACEHOLDER.finditer(html))
     if not placeholders:
+        context["resolved_citations"] = []
         return html
 
     citation_clusters = []
