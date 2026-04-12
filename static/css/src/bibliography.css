@@ -72,6 +72,11 @@ a.citation:visited {
   list-style: none;
   padding-left: 0;
   margin: 0;
+  counter-reset: none;
+}
+
+.reference-list > li::before {
+  display: none;
 }
 
 .reference-entry {
