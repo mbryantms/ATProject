@@ -13,38 +13,19 @@
         </svg>
       </button>
     </h1>
-    <div id="similars" class="include-wrapper-block">
-      <p class="first-graf block">
-        {{ similar_posts_count }} related post{{ similar_posts_count|pluralize }} you might enjoy:
-      </p>
-      <div class="columns block">
-        <ul class="aux-links-list similars-list list list-level1">
-          {% for similar in similar_posts %}
-            <li class="block" data-similarity-score="{{ similar.similarity_score }}">
-              <p class="in-list first-graf first-block">
-                <a href="{{ similar.get_absolute_url }}"
-                   class="link-annotated link-page has-icon has-annotation">
-                  {{ similar.title }}
-                  <span class="link-icon-hook dark-mode-invert">&NoBreak;</span>
-                </a>
-              </p>
-              {% comment %} {% with excerpt=similar.description|default:similar.abstract %}
-                {% if excerpt %}<p class="post-excerpt">{{ excerpt|striptags|truncatewords:30 }}</p>{% endif %}
-              {% endwith %} {% endcomment %}
-              <div class="post-meta">
-                {% if similar.published_at %}<span class="post-date">{{ similar.published_at|date:"Y-m-d" }}</span>{% endif %}
-                {% comment %} {% with tags=similar.tags.all %}
-                  {% if tags %}
-                    <span class="post-tags">
-                      {% for tag in tags|slice:":3" %}<span class="tag">{{ tag.name }}, </span>{% endfor %}
-                    </span>
-                  {% endif %}
-                {% endwith %} {% endcomment %}
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
+    <p class="first-graf block">
+      {{ similar_posts_count }} related post{{ similar_posts_count|pluralize }} you might enjoy:
+    </p>
+    <div class="columns block">
+      <ul class="aux-links-list similars-list list list-level1">
+        {% for similar in similar_posts %}
+          <li>
+            <a href="{{ similar.get_absolute_url }}"
+               class="link-annotated link-page has-icon has-annotation">{{ similar.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
+            {% if similar.published_at %}<span class="post-date">({{ similar.published_at|date:"Y-m-d" }})</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
     </div>
   </section>
 {% endif %}
