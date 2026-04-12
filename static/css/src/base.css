@@ -536,11 +536,11 @@ header h1 em {
   order: 3;
 }
 
-/* bibliography, backlinks, similar — after certainty/importance and line break */
+/* bibliography, backlinks, similar — same row as certainty/importance */
 #page-metadata .page-metadata-fields .page-bibliography,
 #page-metadata .page-metadata-fields .page-backlinks,
 #page-metadata .page-metadata-fields .page-similars {
-  order: 5;
+  order: 3;
 }
 
 /*  Author.
