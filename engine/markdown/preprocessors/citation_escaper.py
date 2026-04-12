@@ -87,17 +87,42 @@ def _escape_narrative(match: re.Match) -> str:
     return f"%%NCITE:{key}%%"
 
 
+# Patterns for code spans and fenced code blocks that should be left untouched
+_FENCED_CODE_BLOCK = re.compile(r"(```[\s\S]*?```|~~~[\s\S]*?~~~)", re.MULTILINE)
+_INLINE_CODE = re.compile(r"(`+)(.+?)\1")
+
+
 def escape_citations(text: str, context: dict) -> str:
     """
     Escape all citation syntax in markdown before Pandoc processing.
 
     The placeholders use %% delimiters which Pandoc treats as plain text.
+    Citations inside inline code (`...`) and fenced code blocks are left untouched.
     """
+    # Protect code spans and fenced blocks from citation processing.
+    # Replace them with unique tokens, process citations, then restore.
+    protected = {}
+    counter = 0
+
+    def _protect(match: re.Match) -> str:
+        nonlocal counter
+        token = f"%%CODEPROTECT:{counter}%%"
+        protected[token] = match.group(0)
+        counter += 1
+        return token
+
+    text = _FENCED_CODE_BLOCK.sub(_protect, text)
+    text = _INLINE_CODE.sub(_protect, text)
+
     # Process bracketed citations first (they contain @ which narrative would also match)
     text = _BRACKETED.sub(_escape_bracketed, text)
 
     # Then process narrative citations (bare @key)
     text = _NARRATIVE.sub(_escape_narrative, text)
+
+    # Restore protected code spans
+    for token, original in protected.items():
+        text = text.replace(token, original)
 
     return text
 
