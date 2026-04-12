@@ -643,7 +643,8 @@ header h1 em {
   /*  No separator at line end.
    */
   #page-metadata .page-metadata-fields .page-author::after,
-  #page-metadata .page-metadata-fields .page-status::after {
+  #page-metadata .page-metadata-fields .page-categories::after,
+  #page-metadata .page-metadata-fields .page-status:not(:has(~ .page-categories))::after {
     display: none;
   }
 
