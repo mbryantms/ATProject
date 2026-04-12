@@ -88,9 +88,33 @@ def render_bibliography_section(
 
     items = "\n".join(items_html)
 
+    # Use h1.heading with self-link to match backlinks/similar posts sections
+    heading = (
+        '<h1 class="heading">'
+        '<a href="#references" title="Link to section: § \'References\'">'
+        "References"
+        "</a>"
+        '<button type="button" class="copy-section-link-button" '
+        'title="Copy section link to clipboard" tabindex="-1">'
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">'
+        '<path d="M0 256C0 167.6 71.63 96 160 96H256C273.7 96 288 110.3 '
+        "288 128C288 145.7 273.7 160 256 160H160C106.1 160 64 202.1 64 "
+        "256C64 309 106.1 352 160 352H256C273.7 352 288 366.3 288 384C288 "
+        "401.7 273.7 416 256 416H160C71.63 416 0 344.4 0 256zM480 416H384"
+        "C366.3 416 352 401.7 352 384C352 366.3 366.3 352 384 352H480C533 "
+        "352 576 309 576 256C576 202.1 533 160 480 160H384C366.3 160 352 "
+        "145.7 352 128C352 110.3 366.3 96 384 96H480C568.4 96 640 167.6 "
+        "640 256C640 344.4 568.4 416 480 416zM416 224C433.7 224 448 238.3 "
+        "448 256C448 273.7 433.7 288 416 288H224C206.3 288 192 273.7 192 "
+        '256C192 238.3 206.3 224 224 224H416z"></path>'
+        "</svg>"
+        "</button>"
+        "</h1>"
+    )
+
     return (
-        f'<section id="references" class="references block" role="doc-bibliography">\n'
-        f"<h2>References</h2>\n"
+        f'<section id="references" class="references level1 block" role="doc-bibliography">\n'
+        f"{heading}\n"
         f'<ol class="reference-list">\n'
         f"{items}\n"
         f"</ol>\n"

@@ -3,6 +3,8 @@
 /*=============================================================================*/
 
 /*  CSS custom properties for bibliography (light mode defaults).
+    Tooltip variables are defined globally in colors.css and dark-mode.css
+    as --AT-tooltip-* so all tooltips share the same theme-aware design.
  */
 :root {
   --AT-citation-color: #555;
@@ -10,10 +12,6 @@
   --AT-citation-unresolved-color: #c0392b;
   --AT-references-border-color: var(--AT-footnotes-section-top-rule-color, #ccc);
   --AT-reference-highlight-color: rgba(255, 220, 100, 0.3);
-  --AT-citation-tooltip-background: rgba(255, 255, 255, 0.96);
-  --AT-citation-tooltip-border-color: #ccc;
-  --AT-citation-tooltip-text-color: var(--AT-body-text-color, #000);
-  --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 /*  Dark mode overrides.
@@ -23,9 +21,6 @@ html[data-theme='dark'] {
   --AT-citation-hover-color: #fff;
   --AT-citation-unresolved-color: #e74c3c;
   --AT-reference-highlight-color: rgba(255, 220, 100, 0.15);
-  --AT-citation-tooltip-background: rgba(30, 30, 30, 0.96);
-  --AT-citation-tooltip-border-color: #555;
-  --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,9 +29,6 @@ html[data-theme='dark'] {
     --AT-citation-hover-color: #fff;
     --AT-citation-unresolved-color: #e74c3c;
     --AT-reference-highlight-color: rgba(255, 220, 100, 0.15);
-    --AT-citation-tooltip-background: rgba(30, 30, 30, 0.96);
-    --AT-citation-tooltip-border-color: #555;
-    --AT-citation-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -77,11 +69,6 @@ a.citation:visited {
   border-top: 1px solid var(--AT-references-border-color);
 }
 
-.references h2 {
-  font-size: 1.25em;
-  margin-bottom: 1em;
-}
-
 .reference-list {
   list-style: none;
   padding-left: 0;
@@ -113,22 +100,23 @@ a.citation:visited {
 }
 
 /*  ---------------------------------------------------------------------------
-    Citation tooltip
+    Citation tooltip — uses the shared --AT-tooltip-* variables from colors.css
+    so it matches all other site tooltips in both light and dark mode.
     --------------------------------------------------------------------------- */
 
 .citation-tooltip {
   display: none;
   position: absolute;
-  z-index: 1000;
+  z-index: 9999;
   max-width: 360px;
   padding: 0.75em 1em;
   font-size: 0.85em;
   line-height: 1.5;
-  color: var(--AT-citation-tooltip-text-color);
-  background: var(--AT-citation-tooltip-background);
-  border: 1px solid var(--AT-citation-tooltip-border-color);
+  color: var(--AT-tooltip-text-color, #000);
+  background: var(--AT-tooltip-background, rgba(255, 255, 255, 0.96));
+  border: 1px solid var(--AT-tooltip-border-color, #ccc);
   border-radius: 6px;
-  box-shadow: var(--AT-citation-tooltip-shadow);
+  box-shadow: var(--AT-tooltip-shadow, 0 4px 16px rgba(0, 0, 0, 0.12));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   pointer-events: none;

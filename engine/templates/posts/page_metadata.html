@@ -79,6 +79,20 @@
   This post's importance was rated <strong>{{ post.importance }}</strong> out of 10.
 {% endtooltip %}
 </span>
+{% if citations_count > 0 %}
+  <span class="page-bibliography">
+    {% tooltip position="top" theme="dark" %}
+    <a class="bibliography link-self has-icon has-content has-indicator-hook"
+       href="{{ post.get_absolute_url }}#references"
+       data-link-icon="bibliography"
+       data-link-icon-type="svg"
+       style="--link-icon-url: url(/static/img/icon/bibliography.svg)"
+       data-attribute-title="Bibliography/references cited in this page."><span class="indicator-hook"></span>bibliography<span class="link-icon-hook dark-mode-invert"></span></a>
+    {% tooltip_content %}
+    This post cites {{ citations_count }} source{{ citations_count|pluralize }}.
+  {% endtooltip %}
+</span>
+{% endif %}
 {% if backlinks_count > 0 %}
   <span class="page-backlinks">
     {% tooltip position="top" theme="dark" %}

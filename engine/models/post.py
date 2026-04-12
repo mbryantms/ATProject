@@ -463,7 +463,11 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         return bool(re.search(r"\[\^[^\]]+\]", text))
 
     def get_render_toc(
-        self, *, backlinks_count: int = 0, similar_posts_count: int = 0
+        self,
+        *,
+        backlinks_count: int = 0,
+        similar_posts_count: int = 0,
+        citations_count: int = 0,
     ) -> list[HeadingNode]:
         """
         Produce a TOC tailored for templates, ensuring auxiliary sections appear last.
@@ -484,6 +488,17 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
                 if contains(node.get("children", []), target):
                     return True
             return False
+
+        if citations_count > 0 and not contains(tree, "references"):
+            extras.append(
+                {
+                    "level": 1,
+                    "id": "references",
+                    "title": "References",
+                    "title_html": "References",
+                    "children": [],
+                }
+            )
 
         if self.has_footnotes and not contains(tree, "footnotes"):
             extras.append(

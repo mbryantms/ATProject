@@ -602,10 +602,15 @@ class PostDetailView(SEOContextMixin, DetailView):
         context["similar_posts"] = similar_posts
         context["similar_posts_count"] = len(similar_posts)
 
+        # Get citation count for bibliography metadata and TOC
+        citations_count = post.citations.count()
+        context["citations_count"] = citations_count
+
         if post.show_toc:
             context["toc_nodes"] = post.get_render_toc(
                 backlinks_count=context["backlinks_count"],
                 similar_posts_count=context["similar_posts_count"],
+                citations_count=citations_count,
             )
         else:
             context["toc_nodes"] = []

@@ -94,6 +94,13 @@ html[data-theme='dark'] {
    */
   --AT-epigraph-quotation-mark-color: #9f9f9f;
 
+  /*  Tooltips.
+   */
+  --AT-tooltip-background: rgba(30, 30, 30, 0.96);
+  --AT-tooltip-text-color: var(--AT-body-text-color, #f1f1f1);
+  --AT-tooltip-border-color: #555;
+  --AT-tooltip-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+
   /*  Footnotes.
    */
   --AT-footnote-border-color: #7c7c7c;
