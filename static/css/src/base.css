@@ -3390,6 +3390,7 @@ script {
 
 #markdownBody .sidenote .footnote-back svg {
   transition: transform 0.25s ease-out;
+  transform-origin: center center;
 }
 
 /****************/

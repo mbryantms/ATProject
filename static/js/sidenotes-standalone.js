@@ -537,6 +537,39 @@
       // Un-hide columns
       SidenotesStandalone.sidenoteColumnLeft.style.visibility = '';
       SidenotesStandalone.sidenoteColumnRight.style.visibility = '';
+
+      // Point back-arrows toward their citations
+      SidenotesStandalone.updateBackArrowRotations();
+    },
+
+    /*****************************/
+    /* Back-arrow rotation.
+     */
+
+    updateBackArrowRotations: () => {
+      if (!SidenotesStandalone.sidenotes) return;
+
+      SidenotesStandalone.sidenotes.forEach((sidenote) => {
+        if (sidenote.classList.contains('hidden')) return;
+
+        const backArrow = sidenote.querySelector('.footnote-back svg');
+        if (!backArrow) return;
+
+        const citation = SidenotesStandalone.counterpart(sidenote);
+        if (!citation) return;
+
+        const arrowRect = backArrow.getBoundingClientRect();
+        const citationRect = citation.getBoundingClientRect();
+
+        const dx =
+          citationRect.left + citationRect.width / 2 - (arrowRect.left + arrowRect.width / 2);
+        const dy =
+          citationRect.top + citationRect.height / 2 - (arrowRect.top + arrowRect.height / 2);
+
+        // atan2(dx, -dy) gives clockwise angle from up (matching SVG's default up orientation)
+        const angleDeg = Math.atan2(dx, -dy) * (180 / Math.PI);
+        backArrow.style.transform = `rotate(${Math.round(angleDeg)}deg)`;
+      });
     },
 
     /******************/
@@ -595,6 +628,11 @@
           sidenote.classList.add('position-adjusted');
         }
       }
+
+      // Update arrow rotation after position change
+      requestAnimationFrame(() => {
+        SidenotesStandalone.updateBackArrowRotations();
+      });
     },
 
     resetSidenotePosition: (sidenote) => {
@@ -603,6 +641,11 @@
         sidenote.style.top = sidenote.dataset.originalTop;
         sidenote.style.transition = 'top 0.2s ease-out';
         sidenote.classList.remove('position-adjusted');
+
+        // Update arrow rotation after position restore
+        requestAnimationFrame(() => {
+          SidenotesStandalone.updateBackArrowRotations();
+        });
 
         // Clean up after transition
         setTimeout(() => {
