@@ -149,17 +149,15 @@ a.citation:visited {
 }
 
 /*  ---------------------------------------------------------------------------
-    Author-date / author / note styles — subtle ordinal on hover
+    Author-date / author / note styles — inline ordinal
     --------------------------------------------------------------------------- */
 
 .reference-ordinal {
-  position: absolute;
-  left: -1.6em;
-  top: 0;
-  font-size: 0.8em;
-  line-height: 1.55;
+  display: inline;
+  margin-right: 0.4em;
   color: var(--AT-citation-color);
   opacity: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .reference-entry:hover .reference-ordinal {
@@ -179,12 +177,13 @@ a.citation:visited {
 }
 
 /*  ---------------------------------------------------------------------------
-    Copy-link feedback
+    Copy-link feedback — brief color flash matching header copy indicator
     --------------------------------------------------------------------------- */
 
 .reference-anchor.clicked {
-  color: var(--AT-citation-hover-color);
-  opacity: 1;
+  color: var(--AT-citation-hover-color) !important;
+  opacity: 1 !important;
+  transition: color 0.15s ease;
 }
 
 /*  ---------------------------------------------------------------------------
