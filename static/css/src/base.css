@@ -83,6 +83,14 @@ html,
   }
 }
 
+/*  Scroll offset for anchor targets so they don't sit at the very top
+    of the viewport. Matches the 80px SCROLL_OFFSET in anchor-links.js.
+ */
+section[id],
+.reference-entry[id] {
+  scroll-margin-top: 80px;
+}
+
 /****************/
 /* ADAPTIVENESS */
 /****************/
