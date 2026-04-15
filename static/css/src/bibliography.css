@@ -113,17 +113,19 @@ a.citation:visited {
     Reference anchors — shared base for number/ordinal links
     --------------------------------------------------------------------------- */
 
-.markdownBody a.reference-anchor,
-.markdownBody a.reference-anchor *,
-a.reference-anchor,
-a.reference-anchor * {
+.reference-anchor {
+  --link-underline-gradient-line-color: transparent;
+
   text-decoration: none;
-  background-image: none !important;
-  text-shadow: none !important;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   color: var(--AT-citation-color);
   transition: color 0.15s ease;
+}
+
+.reference-anchor,
+.reference-anchor * {
+  text-shadow: none;
 }
 
 .reference-anchor:visited {
