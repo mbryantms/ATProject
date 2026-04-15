@@ -113,19 +113,21 @@ a.citation:visited {
     Reference anchors — shared base for number/ordinal links
     --------------------------------------------------------------------------- */
 
-.reference-anchor {
-  --link-underline-gradient-line-color: transparent;
+/*  Override the Tufte underline system from .markdownBody a in base.css.
+    Uses the same specificity pattern as .markdownBody a.decorate-not.
+ */
+.markdownBody a.reference-anchor,
+.markdownBody a.reference-anchor * {
+  background-image: none;
+  text-shadow: none;
+}
 
+.reference-anchor {
   text-decoration: none;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   color: var(--AT-citation-color);
   transition: color 0.15s ease;
-}
-
-.reference-anchor,
-.reference-anchor * {
-  text-shadow: none;
 }
 
 .reference-anchor:visited {
