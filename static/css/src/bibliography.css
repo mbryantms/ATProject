@@ -117,11 +117,58 @@ a.citation:visited {
   text-decoration: none;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  color: var(--AT-citation-color);
+  transition: color 0.15s ease;
 }
 
 .reference-anchor:visited {
   color: var(--AT-citation-color);
+}
+
+.reference-anchor:hover {
+  color: var(--AT-citation-hover-color);
+}
+
+/*  Link icon — hidden by default, appears on hover, rotates on click.
+    Mirrors the heading copy-section-link-button animation.
+ */
+.reference-link-icon {
+  display: inline-flex;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.3em;
+  vertical-align: baseline;
+  color: var(--AT-body-link-color, var(--AT-citation-color));
+  transform: rotateZ(-45deg);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.reference-link-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+@media all and (hover: hover) {
+  .reference-entry:hover .reference-link-icon {
+    opacity: 1;
+  }
+
+  .reference-link-icon:hover {
+    color: var(--AT-body-link-hover-color, var(--AT-citation-hover-color));
+  }
+}
+
+.reference-anchor:active .reference-link-icon {
+  transform: rotateZ(45deg);
+  transition: transform 0.05s ease;
+}
+
+.reference-anchor.clicked .reference-link-icon {
+  opacity: 1;
+  transform: rotateZ(135deg);
+  transition: transform 0.15s ease;
 }
 
 /*  ---------------------------------------------------------------------------
@@ -137,11 +184,6 @@ a.citation:visited {
   position: absolute;
   left: 0;
   top: 0;
-  color: var(--AT-citation-color);
-}
-
-.reference-list[data-citation-format="numeric"] .reference-number:hover {
-  color: var(--AT-citation-hover-color);
 }
 
 .reference-list[data-citation-format="numeric"] .csl-right-inline {
@@ -149,41 +191,16 @@ a.citation:visited {
 }
 
 /*  ---------------------------------------------------------------------------
-    Author-date / author / note styles — inline ordinal
+    Author-date / author / note styles — inline ordinal, always visible
     --------------------------------------------------------------------------- */
 
 .reference-ordinal {
   display: inline;
-  margin-right: 0.4em;
-  color: var(--AT-citation-color);
-  opacity: 0;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  margin-right: 0.3em;
 }
 
-.reference-entry:hover .reference-ordinal {
-  opacity: 0.45;
-}
-
-.reference-ordinal:hover {
-  opacity: 1 !important;
-  color: var(--AT-citation-hover-color);
-}
-
-/*  On touch devices show ordinals at low opacity since there is no hover. */
-@media (hover: none) {
-  .reference-ordinal {
-    opacity: 0.3;
-  }
-}
-
-/*  ---------------------------------------------------------------------------
-    Copy-link feedback — brief color flash matching header copy indicator
-    --------------------------------------------------------------------------- */
-
-.reference-anchor.clicked {
-  color: var(--AT-citation-hover-color) !important;
-  opacity: 1 !important;
-  transition: color 0.15s ease;
+.reference-ordinal-number {
+  display: inline;
 }
 
 /*  ---------------------------------------------------------------------------

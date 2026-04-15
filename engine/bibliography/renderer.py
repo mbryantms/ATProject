@@ -8,6 +8,22 @@ from formatted citation data (produced by the formatter/citeproc-js).
 import html
 import re
 
+# Compact link icon SVG (same as the heading copy-section-link-button)
+_LINK_ICON_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">'
+    '<path d="M0 256C0 167.6 71.63 96 160 96H256C273.7 96 288 110.3 '
+    "288 128C288 145.7 273.7 160 256 160H160C106.1 160 64 202.1 64 "
+    "256C64 309 106.1 352 160 352H256C273.7 352 288 366.3 288 384C288 "
+    "401.7 273.7 416 256 416H160C71.63 416 0 344.4 0 256zM480 416H384"
+    "C366.3 416 352 401.7 352 384C352 366.3 366.3 352 384 352H480C533 "
+    "352 576 309 576 256C576 202.1 533 160 480 160H384C366.3 160 352 "
+    "145.7 352 128C352 110.3 366.3 96 384 96H480C568.4 96 640 167.6 "
+    "640 256C640 344.4 568.4 416 480 416zM416 224C433.7 224 448 238.3 "
+    "448 256C448 273.7 433.7 288 416 288H224C206.3 288 192 273.7 192 "
+    '256C192 238.3 206.3 224 224 224H416z"></path>'
+    "</svg>"
+)
+
 
 def render_inline_citation(
     citation_text: str,
@@ -108,19 +124,26 @@ def render_bibliography_section(
     for idx, (key, formatted_html) in enumerate(entries, start=1):
         escaped_key = html.escape(key)
 
-        # Build the number/anchor element
+        # Build the number/anchor element with link icon for copy affordance
+        link_icon = (
+            f'<span class="reference-link-icon" aria-hidden="true">'
+            f"{_LINK_ICON_SVG}</span>"
+        )
+
         if is_numeric:
             number_text, formatted_html = _extract_csl_number(formatted_html)
             if not number_text:
                 number_text = f"[{idx}]"
             anchor = (
                 f'<a href="#ref-{escaped_key}" class="reference-anchor reference-number" '
-                f'title="Link to reference {idx}">{html.escape(number_text)}</a>'
+                f'title="Link to reference {idx}">{link_icon}'
+                f'{html.escape(number_text)}</a>'
             )
         else:
             anchor = (
                 f'<a href="#ref-{escaped_key}" class="reference-anchor reference-ordinal" '
-                f'title="Link to reference {idx}">{idx}</a>'
+                f'title="Link to reference {idx}">{link_icon}'
+                f'<span class="reference-ordinal-number">{idx}.</span></a>'
             )
 
         file_link = ""
