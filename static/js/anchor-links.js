@@ -75,6 +75,16 @@
         return;
       }
 
+      // Handle reference anchor clicks (copy link to individual reference)
+      const refAnchor = e.target.closest('.reference-anchor');
+      if (refAnchor) {
+        e.preventDefault();
+        e.stopPropagation();
+        const hash = refAnchor.getAttribute('href') || '';
+        if (hash) copyLink(hash, refAnchor);
+        return;
+      }
+
       // Handle heading anchor clicks (smooth scroll)
       const heading = e.target.closest('.heading');
       if (!heading) return;

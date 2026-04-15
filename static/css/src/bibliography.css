@@ -72,17 +72,21 @@ a.citation:visited {
   list-style: none;
   padding-left: 0;
   margin: 0;
-  counter-reset: none;
 }
 
 .reference-list > li::before {
   display: none;
 }
 
+/*  ---------------------------------------------------------------------------
+    Reference entries — shared base
+    --------------------------------------------------------------------------- */
+
 .reference-entry {
+  position: relative;
   padding-left: 2em;
   text-indent: -2em;
-  margin-bottom: 0.75em;
+  margin-bottom: 0.85em;
   font-size: 0.92em;
   line-height: 1.55;
   transition: background-color 0.3s ease;
@@ -96,11 +100,91 @@ a.citation:visited {
   font-style: italic;
 }
 
-/*  Highlight animation when scrolling to a reference from an inline citation.
+/*  Highlight animation when scrolling to a reference from an inline citation,
+    and :target highlight for direct URL hash navigation (works without JS).
  */
-.reference-highlight {
+.reference-highlight,
+.reference-entry:target {
   background-color: var(--AT-reference-highlight-color);
   border-radius: 3px;
+}
+
+/*  ---------------------------------------------------------------------------
+    Reference anchors — shared base for number/ordinal links
+    --------------------------------------------------------------------------- */
+
+.reference-anchor {
+  text-decoration: none;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.reference-anchor:visited {
+  color: var(--AT-citation-color);
+}
+
+/*  ---------------------------------------------------------------------------
+    Numeric styles (IEEE, Vancouver, Nature) — prominent bracketed numbers
+    --------------------------------------------------------------------------- */
+
+.reference-list[data-citation-format="numeric"] .reference-entry {
+  padding-left: 3em;
+  text-indent: 0;
+}
+
+.reference-list[data-citation-format="numeric"] .reference-number {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--AT-citation-color);
+}
+
+.reference-list[data-citation-format="numeric"] .reference-number:hover {
+  color: var(--AT-citation-hover-color);
+}
+
+.reference-list[data-citation-format="numeric"] .csl-right-inline {
+  display: inline;
+}
+
+/*  ---------------------------------------------------------------------------
+    Author-date / author / note styles — subtle ordinal on hover
+    --------------------------------------------------------------------------- */
+
+.reference-ordinal {
+  position: absolute;
+  left: -1.6em;
+  top: 0;
+  font-size: 0.8em;
+  line-height: 1.55;
+  color: var(--AT-citation-color);
+  opacity: 0;
+}
+
+.reference-entry:hover .reference-ordinal {
+  opacity: 0.45;
+}
+
+.reference-ordinal:hover {
+  opacity: 1 !important;
+  color: var(--AT-citation-hover-color);
+}
+
+/*  On touch devices show ordinals at low opacity since there is no hover. */
+@media (hover: none) {
+  .reference-ordinal {
+    opacity: 0.3;
+  }
+}
+
+/*  ---------------------------------------------------------------------------
+    Copy-link feedback
+    --------------------------------------------------------------------------- */
+
+.reference-anchor.clicked {
+  color: var(--AT-citation-hover-color);
+  opacity: 1;
 }
 
 /*  ---------------------------------------------------------------------------

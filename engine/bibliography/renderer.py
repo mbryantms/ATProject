@@ -6,6 +6,7 @@ from formatted citation data (produced by the formatter/citeproc-js).
 """
 
 import html
+import re
 
 
 def render_inline_citation(
@@ -50,9 +51,39 @@ def render_unresolved_citation(key: str) -> str:
     return f'<span class="citation-unresolved">[??{html.escape(key)}]</span>'
 
 
+_CSL_LEFT_MARGIN_RE = re.compile(
+    r'<div class="csl-left-margin">(.*?)</div>\s*', re.DOTALL
+)
+
+
+def _extract_csl_number(formatted_html: str) -> tuple[str | None, str]:
+    """
+    Extract the citeproc-generated number from a numeric-style bibliography entry.
+
+    Citeproc renders numeric styles with ``second-field-align="flush"`` as::
+
+        <div class="csl-entry">
+          <div class="csl-left-margin">[1]</div>
+          <div class="csl-right-inline">Author, ...</div>
+        </div>
+
+    Returns:
+        ``(number_text, cleaned_html)`` where *number_text* is the content of
+        ``csl-left-margin`` (e.g. ``"[1]"``) and *cleaned_html* has that div
+        removed.  If no left-margin div is found, returns ``(None, original)``.
+    """
+    m = _CSL_LEFT_MARGIN_RE.search(formatted_html)
+    if not m:
+        return None, formatted_html
+    number_text = m.group(1).strip()
+    cleaned = formatted_html[: m.start()] + formatted_html[m.end() :]
+    return number_text, cleaned
+
+
 def render_bibliography_section(
     entries: list[tuple[str, str]],
     source_files: dict[str, str] | None = None,
+    citation_format: str = "author-date",
 ) -> str:
     """
     Render the bibliography section HTML.
@@ -61,6 +92,8 @@ def render_bibliography_section(
         entries: List of (citation_key, formatted_html) tuples, already sorted
             by the citation formatter according to the active style.
         source_files: Optional dict mapping citation_key -> file URL for [PDF] links.
+        citation_format: CSL citation-format category (``"numeric"``,
+            ``"author-date"``, ``"author"``, or ``"note"``).
 
     Returns:
         Complete HTML for the bibliography section, or empty string if no entries.
@@ -69,10 +102,27 @@ def render_bibliography_section(
         return ""
 
     source_files = source_files or {}
+    is_numeric = citation_format == "numeric"
 
     items_html = []
-    for key, formatted_html in entries:
+    for idx, (key, formatted_html) in enumerate(entries, start=1):
         escaped_key = html.escape(key)
+
+        # Build the number/anchor element
+        if is_numeric:
+            number_text, formatted_html = _extract_csl_number(formatted_html)
+            if not number_text:
+                number_text = f"[{idx}]"
+            anchor = (
+                f'<a href="#ref-{escaped_key}" class="reference-anchor reference-number" '
+                f'title="Link to reference {idx}">{html.escape(number_text)}</a>'
+            )
+        else:
+            anchor = (
+                f'<a href="#ref-{escaped_key}" class="reference-anchor reference-ordinal" '
+                f'title="Link to reference {idx}">{idx}</a>'
+            )
+
         file_link = ""
         if key in source_files:
             file_url = html.escape(source_files[key])
@@ -82,6 +132,7 @@ def render_bibliography_section(
             )
         items_html.append(
             f'  <li id="ref-{escaped_key}" class="reference-entry">\n'
+            f"    {anchor}\n"
             f'    <span class="reference-text">{formatted_html}</span>{file_link}\n'
             f"  </li>"
         )
@@ -115,7 +166,7 @@ def render_bibliography_section(
     return (
         f'<section id="references" class="references level1 block" role="doc-bibliography">\n'
         f"{heading}\n"
-        f'<ol class="reference-list">\n'
+        f'<ol class="reference-list" data-citation-format="{html.escape(citation_format)}">\n'
         f"{items}\n"
         f"</ol>\n"
         f"</section>"

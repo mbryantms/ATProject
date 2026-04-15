@@ -13,6 +13,7 @@ only changing this module.
 import json
 import logging
 import subprocess
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,6 +35,34 @@ _STYLE_ALIASES = {
     "chicago-notes": "chicago-notes-bibliography",
     "harvard": "harvard-cite-them-right",
 }
+
+
+def get_citation_format(style: str) -> str:
+    """
+    Return the citation-format category for a CSL style.
+
+    Parses the ``<category citation-format="..."/>`` element from the resolved
+    CSL file.  Returns one of ``"numeric"``, ``"author-date"``, ``"author"``,
+    or ``"note"`` (default ``"author-date"``).
+    """
+    resolved = _STYLE_ALIASES.get(style.lower(), style)
+    style_file = _STYLES_DIR / f"{resolved}.csl"
+    if not style_file.exists():
+        return "author-date"
+
+    try:
+        tree = ET.parse(style_file)  # noqa: S314
+        root = tree.getroot()
+        # CSL namespace
+        ns = root.tag.split("}")[0] + "}" if "}" in root.tag else ""
+        for cat in root.iter(f"{ns}category"):
+            fmt = cat.get("citation-format")
+            if fmt:
+                return fmt
+    except Exception:
+        logger.debug("Could not parse citation-format from %s", style_file)
+
+    return "author-date"
 
 
 def _resolve_style_name(style: str) -> str:
@@ -76,6 +105,9 @@ class FormattedOutput:
 
     # Whether the output was produced by the real engine or the fallback.
     is_fallback: bool = False
+
+    # CSL citation-format category: "numeric", "author-date", "author", or "note".
+    citation_format: str = "author-date"
 
 
 def format_citations(
@@ -157,6 +189,7 @@ def _format_via_citeproc(
     return FormattedOutput(
         citations=output.get("citations", []),
         bibliography=[(bid, bhtml) for bid, bhtml in output.get("bibliography", [])],
+        citation_format=get_citation_format(style),
     )
 
 

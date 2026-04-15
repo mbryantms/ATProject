@@ -200,7 +200,9 @@ def citation_renderer(html: str, context: dict) -> str:
                     pass
 
         bib_html = render_bibliography_section(
-            formatted.bibliography, source_files=source_files
+            formatted.bibliography,
+            source_files=source_files,
+            citation_format=formatted.citation_format,
         )
         # Insert before footnotes section if present, otherwise append
         footnotes_marker = '<section id="footnotes"'
