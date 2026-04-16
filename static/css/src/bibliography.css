@@ -236,7 +236,11 @@ a.citation:visited {
 }
 
 .citation-tooltip .csl-entry {
-  display: inline;
+  display: block;
+}
+
+.citation-tooltip .csl-entry + .csl-entry {
+  margin-top: 0.4em;
 }
 
 .citation-tooltip .csl-entry i {
