@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (refText) {
           if (content)
             content +=
-              '<hr style="margin: 0.5em 0; border-color: inherit; opacity: 0.3;">';
+              '<hr style="margin: 0.25em 0; border-color: inherit; opacity: 0.3;">';
           content += refText.innerHTML;
         }
       }
