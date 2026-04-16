@@ -46,9 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (entry) {
         const refText = entry.querySelector('.reference-text');
         if (refText) {
-          if (content)
-            content +=
-              '<hr style="margin: 0.25em 0; border-color: inherit; opacity: 0.3;">';
+          if (content) content += ' ';
           content += refText.innerHTML;
         }
       }
