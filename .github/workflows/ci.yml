@@ -27,7 +27,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Ruff check
         run: uv run ruff check .
@@ -78,7 +78,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
