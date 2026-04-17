@@ -28,9 +28,15 @@
     const articleH1 = document.querySelector('article > header > h1');
     if (!articleH1) return;
 
-    const headings = Array.from(body.querySelectorAll('h2[id], h3[id], h4[id]'));
-    const h2Count = headings.filter((h) => h.tagName === 'H2').length;
-    if (h2Count < 2) return; // Single-section post — widget adds nothing.
+    // Content headings — H1 included so posts that use H1 inside the body
+    // (not just as the page title) still get a top-level breadcrumb entry.
+    const headings = Array.from(
+      body.querySelectorAll('h1[id], h2[id], h3[id], h4[id]'),
+    );
+    const topLevelCount = headings.filter(
+      (h) => h.tagName === 'H1' || h.tagName === 'H2',
+    ).length;
+    if (topLevelCount < 2) return; // Single-section post — widget adds nothing.
 
     const postTitle = articleH1.textContent.trim();
 
@@ -40,6 +46,7 @@
     widget.setAttribute('aria-hidden', 'true');
     widget.innerHTML = `
       <div class="rp-title"></div>
+      <button class="rp-h1" type="button" hidden></button>
       <button class="rp-h2" type="button" hidden></button>
       <button class="rp-h3" type="button" hidden></button>
       <button class="rp-h4" type="button" hidden></button>
@@ -50,6 +57,7 @@
     widget.querySelector('.rp-title').textContent = postTitle;
     document.body.appendChild(widget);
 
+    const slotH1 = widget.querySelector('.rp-h1');
     const slotH2 = widget.querySelector('.rp-h2');
     const slotH3 = widget.querySelector('.rp-h3');
     const slotH4 = widget.querySelector('.rp-h4');
@@ -58,6 +66,7 @@
 
     // Active heading state — heading elements (not text) so click handlers
     // can scroll to them directly.
+    let activeH1 = null;
     let activeH2 = null;
     let activeH3 = null;
     let activeH4 = null;
@@ -101,15 +110,18 @@
       lastCandidate = candidate;
 
       if (!candidate) {
-        activeH2 = activeH3 = activeH4 = null;
+        activeH1 = activeH2 = activeH3 = activeH4 = null;
       } else {
+        const sec1 = candidate.closest('section.level1');
         const sec2 = candidate.closest('section.level2');
         const sec3 = candidate.closest('section.level3');
         const sec4 = candidate.closest('section.level4');
+        activeH1 = sec1 ? sec1.querySelector(':scope > h1') : null;
         activeH2 = sec2 ? sec2.querySelector(':scope > h2') : null;
         activeH3 = sec3 ? sec3.querySelector(':scope > h3') : null;
         activeH4 = sec4 ? sec4.querySelector(':scope > h4') : null;
       }
+      setSlot(slotH1, activeH1);
       setSlot(slotH2, activeH2);
       setSlot(slotH3, activeH3);
       setSlot(slotH4, activeH4);
@@ -122,6 +134,7 @@
       window.scrollTo({ top: y, behavior: 'smooth' });
       history.replaceState(null, '', `#${h.id}`);
     };
+    slotH1.addEventListener('click', () => scrollToHeading(activeH1));
     slotH2.addEventListener('click', () => scrollToHeading(activeH2));
     slotH3.addEventListener('click', () => scrollToHeading(activeH3));
     slotH4.addEventListener('click', () => scrollToHeading(activeH4));

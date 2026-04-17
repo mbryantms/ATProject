@@ -42,14 +42,13 @@
   font-family: var(--AT-serif-font-stack);
   font-variant-caps: small-caps;
   text-align: center;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.15em;
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
 }
 
 /* Slots are <button>s for built-in click + keyboard interaction; reset the
  * default button chrome so they read like the surrounding text. */
+.reading-progress .rp-h1,
 .reading-progress .rp-h2,
 .reading-progress .rp-h3,
 .reading-progress .rp-h4 {
@@ -66,17 +65,20 @@
   cursor: pointer;
 }
 /* Re-assert UA `[hidden]` semantics — `display: block` above otherwise wins. */
+.reading-progress .rp-h1[hidden],
 .reading-progress .rp-h2[hidden],
 .reading-progress .rp-h3[hidden],
 .reading-progress .rp-h4[hidden] {
   display: none;
 }
+.reading-progress .rp-h1:hover,
 .reading-progress .rp-h2:hover,
 .reading-progress .rp-h3:hover,
 .reading-progress .rp-h4:hover {
   color: var(--AT-body-link-hover-color, currentColor);
   text-decoration: underline;
 }
+.reading-progress .rp-h1:focus-visible,
 .reading-progress .rp-h2:focus-visible,
 .reading-progress .rp-h3:focus-visible,
 .reading-progress .rp-h4:focus-visible {
@@ -84,6 +86,12 @@
   outline-offset: 2px;
 }
 
+.reading-progress .rp-h1 {
+  /* Top of the breadcrumb ladder — content H1 (only present when posts
+   * use H1 inside the body, e.g. "BIBLIOGRAPHY & CITATIONS REFERENCE"). */
+  padding-left: 0;
+  font-weight: 600;
+}
 .reading-progress .rp-h2 {
   padding-left: 0.8em;
 }
