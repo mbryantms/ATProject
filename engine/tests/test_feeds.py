@@ -181,3 +181,39 @@ class FeaturedFeedTests(FeedSetupMixin, TestCase):
         response = self.client.get("/feed/featured/")
         self.assertNotContains(response, "Published Post")
         self.assertNotContains(response, "Series Post")
+
+
+class FeedTypeRegressionTests(FeedSetupMixin, TestCase):
+    """
+    Every RSS route must render without `'NoneType' object is not callable`,
+    which is what happens if BasePostFeed.feed_type is set to None and
+    shadows Django's Rss201rev2Feed default.
+    """
+
+    def test_every_rss_route_renders(self):
+        urls = [
+            "/feed/",
+            "/feed/featured/",
+            f"/feed/tag/{self.tag.slug}/",
+            f"/feed/category/{self.category.slug}/",
+            f"/feed/series/{self.series.slug}/",
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("rss+xml", response["Content-Type"])
+
+    def test_every_atom_route_renders(self):
+        urls = [
+            "/feed/atom/",
+            "/feed/featured/atom/",
+            f"/feed/tag/{self.tag.slug}/atom/",
+            f"/feed/category/{self.category.slug}/atom/",
+            f"/feed/series/{self.series.slug}/atom/",
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("atom+xml", response["Content-Type"])

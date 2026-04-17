@@ -23,7 +23,9 @@ DEFAULT_ITEM_LIMIT = 20
 class BasePostFeed(Feed):
     """Shared rendering for every site feed."""
 
-    feed_type = None  # Use Django's default (Rss201rev2Feed) unless overridden
+    # Inherit Feed.feed_type (Rss201rev2Feed) by default; Atom subclasses
+    # override to Atom1Feed. Do not assign None here — that would shadow the
+    # parent default and crash get_feed() with `'NoneType' object is not callable`.
 
     # ---------- channel-level (override per subclass when scoped) ----------
 
