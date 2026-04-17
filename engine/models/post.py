@@ -438,6 +438,28 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
             return True
         return self.visibility in (self.Visibility.PRIVATE, self.Visibility.UNLISTED)
 
+    # Browser-only chrome that we strip when serving HTML to feed readers.
+    # Section/math copy buttons render as SVG noise in feeds; reference-anchor
+    # links duplicate the <ol> marker (browsers hide one via CSS, feed readers
+    # show both, producing "1. 1." numbering).
+    _FEED_STRIP_SELECTORS = (
+        "button.copy-section-link-button",
+        "span.block-button-bar",
+        "a.reference-anchor",
+    )
+
+    def get_feed_html(self) -> str:
+        """Return content HTML cleaned for syndication (RSS/Atom)."""
+        if not self.content_html_cached:
+            return self.description or self.abstract or ""
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(self.content_html_cached, "html.parser")
+        for selector in self._FEED_STRIP_SELECTORS:
+            for el in soup.select(selector):
+                el.decompose()
+        return str(soup)
+
     @property
     def completion_status_label(self) -> str:
         """

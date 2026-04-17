@@ -113,6 +113,29 @@ class GlobalFeedTests(FeedSetupMixin, TestCase):
         self.assertIn("<category>Django</category>", body)
         self.assertIn("<category>Tech</category>", body)
 
+    def test_rss_strips_browser_only_chrome(self):
+        """Heading copy buttons, math copy bars, and duplicate reference-anchor
+        numbers must not reach feed readers — they have no CSS to hide them."""
+        self.published_post.content_html_cached = (
+            "<h2>Example</h2>"
+            '<button class="copy-section-link-button">x</button>'
+            "<p>Body.</p>"
+            '<span class="block-button-bar"><button class="copy">x</button></span>'
+            '<ol><li class="reference-entry">'
+            '<a href="#ref-foo" class="reference-anchor reference-ordinal">1.</a>'
+            '<span class="reference-text">Author (2024).</span>'
+            "</li></ol>"
+        )
+        self.published_post.save()
+        response = self.client.get("/feed/")
+        body = response.content.decode("utf-8")
+        self.assertNotIn("copy-section-link-button", body)
+        self.assertNotIn("block-button-bar", body)
+        self.assertNotIn("reference-anchor", body)
+        # Real content survives.
+        self.assertIn("Author (2024).", body)
+        self.assertIn("reference-entry", body)
+
 
 class TagFeedTests(FeedSetupMixin, TestCase):
     def test_returns_200_for_known_slug(self):

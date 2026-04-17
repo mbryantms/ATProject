@@ -64,9 +64,11 @@ class BasePostFeed(Feed):
         return item.title
 
     def item_description(self, item):
-        # Full HTML body when the rendered cache exists. RSS readers render
-        # this as the post body; Atom readers render it as <summary type="html">.
-        return item.content_html_cached or item.description or item.abstract or ""
+        # Full HTML body, with browser-only chrome stripped (heading/math
+        # copy buttons, duplicate reference-anchor numbers). RSS readers
+        # render this as the post body; Atom readers render it as
+        # <summary type="html">.
+        return item.get_feed_html()
 
     def item_link(self, item):
         return f"{self._site_url()}{item.get_absolute_url()}"
