@@ -23,7 +23,18 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import include, path
 
-from engine.feeds import PostAtomFeed, PostFeed
+from engine.feeds import (
+    CategoryAtomFeed,
+    CategoryFeed,
+    FeaturedAtomFeed,
+    FeaturedFeed,
+    PostAtomFeed,
+    PostFeed,
+    SeriesAtomFeed,
+    SeriesFeed,
+    TagAtomFeed,
+    TagFeed,
+)
 from engine.sitemaps import (
     CategorySitemap,
     PostSitemap,
@@ -74,6 +85,26 @@ urlpatterns = [
     ),
     path("feed/", PostFeed(), name="post-feed-rss"),
     path("feed/atom/", PostAtomFeed(), name="post-feed-atom"),
+    path("feed/featured/", FeaturedFeed(), name="featured-feed-rss"),
+    path("feed/featured/atom/", FeaturedAtomFeed(), name="featured-feed-atom"),
+    path("feed/tag/<slug:slug>/", TagFeed(), name="tag-feed-rss"),
+    path("feed/tag/<slug:slug>/atom/", TagAtomFeed(), name="tag-feed-atom"),
+    path(
+        "feed/category/<slug:slug>/",
+        CategoryFeed(),
+        name="category-feed-rss",
+    ),
+    path(
+        "feed/category/<slug:slug>/atom/",
+        CategoryAtomFeed(),
+        name="category-feed-atom",
+    ),
+    path("feed/series/<slug:slug>/", SeriesFeed(), name="series-feed-rss"),
+    path(
+        "feed/series/<slug:slug>/atom/",
+        SeriesAtomFeed(),
+        name="series-feed-atom",
+    ),
     path("api/", include("engine.api.urls")),
     path("", include("engine.urls")),
     path(settings.ADMIN_URL, admin.site.urls),

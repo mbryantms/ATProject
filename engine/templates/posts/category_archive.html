@@ -5,6 +5,11 @@
 
 {% block page_title %}{{ category.name }}{% endblock %}
 
+{% block head_extra %}
+  <link rel="alternate" type="application/rss+xml" title="Posts in {{ category.name }} (RSS)" href="{% url 'category-feed-rss' slug=category.slug %}">
+  <link rel="alternate" type="application/atom+xml" title="Posts in {{ category.name }} (Atom)" href="{% url 'category-feed-atom' slug=category.slug %}">
+{% endblock head_extra %}
+
 {% block content %}
 <div id="markdownBody" class="markdownBody">
   <div class="markdownBody" id="page-metadata">
@@ -68,6 +73,10 @@
           {% endtooltip %}
         </span>
       {% endif %}
+
+      <span class="page-feed-link">
+        <a href="{% url 'category-feed-rss' slug=category.slug %}" rel="alternate" type="application/rss+xml" title="Subscribe via RSS to posts in {{ category.name }}">RSS</a>
+      </span>
     </div>
 
     {# Parent category #}

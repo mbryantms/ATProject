@@ -5,6 +5,11 @@
 
 {% block page_title %}{{ tag.name }}{% endblock %}
 
+{% block head_extra %}
+  <link rel="alternate" type="application/rss+xml" title="Posts tagged {{ tag.name }} (RSS)" href="{% url 'tag-feed-rss' slug=tag.slug %}">
+  <link rel="alternate" type="application/atom+xml" title="Posts tagged {{ tag.name }} (Atom)" href="{% url 'tag-feed-atom' slug=tag.slug %}">
+{% endblock head_extra %}
+
 {% block content %}
 <div id="markdownBody" class="markdownBody">
   {# Tag metadata section - matching post detail page structure #}
@@ -94,6 +99,10 @@
           {% endtooltip %}
         </span>
       {% endif %}
+
+      <span class="page-feed-link">
+        <a href="{% url 'tag-feed-rss' slug=tag.slug %}" rel="alternate" type="application/rss+xml" title="Subscribe via RSS to posts tagged {{ tag.name }}">RSS</a>
+      </span>
     </div>
 
     {# Parent tag #}

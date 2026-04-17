@@ -5,6 +5,11 @@
 
 {% block page_title %}{{ series.title }}{% endblock %}
 
+{% block head_extra %}
+  <link rel="alternate" type="application/rss+xml" title="{{ series.title }} (RSS)" href="{% url 'series-feed-rss' slug=series.slug %}">
+  <link rel="alternate" type="application/atom+xml" title="{{ series.title }} (Atom)" href="{% url 'series-feed-atom' slug=series.slug %}">
+{% endblock head_extra %}
+
 {% block content %}
 <div id="markdownBody" class="markdownBody">
   <div class="markdownBody" id="page-metadata">
@@ -40,6 +45,10 @@
           {% endtooltip %}
         </span>
       {% endif %}
+
+      <span class="page-feed-link">
+        <a href="{% url 'series-feed-rss' slug=series.slug %}" rel="alternate" type="application/rss+xml" title="Subscribe via RSS to {{ series.title }}">RSS</a>
+      </span>
     </div>
   </div>
 
