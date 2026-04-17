@@ -261,14 +261,20 @@ class TagAdmin(admin.ModelAdmin):
 
     @admin.action(description="Update usage counts")
     def update_usage_counts(self, request, queryset):
-        """Recalculate usage counts for selected tags."""
-        count = 0
-        for tag in queryset:
-            tag.update_usage_count()
-            count += 1
+        """Recalculate usage counts for selected tags in bulk."""
+        from django.db.models import Count
+
+        tags = list(queryset.annotate(_count=Count("posts")).only("id", "usage_count"))
+        to_update = []
+        for tag in tags:
+            if tag.usage_count != tag._count:
+                tag.usage_count = tag._count
+                to_update.append(tag)
+        if to_update:
+            Tag.objects.bulk_update(to_update, ["usage_count"])
         self.message_user(
             request,
-            f"Updated usage counts for {count} tag(s).",
+            f"Updated usage counts for {len(tags)} tag(s) ({len(to_update)} changed).",
             level=messages.SUCCESS,
         )
 

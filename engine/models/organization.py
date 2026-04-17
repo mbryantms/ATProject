@@ -52,7 +52,7 @@ class AssetFolder(TimeStampedModel):
         return self.path
 
     def save(self, *args, **kwargs):
-        """Auto-compute path and recursively update children on save."""
+        """Auto-compute path and update descendant paths on rename."""
         is_new = self.pk is None
         old_path = None
         if not is_new:
@@ -70,12 +70,25 @@ class AssetFolder(TimeStampedModel):
 
         super().save(*args, **kwargs)
 
-        # After saving, if the path has changed, update all children.
+        # If the path changed, batch-update all descendants in one query
+        # instead of recursively calling save() on each child.
         if old_path is not None and old_path != self.path:
-            # The .children related_name gives us direct children.
-            # Calling save() on them will trigger this same logic recursively.
-            for child in self.children.all():
-                child.save()  # This recursive call will update the child's path
+            prefix = old_path + "/"
+            new_prefix = self.path + "/"
+            # Update all descendants whose path starts with the old prefix.
+            # Uses SQL CONCAT to replace the old prefix with the new one.
+            from django.db.models import Value
+            from django.db.models.functions import Concat, Substr
+
+            descendants = AssetFolder.objects.filter(path__startswith=prefix)
+            if descendants.exists():
+                old_prefix_len = len(prefix)
+                descendants.update(
+                    path=Concat(
+                        Value(new_prefix),
+                        Substr("path", old_prefix_len + 1),
+                    )
+                )
 
 
 class AssetTag(models.Model):

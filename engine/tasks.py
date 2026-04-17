@@ -258,14 +258,23 @@ def update_post_derived_content(self, post_id: int):
     Also updates the search vector for full-text search.
     """
     from django.contrib.postgres.search import SearchVector
+    from django.core.cache import cache
 
     from .markdown.extensions.toc_extractor import extract_toc_from_html
     from .markdown.renderer import render_markdown
     from .models import Post
 
+    lock = cache.lock(f"task:update_post:{post_id}", timeout=300)
+    if not lock.acquire(blocking=False):
+        return {
+            "success": False,
+            "error": f"Post {post_id} is already being processed.",
+        }
+
     try:
         post = Post.objects.get(pk=post_id)
     except Post.DoesNotExist:
+        lock.release()
         return {"success": False, "error": f"Post {post_id} not found."}
 
     try:
@@ -315,6 +324,8 @@ def update_post_derived_content(self, post_id: int):
             "post_id": post_id,
             "error": str(e),
         }
+    finally:
+        lock.release()
 
 
 @shared_task
@@ -375,16 +386,27 @@ def finalize_presigned_upload(self, asset_id):
     Returns:
         Dict with processing results
     """
+    from django.core.cache import cache
+
     from .metadata_extractor import extract_all_metadata
     from .models import Asset
     from .utils import generate_asset_renditions
 
+    lock = cache.lock(f"task:finalize_upload:{asset_id}", timeout=300)
+    if not lock.acquire(blocking=False):
+        return {
+            "success": False,
+            "error": f"Asset {asset_id} is already being processed.",
+        }
+
     try:
         asset = Asset.all_objects.get(pk=asset_id)
     except Asset.DoesNotExist:
+        lock.release()
         return {"success": False, "error": f"Asset {asset_id} not found"}
 
     if asset.status != "processing":
+        lock.release()
         return {
             "success": False,
             "error": f"Asset {asset_id} is not in processing state (current: {asset.status})",
@@ -403,6 +425,10 @@ def finalize_presigned_upload(self, asset_id):
         # Update file size from actual storage
         if result.get("size"):
             asset.file_size = result["size"]
+
+        # Sanitize SVG files to prevent stored XSS
+        if asset.mime_type == "image/svg+xml":
+            _sanitize_svg(asset)
 
         # Extract dimensions and other metadata based on asset type
         if asset.asset_type == "image":
@@ -472,6 +498,8 @@ def finalize_presigned_upload(self, asset_id):
             "asset_id": asset_id,
             "error": str(e),
         }
+    finally:
+        lock.release()
 
 
 def _extract_image_dimensions(asset):
@@ -559,6 +587,111 @@ def _extract_video_metadata(asset):
 
         logging.getLogger(__name__).warning(
             f"Failed to extract video metadata for {asset.key}: {e}"
+        )
+
+
+def _sanitize_svg(asset):
+    """Sanitize SVG content to remove script tags and event handlers."""
+    import logging
+
+    import nh3
+
+    from .storage_utils import open_field_file
+
+    try:
+        file_obj = open_field_file(asset.file)
+        raw = file_obj.read()
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
+
+        clean = nh3.clean(
+            raw,
+            tags={
+                "svg",
+                "g",
+                "path",
+                "circle",
+                "ellipse",
+                "line",
+                "polyline",
+                "polygon",
+                "rect",
+                "text",
+                "tspan",
+                "defs",
+                "clipPath",
+                "linearGradient",
+                "radialGradient",
+                "stop",
+                "use",
+                "symbol",
+                "image",
+                "title",
+                "desc",
+                "metadata",
+                "style",
+            },
+            attributes={
+                "*": {
+                    "id",
+                    "class",
+                    "style",
+                    "transform",
+                    "opacity",
+                    "fill",
+                    "fill-opacity",
+                    "fill-rule",
+                    "stroke",
+                    "stroke-width",
+                    "stroke-opacity",
+                    "stroke-linecap",
+                    "stroke-linejoin",
+                    "stroke-dasharray",
+                    "stroke-dashoffset",
+                    "d",
+                    "cx",
+                    "cy",
+                    "r",
+                    "rx",
+                    "ry",
+                    "x",
+                    "y",
+                    "x1",
+                    "y1",
+                    "x2",
+                    "y2",
+                    "width",
+                    "height",
+                    "viewBox",
+                    "xmlns",
+                    "xmlns:xlink",
+                    "preserveAspectRatio",
+                    "points",
+                    "offset",
+                    "stop-color",
+                    "stop-opacity",
+                    "clip-path",
+                    "font-family",
+                    "font-size",
+                    "font-weight",
+                    "text-anchor",
+                    "dominant-baseline",
+                    "href",
+                    "xlink:href",
+                    "gradientUnits",
+                    "gradientTransform",
+                    "spreadMethod",
+                },
+            },
+        )
+
+        # Overwrite file with sanitized content
+        from django.core.files.base import ContentFile
+
+        asset.file.save(asset.file.name, ContentFile(clean.encode("utf-8")), save=False)
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            f"SVG sanitization failed for {asset.key}: {e}"
         )
 
 

@@ -1,13 +1,13 @@
 <div class="sidebar-content">
   <a class="sidebar-logo" href="/" title="Home">Architextual</a>
-  <div class="sidebar-nav">
-    <a class="sidebar-link{% if request.path == '/' %} active{% endif %}" href="/">Home</a>
-    <a class="sidebar-link{% if '/tags' in request.path %} active{% endif %}" href="/tags">Tags</a>
-    <a class="sidebar-link{% if '/categories' in request.path %} active{% endif %}" href="/categories">Categories</a>
-    <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts">Posts</a>
-    <a class="sidebar-link{% if '/series' in request.path %} active{% endif %}" href="/series">Series</a>
+  <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
+    <a class="sidebar-link{% if request.path == '/' %} active{% endif %}" href="/"{% if request.path == '/' %} aria-current="page"{% endif %}>Home</a>
+    <a class="sidebar-link{% if '/tags' in request.path %} active{% endif %}" href="/tags"{% if '/tags' in request.path %} aria-current="page"{% endif %}>Tags</a>
+    <a class="sidebar-link{% if '/categories' in request.path %} active{% endif %}" href="/categories"{% if '/categories' in request.path %} aria-current="page"{% endif %}>Categories</a>
+    <a class="sidebar-link{% if '/posts' in request.path %} active{% endif %}" href="/posts"{% if '/posts' in request.path %} aria-current="page"{% endif %}>Posts</a>
+    <a class="sidebar-link{% if '/series' in request.path %} active{% endif %}" href="/series"{% if '/series' in request.path %} aria-current="page"{% endif %}>Series</a>
     <span class="sidebar-separator"></span>
-    <a class="sidebar-link{% if '/about' in request.path %} active{% endif %}" href="/about">About</a>
+    <a class="sidebar-link{% if '/about' in request.path %} active{% endif %}" href="/about"{% if '/about' in request.path %} aria-current="page"{% endif %}>About</a>
   </div>
   <div class="sidebar-meta">
     <span class="sidebar-version">v1.0</span>

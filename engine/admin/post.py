@@ -275,7 +275,12 @@ class PostCitationInline(admin.TabularInline):
 # --------------------------
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
-    inlines = [PostAssetInline, PostCitationInline, IncomingLinksInline, PostRevisionInline]
+    inlines = [
+        PostAssetInline,
+        PostCitationInline,
+        IncomingLinksInline,
+        PostRevisionInline,
+    ]
     save_on_top = True
     date_hierarchy = "published_at"
 
@@ -310,6 +315,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     search_fields = ("title", "subtitle", "description", "content_markdown", "slug")
     ordering = ("-is_pinned", "pin_order", "-published_at", "-created_at")
+    list_select_related = ("author", "series")
 
     autocomplete_fields = (
         "author",

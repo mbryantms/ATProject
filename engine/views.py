@@ -63,36 +63,59 @@ class IndexView(SEOContextMixin, TemplateView):
         base_qs = self.get_base_queryset()
         context["newest_posts"] = base_qs[:5]
 
-        # Get posts for each featured tag (configured in admin)
+        # Batch-load posts for all featured tags in a single query,
+        # then group by tag in Python to avoid N+1 queries.
+        active_tags = [c["tag"] for c in featured_tags_config if c["tag"].is_active]
         tag_sections = []
-        for config in featured_tags_config:
-            tag = config["tag"]
-            if tag.is_active:
-                posts = base_qs.filter(tags=tag)[:5]
-                if posts.exists():
+        if active_tags:
+            tag_posts = base_qs.filter(tags__in=active_tags)
+            # Build a dict: tag_id -> list of posts (up to 5 each)
+            posts_by_tag = {}
+            for post in tag_posts:
+                for tag in post.tags.all():
+                    if tag.id not in posts_by_tag:
+                        posts_by_tag[tag.id] = []
+                    if len(posts_by_tag[tag.id]) < 5:
+                        posts_by_tag[tag.id].append(post)
+
+            for config in featured_tags_config:
+                tag = config["tag"]
+                if tag.is_active and posts_by_tag.get(tag.id):
                     tag_sections.append(
                         {
                             "title": config["display_title"],
                             "tag": tag,
-                            "posts": posts,
+                            "posts": posts_by_tag[tag.id],
                         }
                     )
 
         context["tag_sections"] = tag_sections
 
-        # Get posts for each featured category (configured in admin)
+        # Batch-load posts for all featured categories in a single query.
+        featured_categories = [c["category"] for c in featured_categories_config]
         category_sections = []
-        for config in featured_categories_config:
-            category = config["category"]
-            posts = base_qs.filter(categories=category)[:5]
-            if posts.exists():
-                category_sections.append(
-                    {
-                        "title": config["display_title"],
-                        "category": category,
-                        "posts": posts,
-                    }
-                )
+        if featured_categories:
+            cat_posts = base_qs.filter(
+                categories__in=featured_categories
+            ).prefetch_related("categories")
+            posts_by_cat = {}
+            for post in cat_posts:
+                for cat in post.categories.all():
+                    if cat.id not in posts_by_cat:
+                        posts_by_cat[cat.id] = []
+                    if len(posts_by_cat[cat.id]) < 5:
+                        posts_by_cat[cat.id].append(post)
+
+            for config in featured_categories_config:
+                category = config["category"]
+                if posts_by_cat.get(category.id):
+                    category_sections.append(
+                        {
+                            "title": config["display_title"],
+                            "category": category,
+                            "posts": posts_by_cat[category.id],
+                        }
+                    )
 
         context["category_sections"] = category_sections
 
@@ -115,10 +138,17 @@ class PostArchiveView(SEOContextMixin, TemplateView):
         if current_sort not in ("date", "title"):
             current_sort = "date"
 
-        # Get published, public posts
+        # Get published, public posts — defer heavy text fields not needed for listing
+        deferred = (
+            "content_markdown",
+            "content_html_cached",
+            "table_of_contents",
+            "search_vector",
+        )
         if user.is_authenticated and (user.is_staff or user.is_superuser):
             posts = (
                 Post.all_objects.filter(is_deleted=False)
+                .defer(*deferred)
                 .select_related("author")
                 .prefetch_related("tags")
             )
@@ -126,6 +156,7 @@ class PostArchiveView(SEOContextMixin, TemplateView):
             posts = (
                 Post.objects.published()
                 .public()
+                .defer(*deferred)
                 .select_related("author")
                 .prefetch_related("tags")
             )
@@ -733,7 +764,11 @@ class SeriesListView(SEOContextMixin, ListView):
         if current_sort not in ("name", "count"):
             current_sort = "name"
         context["current_sort"] = current_sort
-        context["total_series"] = context["series_list"].count() if hasattr(context["series_list"], "count") else len(context["series_list"])
+        context["total_series"] = (
+            context["series_list"].count()
+            if hasattr(context["series_list"], "count")
+            else len(context["series_list"])
+        )
         return context
 
 

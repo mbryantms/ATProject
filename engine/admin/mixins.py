@@ -6,6 +6,7 @@ across different admin classes.
 """
 
 from django.contrib import admin, messages
+from django.utils import timezone
 
 
 class SoftDeleteAdminMixin:
@@ -20,30 +21,18 @@ class SoftDeleteAdminMixin:
 
     @admin.action(description="Soft delete selected")
     def soft_delete_selected(self, request, queryset):
-        count = 0
-        for obj in queryset:
-            # Respect the model's custom delete(soft=True) if present.
-            if hasattr(obj, "delete"):
-                obj.delete(soft=True)
-                count += 1
+        update_fields = {"is_deleted": True}
+        if hasattr(self.model, "deleted_at"):
+            update_fields["deleted_at"] = timezone.now()
+        count = queryset.update(**update_fields)
         self.message_user(
             request, f"Soft-deleted {count} item(s).", level=messages.SUCCESS
         )
 
     @admin.action(description="Restore selected (clear soft delete)")
     def restore_selected(self, request, queryset):
-        count = 0
-        for obj in queryset:
-            if hasattr(obj, "is_deleted"):
-                obj.is_deleted = False
-                if hasattr(obj, "deleted_at"):
-                    obj.deleted_at = None
-                obj.save(
-                    update_fields=(
-                        ["is_deleted", "deleted_at"]
-                        if hasattr(obj, "deleted_at")
-                        else ["is_deleted"]
-                    )
-                )
-                count += 1
+        update_fields = {"is_deleted": False}
+        if hasattr(self.model, "deleted_at"):
+            update_fields["deleted_at"] = None
+        count = queryset.update(**update_fields)
         self.message_user(request, f"Restored {count} item(s).", level=messages.SUCCESS)

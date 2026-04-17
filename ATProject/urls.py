@@ -23,6 +23,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import include, path
 
+from engine.feeds import PostAtomFeed, PostFeed
 from engine.sitemaps import (
     CategorySitemap,
     PostSitemap,
@@ -71,6 +72,8 @@ urlpatterns = [
         {"sitemaps": sitemaps},
         name="django.contrib.sitemaps.views.sitemap",
     ),
+    path("feed/", PostFeed(), name="post-feed-rss"),
+    path("feed/atom/", PostAtomFeed(), name="post-feed-atom"),
     path("api/", include("engine.api.urls")),
     path("", include("engine.urls")),
     path(settings.ADMIN_URL, admin.site.urls),
@@ -79,6 +82,14 @@ urlpatterns = [
 # Serve media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+    # Django Debug Toolbar
+    try:
+        import debug_toolbar
+
+        urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
+    except ImportError:
+        pass
 
 
 def custom_404(request, exception):

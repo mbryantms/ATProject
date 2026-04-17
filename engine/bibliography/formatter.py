@@ -10,12 +10,15 @@ Replacing the engine (e.g., switching to citeproc-py or a microservice) requires
 only changing this module.
 """
 
+import hashlib
 import json
 import logging
 import subprocess
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +141,22 @@ def format_citations(
     # Resolve style aliases and verify file exists
     style = _resolve_style_name(style)
 
+    # Build a cache key from the inputs to avoid repeated subprocess calls.
+    # Sorted JSON ensures deterministic hashing regardless of dict ordering.
+    cache_payload = json.dumps(
+        {"items": items, "clusters": citation_clusters, "style": style, "lang": lang},
+        sort_keys=True,
+    )
+    cache_hash = hashlib.sha256(cache_payload.encode()).hexdigest()[:16]
+    cache_key = f"citeproc:{style}:{cache_hash}"
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return FormattedOutput(**cached)
+
     # Try citeproc-js subprocess
     try:
-        return _format_via_citeproc(items, citation_clusters, style, lang)
+        result = _format_via_citeproc(items, citation_clusters, style, lang)
     except Exception:
         logger.exception(
             "citeproc-js subprocess failed for style=%s, %d items. "
@@ -148,7 +164,11 @@ def format_citations(
             style,
             len(items),
         )
-        return _format_fallback(items, citation_clusters)
+        result = _format_fallback(items, citation_clusters)
+
+    # Cache for 24 hours — invalidated when Source records change.
+    cache.set(cache_key, asdict(result), 86400)
+    return result
 
 
 def _format_via_citeproc(

@@ -193,6 +193,15 @@ INSTALLED_APPS += [
     "storages",
 ]
 
+# Django Debug Toolbar (dev only)
+if DEBUG:
+    try:
+        import debug_toolbar  # noqa: F401
+
+        INSTALLED_APPS += ["debug_toolbar"]
+    except ImportError:
+        pass
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
@@ -204,6 +213,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG and "debug_toolbar" in INSTALLED_APPS:
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INTERNAL_IPS = ["127.0.0.1"]
 
 ROOT_URLCONF = "ATProject.urls"
 
@@ -459,8 +472,9 @@ if REDIS_URL:
             "KEY_PREFIX": "architextual",
         }
     }
-    # Use Redis for sessions instead of the database
-    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    # Use Redis-backed sessions with database fallback for persistence.
+    # If Redis goes down, sessions are still recoverable from the database.
+    SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
     SESSION_CACHE_ALIAS = "default"
 else:
     # Fallback to local memory cache for development without Redis
@@ -517,9 +531,21 @@ ASSET_MAX_SIZES = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+        },
+        "json": {
+            "()": "django.utils.log.ServerFormatter",
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "verbose" if DEBUG else "json",
         },
     },
     "root": {
@@ -532,5 +558,32 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "engine": {
+            "handlers": ["console"],
+            "level": "INFO" if DEBUG else "WARNING",
+            "propagate": False,
+        },
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
+
+
+# ==============================================================================
+# SENTRY (Error Tracking)
+# ==============================================================================
+
+SENTRY_DSN = env("SENTRY_DSN", default=None)
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        send_default_pii=False,
+        environment=env("SENTRY_ENVIRONMENT", default="production"),
+    )

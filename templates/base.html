@@ -1,8 +1,14 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#fff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="alternate" type="application/rss+xml" title="{{ site_settings.site_name|default:'Architextual' }} RSS Feed" href="{% url 'post-feed-rss' %}">
+    <link rel="alternate" type="application/atom+xml" title="{{ site_settings.site_name|default:'Architextual' }} Atom Feed" href="{% url 'post-feed-atom' %}">
     <script nonce="{{ csp_nonce }}">
       // Theme initialization - MUST run before CSS to prevent flash
       (function() {
@@ -21,6 +27,10 @@
         meta.name = 'color-scheme';
         meta.content = colorScheme;
         document.head.appendChild(meta);
+
+        // Update theme-color meta to match actual resolved theme
+        var themeColorMetas = document.querySelectorAll('meta[name="theme-color"]');
+        themeColorMetas.forEach(function(m) { m.content = colorScheme === 'dark' ? '#161616' : '#fff'; });
       })();
     </script>
     {% block seo_meta %}{% include "includes/seo_meta.html" %}{% endblock seo_meta %}
@@ -33,23 +43,19 @@
       "url": "{{ site_settings.site_url|default:'/' }}"
     }
     </script>
-    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link rel="icon" type="image/png" href="/static/img/favicon.png">
-    <link rel="stylesheet" href="/static/css/dist/base.css">
-    <link rel="stylesheet" href="/static/css/dist/colors.css">
-    <link rel="stylesheet" href="/static/css/dist/link-icons.css">
-    <link rel="stylesheet" href="/static/css/dist/image-focus.css">
-    <link rel="stylesheet" href="/static/css/dist/search.css">
-    <link rel="stylesheet" href="/static/css/dist/bibliography.css">
-    <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/marginnotes-standalone.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/sidenotes-standalone.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/math-copy.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/tablesorter-standalone.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/fullwidth-standalone.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/image-focus.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/citation-tooltip.js" defer></script>
-    <script nonce="{{ csp_nonce }}" src="/static/js/dist/main.js" defer></script>
+    <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/colors.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/link-icons.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/image-focus.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/search.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/bibliography.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dist/print.css' %}" media="print">
+    {% block mathjax %}{% endblock mathjax %}
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/dist/standalone.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/dist/citation-tooltip.js' %}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/dist/main.js' %}" defer></script>
     {% block head_extra %}
     {% endblock head_extra %}
     <title>

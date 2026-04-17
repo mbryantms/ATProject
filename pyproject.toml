@@ -22,6 +22,7 @@ dependencies = [
     "pypandoc-binary>=1.14",
     "python-dateutil>=2.9.0",
     "redis>=5.2.0",
+    "sentry-sdk[django,celery]>=2.0.0",
     "whitenoise[brotli]>=6.12.0",
     "pyzotero>=1.5.0",
 ]
@@ -29,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "celery-types>=0.22.0",
+    "django-debug-toolbar>=5.0.0",
     "djlint>=1.36.0",
     "ffprobe>=0.5",
     "flower>=2.0.1",

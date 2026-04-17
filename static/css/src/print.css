@@ -1,0 +1,101 @@
+@media print {
+  /* Hide non-content elements */
+  #sidebar,
+  .scroll-to-top,
+  .site-footer,
+  .search-trigger,
+  .theme-toggle,
+  .copy-section-link-button,
+  .page-staff-bar,
+  .toc-container,
+  .similar-posts,
+  #similar-posts-section,
+  .backlinks-section {
+    display: none !important;
+  }
+
+  /* Reset layout for print */
+  body,
+  main,
+  article {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Typography */
+  body {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+    background: #fff;
+  }
+
+  h1 { font-size: 18pt; }
+  h2 { font-size: 15pt; }
+  h3 { font-size: 13pt; }
+
+  /* Show URLs after links */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    font-style: italic;
+    word-break: break-all;
+  }
+
+  /* Don't show URL for internal/anchor links */
+  a[href^="#"]::after,
+  a[href^="/"]::after {
+    content: none;
+  }
+
+  /* Images */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  figure {
+    page-break-inside: avoid;
+  }
+
+  /* Code blocks */
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border: 1px solid #ccc;
+    padding: 0.5em;
+    page-break-inside: avoid;
+  }
+
+  /* Headings should not be orphaned */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  /* Avoid breaking blockquotes */
+  blockquote {
+    page-break-inside: avoid;
+  }
+
+  /* Sidenotes / margin notes — inline for print */
+  .sidenote,
+  .marginnote {
+    float: none;
+    display: block;
+    margin: 0.5em 0;
+    padding: 0.5em;
+    border-left: 2px solid #ccc;
+    font-size: 0.9em;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Page metadata — simplified for print */
+  .page-metadata-fields {
+    margin-bottom: 1em;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 0.5em;
+  }
+}

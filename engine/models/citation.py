@@ -42,7 +42,7 @@ class PostCitation(TimeStampedModel):
         unique_together = [("post", "source")]
         ordering = ["position"]
         indexes = [
-            models.Index(fields=["post"]),
+            models.Index(fields=["post", "position"]),
             models.Index(fields=["source"]),
         ]
 

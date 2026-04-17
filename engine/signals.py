@@ -1,16 +1,18 @@
 """
 Signal handlers for the engine app.
 
-Handles automatic updates for internal links when posts are saved or deleted.
+Handles automatic updates for internal links when posts are saved or deleted,
+and cache invalidation for citation formatting.
 """
 
 import logging
 
+from django.core.cache import cache
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
 from engine.links.extractor import update_post_links
-from engine.models import Post
+from engine.models import Post, Source
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,21 @@ def cleanup_internal_links_on_delete(sender, instance, **kwargs):
             f"Soft deleting post '{instance.slug}' "
             f"- related InternalLink records will be handled by CASCADE"
         )
+
+
+@receiver(post_save, sender=Source)
+def invalidate_citeproc_cache_on_source_save(sender, instance, **kwargs):
+    """
+    Invalidate citeproc formatting cache when a Source record changes.
+
+    The citeproc cache uses keys prefixed with "citeproc:" — delete them all
+    so that citations re-render with updated source metadata.
+    """
+    try:
+        cache.delete_pattern("citeproc:*")
+    except AttributeError:
+        # LocMemCache doesn't support delete_pattern; skip in dev
+        pass
 
 
 # NOTE: Previous handlers update_backlinks_when_slug_changes and

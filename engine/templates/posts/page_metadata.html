@@ -124,27 +124,25 @@
 </span>
 {% endif %}
 {# Reading time #}
-{#      {% if post.reading_time_minutes %}#}
-{#        <span class="page-reading-time">#}
-{#          {% tooltip position="top" theme="dark" %}#}
-{#            <span>{{ post.reading_time_minutes }} min read</span>#}
-{#            {% tooltip_content %}#}
-{#            Estimated reading time: {{ post.reading_time_minutes }} minute{{ post.reading_time_minutes|pluralize }}.#}
-{#          {% endtooltip %}#}
-{#        </span>#}
-{#      {% endif %}#}
-{##}
+{% if post.reading_time_minutes %}
+  <span class="page-reading-time">
+    {% tooltip position="top" theme="dark" %}
+      <span>{{ post.reading_time_minutes }} min read</span>
+      {% tooltip_content %}
+      Estimated reading time: {{ post.reading_time_minutes }} minute{{ post.reading_time_minutes|pluralize }}.
+    {% endtooltip %}
+  </span>
+{% endif %}
 {# Word count #}
-{#      {% if post.word_count %}#}
-{#        <span class="page-word-count">#}
-{#          {% tooltip position="top" theme="dark" %}#}
-{#            <span>{{ post.word_count }} words</span>#}
-{#            {% tooltip_content %}#}
-{#            Word count: {{ post.word_count|floatformat:0 }} words.#}
-{#          {% endtooltip %}#}
-{#        </span>#}
-{#      {% endif %}#}
-{#    #}
+{% if post.word_count %}
+  <span class="page-word-count">
+    {% tooltip position="top" theme="dark" %}
+      <span>{{ post.word_count|floatformat:0 }} words</span>
+      {% tooltip_content %}
+      Word count: {{ post.word_count|floatformat:0 }} words.
+    {% endtooltip %}
+  </span>
+{% endif %}
 </div>
 {# Series #}
 {% if post.series %}

@@ -324,6 +324,20 @@ class Tag(TimeStampedModel, UniqueSlugMixin):
         self.usage_count = self.posts.count()
         self.save(update_fields=["usage_count"])
 
+    @classmethod
+    def bulk_update_usage_counts(cls):
+        """Update usage_count for all tags in a single query."""
+        from django.db.models import Count
+
+        tags = cls.objects.annotate(_count=Count("posts")).only("id", "usage_count")
+        to_update = []
+        for tag in tags:
+            if tag.usage_count != tag._count:
+                tag.usage_count = tag._count
+                to_update.append(tag)
+        if to_update:
+            cls.objects.bulk_update(to_update, ["usage_count"])
+
 
 class TagAlias(TimeStampedModel, UniqueSlugMixin):
     """

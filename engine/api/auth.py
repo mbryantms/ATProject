@@ -44,13 +44,25 @@ def api_auth_required(view_func):
             token = auth_header[7:]  # Strip "Bearer " prefix
             api_token = getattr(settings, "PRESIGNED_UPLOAD_API_TOKEN", None)
 
-            if api_token and hmac.compare_digest(token, api_token):
-                from django.contrib.auth import get_user_model
+            if not api_token or not hmac.compare_digest(token, api_token):
+                return JsonResponse(
+                    {"error": "Invalid API token"},
+                    status=401,
+                )
 
-                User = get_user_model()
-                user = User.objects.filter(is_superuser=True).first()
-                if user is None:
-                    user = User.objects.filter(is_staff=True).first()
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            # Use the designated API user (first superuser, then first staff).
+            # Fail explicitly if no suitable user exists.
+            user = User.objects.filter(is_superuser=True).first()
+            if user is None:
+                user = User.objects.filter(is_staff=True).first()
+            if user is None:
+                return JsonResponse(
+                    {"error": "No staff user configured for API access"},
+                    status=500,
+                )
 
         # Method 2: Check Django session authentication
         if user is None and not is_bearer and request.user.is_authenticated:
