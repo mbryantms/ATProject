@@ -417,7 +417,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # Celery (Redis)
-CELERY_BROKER_URL = env("REDIS_URL")
+CELERY_BROKER_URL = env("REDIS_URL", default="memory://")
 
 # Result backend — MUST be Redis (not "django-db") to allow Neon auto-suspend.
 # Using "django-db" writes to the database after every task, keeping Neon awake.
