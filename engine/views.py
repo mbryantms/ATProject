@@ -68,7 +68,11 @@ class IndexView(SEOContextMixin, TemplateView):
         active_tags = [c["tag"] for c in featured_tags_config if c["tag"].is_active]
         tag_sections = []
         if active_tags:
-            tag_posts = base_qs.filter(tags__in=active_tags)
+            # distinct() is required: filter(tags__in=...) joins the M2M table
+            # and yields one row per matching (post, tag) pair, so a post with
+            # multiple active featured tags would be appended to each bucket
+            # more than once by the loop below.
+            tag_posts = base_qs.filter(tags__in=active_tags).distinct()
             # Build a dict: tag_id -> list of posts (up to 5 each)
             posts_by_tag = {}
             for post in tag_posts:
@@ -95,9 +99,11 @@ class IndexView(SEOContextMixin, TemplateView):
         featured_categories = [c["category"] for c in featured_categories_config]
         category_sections = []
         if featured_categories:
-            cat_posts = base_qs.filter(
-                categories__in=featured_categories
-            ).prefetch_related("categories")
+            cat_posts = (
+                base_qs.filter(categories__in=featured_categories)
+                .prefetch_related("categories")
+                .distinct()
+            )
             posts_by_cat = {}
             for post in cat_posts:
                 for cat in post.categories.all():
