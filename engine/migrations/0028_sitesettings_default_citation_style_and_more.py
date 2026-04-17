@@ -4,40 +4,63 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0027_alter_source_search_vector'),
+        ("engine", "0027_alter_source_search_vector"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sitesettings',
-            name='default_citation_style',
-            field=models.CharField(blank=True, default='apa', help_text='Default CSL citation style (e.g., apa, chicago-author-date, mla).', max_length=100),
+            model_name="sitesettings",
+            name="default_citation_style",
+            field=models.CharField(
+                blank=True,
+                default="apa",
+                help_text="Default CSL citation style (e.g., apa, chicago-author-date, mla).",
+                max_length=100,
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='zotero_api_key',
-            field=models.CharField(blank=True, help_text='Zotero API key (generate at zotero.org/settings/keys).', max_length=100),
+            model_name="sitesettings",
+            name="zotero_api_key",
+            field=models.CharField(
+                blank=True,
+                help_text="Zotero API key (generate at zotero.org/settings/keys).",
+                max_length=100,
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='zotero_last_sync_at',
-            field=models.DateTimeField(blank=True, help_text='Timestamp of last successful Zotero sync.', null=True),
+            model_name="sitesettings",
+            name="zotero_last_sync_at",
+            field=models.DateTimeField(
+                blank=True,
+                help_text="Timestamp of last successful Zotero sync.",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='zotero_last_sync_version',
-            field=models.IntegerField(default=0, help_text='Zotero library version at last sync (for incremental sync).'),
+            model_name="sitesettings",
+            name="zotero_last_sync_version",
+            field=models.IntegerField(
+                default=0,
+                help_text="Zotero library version at last sync (for incremental sync).",
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='zotero_library_id',
-            field=models.CharField(blank=True, help_text='Zotero user or group library ID.', max_length=50),
+            model_name="sitesettings",
+            name="zotero_library_id",
+            field=models.CharField(
+                blank=True, help_text="Zotero user or group library ID.", max_length=50
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='zotero_library_type',
-            field=models.CharField(blank=True, choices=[('user', 'User'), ('group', 'Group')], default='user', help_text='Whether this is a personal or group library.', max_length=10),
+            model_name="sitesettings",
+            name="zotero_library_type",
+            field=models.CharField(
+                blank=True,
+                choices=[("user", "User"), ("group", "Group")],
+                default="user",
+                help_text="Whether this is a personal or group library.",
+                max_length=10,
+            ),
         ),
     ]

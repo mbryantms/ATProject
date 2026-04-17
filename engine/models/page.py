@@ -111,9 +111,9 @@ class Page(TimeStampedModel):
                 "category": pfc.category,
                 "display_title": pfc.display_title or pfc.category.name,
             }
-            for pfc in self.pagefeaturedcategory_set.select_related("category").order_by(
-                "order"
-            )
+            for pfc in self.pagefeaturedcategory_set.select_related(
+                "category"
+            ).order_by("order")
         ]
 
 

@@ -29,7 +29,14 @@ class PageFeaturedCategoryInline(admin.TabularInline):
 class PageAdmin(admin.ModelAdmin):
     """Admin for editable static page content."""
 
-    list_display = ["slug", "title", "is_active", "featured_tags_count", "featured_categories_count", "updated_at"]
+    list_display = [
+        "slug",
+        "title",
+        "is_active",
+        "featured_tags_count",
+        "featured_categories_count",
+        "updated_at",
+    ]
     list_filter = ["is_active"]
     search_fields = ["slug", "title", "content"]
     readonly_fields = ["content_html", "created_at", "updated_at"]

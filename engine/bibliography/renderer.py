@@ -137,7 +137,7 @@ def render_bibliography_section(
             anchor = (
                 f'<a href="#ref-{escaped_key}" class="reference-anchor reference-number" '
                 f'title="Link to reference {idx}">{link_icon}'
-                f'{html.escape(number_text)}</a>'
+                f"{html.escape(number_text)}</a>"
             )
         else:
             anchor = (

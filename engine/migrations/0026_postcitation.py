@@ -5,27 +5,67 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0025_source'),
+        ("engine", "0025_source"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PostCitation',
+            name="PostCitation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('updated_at', models.DateTimeField(auto_now=True, db_index=True)),
-                ('position', models.PositiveIntegerField(default=0, help_text='Order of first appearance in the post content.')),
-                ('annotation', models.TextField(blank=True, help_text='Optional per-post note about this source (for annotated bibliographies).')),
-                ('post', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='citations', to='engine.post')),
-                ('source', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='post_citations', to='engine.source')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("updated_at", models.DateTimeField(auto_now=True, db_index=True)),
+                (
+                    "position",
+                    models.PositiveIntegerField(
+                        default=0,
+                        help_text="Order of first appearance in the post content.",
+                    ),
+                ),
+                (
+                    "annotation",
+                    models.TextField(
+                        blank=True,
+                        help_text="Optional per-post note about this source (for annotated bibliographies).",
+                    ),
+                ),
+                (
+                    "post",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="citations",
+                        to="engine.post",
+                    ),
+                ),
+                (
+                    "source",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="post_citations",
+                        to="engine.source",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['position'],
-                'indexes': [models.Index(fields=['post'], name='engine_post_post_id_26569a_idx'), models.Index(fields=['source'], name='engine_post_source__f4d870_idx')],
-                'unique_together': {('post', 'source')},
+                "ordering": ["position"],
+                "indexes": [
+                    models.Index(
+                        fields=["post"], name="engine_post_post_id_26569a_idx"
+                    ),
+                    models.Index(
+                        fields=["source"], name="engine_post_source__f4d870_idx"
+                    ),
+                ],
+                "unique_together": {("post", "source")},
             },
         ),
     ]

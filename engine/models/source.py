@@ -354,15 +354,11 @@ class Source(TimeStampedModel, SoftDeleteModel):
             title=self.title or "",
         )
         # Collect existing keys (including soft-deleted) for collision check
-        existing_keys = set(
-            Source.all_objects.values_list("citation_key", flat=True)
-        )
+        existing_keys = set(Source.all_objects.values_list("citation_key", flat=True))
         # Exclude our own key if updating
         if self.pk:
             try:
-                existing_keys.discard(
-                    Source.all_objects.get(pk=self.pk).citation_key
-                )
+                existing_keys.discard(Source.all_objects.get(pk=self.pk).citation_key)
             except Source.DoesNotExist:
                 pass
         return resolve_collision(base_key, existing_keys)

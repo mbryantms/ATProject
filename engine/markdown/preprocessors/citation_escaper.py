@@ -24,9 +24,7 @@ _BRACKETED = re.compile(
 )
 
 # Narrative citation: @key not inside brackets
-_NARRATIVE = re.compile(
-    r"(?<![@\[\\])@([a-zA-Z0-9][a-zA-Z0-9_:.#$%&\-+?<>~/]*)"
-)
+_NARRATIVE = re.compile(r"(?<![@\[\\])@([a-zA-Z0-9][a-zA-Z0-9_:.#$%&\-+?<>~/]*)")
 
 
 def _escape_bracketed(match: re.Match) -> str:

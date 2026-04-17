@@ -4,18 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0029_add_post_citation_style'),
+        ("engine", "0029_add_post_citation_style"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='postcitation',
-            name='engine_post_post_id_26569a_idx',
+            model_name="postcitation",
+            name="engine_post_post_id_26569a_idx",
         ),
         migrations.AddIndex(
-            model_name='postcitation',
-            index=models.Index(fields=['post', 'position'], name='engine_post_post_id_f38ec7_idx'),
+            model_name="postcitation",
+            index=models.Index(
+                fields=["post", "position"], name="engine_post_post_id_f38ec7_idx"
+            ),
         ),
     ]

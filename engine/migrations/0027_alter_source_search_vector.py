@@ -5,15 +5,16 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0026_postcitation'),
+        ("engine", "0026_postcitation"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='source',
-            name='search_vector',
-            field=django.contrib.postgres.search.SearchVectorField(blank=True, null=True),
+            model_name="source",
+            name="search_vector",
+            field=django.contrib.postgres.search.SearchVectorField(
+                blank=True, null=True
+            ),
         ),
     ]
