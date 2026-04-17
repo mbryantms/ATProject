@@ -578,12 +578,15 @@ LOGGING = {
 
 SENTRY_DSN = env("SENTRY_DSN", default=None)
 if SENTRY_DSN:
-    import sentry_sdk
+    try:
+        import sentry_sdk
 
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        traces_sample_rate=0.1,
-        profiles_sample_rate=0.1,
-        send_default_pii=False,
-        environment=env("SENTRY_ENVIRONMENT", default="production"),
-    )
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.1,
+            send_default_pii=False,
+            environment=env("SENTRY_ENVIRONMENT", default="production"),
+        )
+    except ImportError:
+        pass
