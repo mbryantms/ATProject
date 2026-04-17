@@ -16,7 +16,9 @@
       : document.addEventListener('DOMContentLoaded', fn);
 
   ready(() => {
-    const body = document.querySelector('.markdownBody');
+    // Article body — target by id, not .markdownBody, since the page-metadata
+    // block also uses that class and appears earlier in the DOM.
+    const body = document.getElementById('markdownBody');
     if (!body) return;
 
     const articleH1 = document.querySelector('article > header > h1');

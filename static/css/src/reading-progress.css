@@ -78,7 +78,7 @@
 /* Below the desktop breakpoint, give the article enough bottom padding that
  * the floating widget never covers the last lines of content. */
 @media (max-width: 1760px) {
-  .markdownBody {
+  #markdownBody {
     padding-bottom: clamp(96px, 14vh, 160px);
   }
 }
