@@ -5,6 +5,7 @@
 @import './link-icons.css';
 @import './fullwidth.css';
 @import './toc.css';
+@import './reading-progress.css';
 
 :root {
   --AT-serif-font-stack:
@@ -652,7 +653,9 @@ header h1 em {
    */
   #page-metadata .page-metadata-fields .page-author::after,
   #page-metadata .page-metadata-fields .page-categories::after,
-  #page-metadata .page-metadata-fields .page-status:not(:has(~ .page-categories))::after {
+  #page-metadata
+    .page-metadata-fields
+    .page-status:not(:has(~ .page-categories))::after {
     display: none;
   }
 
