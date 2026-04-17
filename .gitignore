@@ -307,6 +307,9 @@ dist
 static/css/dist/
 static/js/dist/
 
+# Django collectstatic output (regenerated on every build; never commit)
+staticfiles/
+
 # Bibliography citeproc-js dependencies (installed in Docker)
 engine/bibliography/node_modules/
 .output
