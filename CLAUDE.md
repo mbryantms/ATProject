@@ -1,21 +1,42 @@
 # ATProject
 
-Personal publishing platform built with Django 5.2, PostgreSQL, and modern frontend tooling.
+Personal publishing platform built with Django 6.0, PostgreSQL, and modern frontend tooling.
 
-## Quick Reference
+## First-time local setup
 
 ```bash
-# Development
-uv run python manage.py runserver    # Start Django dev server
-npm run dev                          # Watch CSS/JS (run in parallel)
+docker compose up -d                              # start local Postgres (see compose.yaml)
+cp .env.example .env                              # then edit secrets as needed
+uv sync                                           # install Python deps
+npm install                                       # install JS deps
+uv run python manage.py migrate                   # apply migrations
+uv run python manage.py collectstatic --noinput   # populate Whitenoise manifest (required before tests)
+uv run python manage.py createsuperuser           # optional, for admin access
+```
+
+Local Postgres lives in a Docker volume (`pgdata`) and persists across `docker compose stop`/`start`. Use `docker compose down -v` to nuke it. Production Postgres is Neon (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+
+There is **no CI** — the GitHub Actions workflow was removed. Run tests locally before pushing.
+
+## Daily commands
+
+```bash
+# Run the app
+docker compose up -d                 # ensure Postgres is up
+uv run python manage.py runserver    # Django dev server
+npm run dev                          # Watch CSS/JS (run in parallel terminal)
 uv run celery -A ATProject worker    # Task worker (optional)
 
 # Database
-uv run python manage.py migrate      # Apply migrations
+uv run python manage.py migrate      # Apply new migrations
 uv run python manage.py makemigrations
 
+# Tests (require Postgres running + collectstatic having been run at least once)
+uv run python manage.py test
+uv run python manage.py test engine.tests.test_feeds   # single module
+
 # Frontend builds (dist files are gitignored, built in Docker for deploy)
-npm run build                        # Production CSS/JS (local dev only)
+npm run build                        # Production CSS/JS bundle
 npm run format                       # Prettier formatting
 
 # Code quality
@@ -48,11 +69,12 @@ posts-md/               # Markdown content files
 
 ## Tech Stack
 
-- **Backend**: Django 5.2, PostgreSQL (Neon), Celery + Redis
-- **Content**: Pandoc via pypandoc, BeautifulSoup4, Bleach (sanitization)
+- **Backend**: Django 6.0, PostgreSQL (Neon in prod, Docker locally), Celery + Redis
+- **Content**: Pandoc via pypandoc, BeautifulSoup4, Bleach + nh3 (sanitization)
 - **Storage**: Cloudflare R2 via django-storages (S3-compatible)
 - **Frontend**: PostCSS, esbuild (ES2017), @floating-ui/dom
 - **Citations**: citeproc-js via Node.js subprocess, CSL styles
+- **Observability**: Sentry SDK (Django + Celery integrations); see [SENTRY.md](SENTRY.md)
 - **Deployment**: Railway, Docker (multi-stage: Node builder + Python 3.13-slim), Gunicorn, WhiteNoise
 
 ## Key Patterns
@@ -96,6 +118,10 @@ Located in `engine/markdown/`. Processing order:
 ```bash
 uv run python manage.py rebuild_backlinks
 ```
+
+### Syndication Feeds
+
+`engine/feeds.py` exposes RSS 2.0 and Atom 1.0 for: global (`/feed/`), featured (`/feed/featured/`), per-tag (`/feed/tag/<slug>/`, alias-aware), per-category (`/feed/category/<slug>/`), and per-series (`/feed/series/<slug>/`). All share `BasePostFeed`; subclasses override `items()` and channel metadata. Items carry full HTML content (`content_html_cached`), stable `post:<pk>` GUIDs, both tag and category names, and a hero-image enclosure when available.
 
 ## Management Commands
 
@@ -159,8 +185,14 @@ R2_CUSTOM_DOMAIN=...
 uv run python manage.py test
 ```
 
+Requires:
+- Postgres running (`docker compose up -d`).
+- `collectstatic` to have been run at least once. Templates extend `base.html` which references `{% static 'img/favicon.ico' %}` resolved through Whitenoise's `CompressedManifestStaticFilesStorage`; without a populated manifest, any test that renders the 404 page (or any base-extending template) raises `ValueError: Missing staticfiles manifest entry`.
+
 ## Documentation
 
-- `ARCHITECTURE.md` - System architecture overview
-- `DEPLOYMENT.md` - Neon + Railway deployment guide
-- `ROADMAP.md` - Feature roadmap and TODOs
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system architecture overview
+- [DEPLOYMENT.md](DEPLOYMENT.md) — Neon + Railway deployment guide
+- [SENTRY.md](SENTRY.md) — Sentry setup
+- [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md) — citation system usage
+- [bibliography-design.md](bibliography-design.md) — citation system design notes

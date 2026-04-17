@@ -1,0 +1,28 @@
+# Local development only. Production runs on Railway (see DEPLOYMENT.md).
+# Credentials match the default DATABASE_URL in .env.example.
+#
+# Usage:
+#   docker compose up -d        # start
+#   docker compose stop         # pause (keeps data)
+#   docker compose start        # resume
+#   docker compose down -v      # remove container + volume (nukes data)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: atproject
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d atproject"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -125,7 +125,7 @@ class TagFeedTests(FeedSetupMixin, TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_alias_resolves_to_canonical_tag(self):
-        TagAlias.objects.create(name="Django FW", slug="django-fw", tag=self.tag)
+        TagAlias.objects.create(alias="Django FW", slug="django-fw", tag=self.tag)
         response = self.client.get("/feed/tag/django-fw/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Published Post")

@@ -107,14 +107,18 @@ Multi-factor scoring algorithm:
 - File hash deduplication
 - Focal point specification for smart cropping
 
+### Syndication Feeds
+RSS 2.0 + Atom 1.0 for five collections (global, featured, per-tag, per-category, per-series). All share `engine/feeds.py:BasePostFeed`; subclasses override `items()` and channel metadata. Tag feeds resolve `TagAlias` server-side. Items emit full HTML content, stable `post:<pk>` GUIDs, both tag and category names, and a hero-image enclosure when available. Auto-discovery `<link rel="alternate">` tags are added on the corresponding archive templates.
+
 ## Technology Stack
 
 ### Backend
-- **Framework**: Django 5.2+
-- **Database**: PostgreSQL
+- **Framework**: Django 6.0+
+- **Database**: PostgreSQL (Neon in prod; Docker locally — see `compose.yaml`)
 - **Task Queue**: Celery + Redis
 - **Scheduler**: django-celery-beat
 - **Storage**: S3/Cloudflare R2
+- **Observability**: Sentry SDK (Django + Celery integrations)
 
 ### Content Processing
 - **Markdown**: pypandoc (Pandoc wrapper)
@@ -130,15 +134,19 @@ Multi-factor scoring algorithm:
 
 ### Key Dependencies
 ```
-django>=5.2.7
-celery>=5.5.3
-pypandoc>=1.15
-pillow>=11.3.0
-django-storages>=1.14.6
-boto3>=1.40.49
-beautifulsoup4>=4.14.2
-bleach>=6.2.0
+django>=6.0
+celery>=5.5
+pypandoc
+pillow
+django-storages>=1.14
+boto3
+beautifulsoup4
+bleach
+nh3
+sentry-sdk[django,celery]>=2.0
 ```
+
+Authoritative versions live in `pyproject.toml`.
 
 ## Database Design
 
@@ -173,11 +181,24 @@ bleach>=6.2.0
 
 ## URL Structure
 
+Non-exhaustive; see `ATProject/urls.py` and `engine/urls.py` for the full list.
+
 | Pattern | View | Purpose |
 |---------|------|---------|
-| `/` | `PostArchiveView` | Posts by year |
+| `/` | `IndexView` | Homepage (intro + featured sections) |
+| `/posts/` | `PostArchiveView` | Posts by year |
 | `/posts/<slug>/` | `PostDetailView` | Single post |
-| `/tags/<slug>/` | `TagArchiveView` | Posts by tag |
+| `/tags/` | `TagListView` | All tags |
+| `/tags/<slug>/` | `TagArchiveView` | Posts by tag (alias-aware via 301) |
+| `/categories/<slug>/` | `CategoryArchiveView` | Posts by category |
+| `/series/<slug>/` | `SeriesDetailView` | Posts in a series |
+| `/feed/`, `/feed/atom/` | `PostFeed` / `PostAtomFeed` | Global syndication |
+| `/feed/featured/[atom/]` | `FeaturedFeed` | Featured posts |
+| `/feed/tag/<slug>/[atom/]` | `TagFeed` | Per-tag (alias-aware) |
+| `/feed/category/<slug>/[atom/]` | `CategoryFeed` | Per-category |
+| `/feed/series/<slug>/[atom/]` | `SeriesFeed` | Per-series |
+| `/sitemap.xml`, `/robots.txt` | sitemap + robots | SEO |
+| `/health/` | `health_check` | Railway health probe |
 
 ## Admin Features
 
