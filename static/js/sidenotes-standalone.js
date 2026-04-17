@@ -562,9 +562,13 @@
         const citationRect = citation.getBoundingClientRect();
 
         const dx =
-          citationRect.left + citationRect.width / 2 - (arrowRect.left + arrowRect.width / 2);
+          citationRect.left +
+          citationRect.width / 2 -
+          (arrowRect.left + arrowRect.width / 2);
         const dy =
-          citationRect.top + citationRect.height / 2 - (arrowRect.top + arrowRect.height / 2);
+          citationRect.top +
+          citationRect.height / 2 -
+          (arrowRect.top + arrowRect.height / 2);
 
         // atan2(dx, -dy) gives clockwise angle from up (matching SVG's default up orientation)
         const angleDeg = Math.atan2(dx, -dy) * (180 / Math.PI);

@@ -34,24 +34,24 @@
  * { "error": "description of the error" }
  */
 
-"use strict";
+'use strict';
 
-const fs = require("fs");
-const path = require("path");
-const CSL = require("citeproc");
+const fs = require('fs');
+const path = require('path');
+const CSL = require('citeproc');
 
 function readStdin() {
   return new Promise((resolve, reject) => {
-    let data = "";
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => resolve(data));
-    process.stdin.on("error", reject);
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => (data += chunk));
+    process.stdin.on('end', () => resolve(data));
+    process.stdin.on('error', reject);
   });
 }
 
 function loadFile(filePath) {
-  return fs.readFileSync(filePath, "utf8");
+  return fs.readFileSync(filePath, 'utf8');
 }
 
 function buildSys(items, localePath, lang) {
@@ -67,7 +67,7 @@ function buildSys(items, localePath, lang) {
         return loadFile(localeFile);
       } catch {
         // Fall back to en-US if requested locale is not available
-        const fallback = path.join(localePath, "locales-en-US.xml");
+        const fallback = path.join(localePath, 'locales-en-US.xml');
         return loadFile(fallback);
       }
     },
@@ -89,11 +89,11 @@ async function main() {
 
   const {
     items = [],
-    style = "apa",
+    style = 'apa',
     citationClusters = [],
-    stylePath = path.join(__dirname, "styles"),
-    localePath = path.join(__dirname, "locales"),
-    lang = "en-US",
+    stylePath = path.join(__dirname, 'styles'),
+    localePath = path.join(__dirname, 'locales'),
+    lang = 'en-US',
   } = input;
 
   if (items.length === 0) {
@@ -104,11 +104,13 @@ async function main() {
   // Load CSL style
   let styleXml;
   try {
-    const styleName = style.endsWith(".csl") ? style.replace(/\.csl$/, "") : style;
+    const styleName = style.endsWith('.csl') ? style.replace(/\.csl$/, '') : style;
     const styleFile = path.join(stylePath, `${styleName}.csl`);
     styleXml = loadFile(styleFile);
   } catch (e) {
-    process.stdout.write(JSON.stringify({ error: `Failed to load style "${style}": ${e.message}` }));
+    process.stdout.write(
+      JSON.stringify({ error: `Failed to load style "${style}": ${e.message}` }),
+    );
     process.exit(1);
   }
 
@@ -118,7 +120,9 @@ async function main() {
   try {
     citeproc = new CSL.Engine(sys, styleXml, lang);
   } catch (e) {
-    process.stdout.write(JSON.stringify({ error: `Failed to initialize citeproc: ${e.message}` }));
+    process.stdout.write(
+      JSON.stringify({ error: `Failed to initialize citeproc: ${e.message}` }),
+    );
     process.exit(1);
   }
 
@@ -142,7 +146,11 @@ async function main() {
 
     const citationsPost = [];
     // Process this cluster; citationsPre contains all previously processed clusters
-    const result = citeproc.processCitationCluster(cluster, citationsPre, citationsPost);
+    const result = citeproc.processCitationCluster(
+      cluster,
+      citationsPre,
+      citationsPost,
+    );
 
     // result[1] is an array of [index, text, citationID] triples
     // The last entry corresponds to the current citation
@@ -156,7 +164,7 @@ async function main() {
         citationResults.push(result[1][result[1].length - 1][1]);
       }
     } else {
-      citationResults.push("");
+      citationResults.push('');
     }
 
     // Add this cluster to citationsPre for subsequent clusters
@@ -172,7 +180,11 @@ async function main() {
       // Map each bibliography entry to its item ID
       const bibIds = bibParams.entry_ids || [];
       for (let i = 0; i < bibEntries.length; i++) {
-        const id = bibIds[i] ? (Array.isArray(bibIds[i]) ? bibIds[i][0] : bibIds[i]) : `unknown-${i}`;
+        const id = bibIds[i]
+          ? Array.isArray(bibIds[i])
+            ? bibIds[i][0]
+            : bibIds[i]
+          : `unknown-${i}`;
         bibliography.push([id, bibEntries[i].trim()]);
       }
     }
@@ -185,7 +197,7 @@ async function main() {
     JSON.stringify({
       bibliography,
       citations: citationResults,
-    })
+    }),
   );
 }
 

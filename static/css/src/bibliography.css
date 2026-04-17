@@ -184,18 +184,18 @@ a.citation:visited {
     Numeric styles (IEEE, Vancouver, Nature) — prominent bracketed numbers
     --------------------------------------------------------------------------- */
 
-.reference-list[data-citation-format="numeric"] .reference-entry {
+.reference-list[data-citation-format='numeric'] .reference-entry {
   padding-left: 3em;
   text-indent: 0;
 }
 
-.reference-list[data-citation-format="numeric"] .reference-number {
+.reference-list[data-citation-format='numeric'] .reference-number {
   position: absolute;
   left: 0;
   top: 0;
 }
 
-.reference-list[data-citation-format="numeric"] .csl-right-inline {
+.reference-list[data-citation-format='numeric'] .csl-right-inline {
   display: inline;
 }
 

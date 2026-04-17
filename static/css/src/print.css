@@ -32,21 +32,27 @@
     background: #fff;
   }
 
-  h1 { font-size: 18pt; }
-  h2 { font-size: 15pt; }
-  h3 { font-size: 13pt; }
+  h1 {
+    font-size: 18pt;
+  }
+  h2 {
+    font-size: 15pt;
+  }
+  h3 {
+    font-size: 13pt;
+  }
 
   /* Show URLs after links */
-  a[href^="http"]::after {
-    content: " (" attr(href) ")";
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
     font-size: 0.85em;
     font-style: italic;
     word-break: break-all;
   }
 
   /* Don't show URL for internal/anchor links */
-  a[href^="#"]::after,
-  a[href^="/"]::after {
+  a[href^='#']::after,
+  a[href^='/']::after {
     content: none;
   }
 
@@ -70,7 +76,12 @@
   }
 
   /* Headings should not be orphaned */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     page-break-after: avoid;
   }
 
