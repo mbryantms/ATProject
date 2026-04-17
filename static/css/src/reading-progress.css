@@ -28,12 +28,51 @@
   transform: translateY(0);
 }
 
+/* Eclipsed: full-width content (image, table, code block, etc.) is in
+ * viewport — fade the widget out so it never covers wide content. Comes
+ * after .rp-visible so it wins. */
+.reading-progress.rp-eclipsed {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.5em);
+}
+
 .reading-progress .rp-title {
   font-family: var(--AT-serif-font-stack);
   font-variant-caps: small-caps;
   text-align: center;
   font-size: 0.95em;
   letter-spacing: 0.02em;
+}
+
+/* Slots are <button>s for built-in click + keyboard interaction; reset the
+ * default button chrome so they read like the surrounding text. */
+.reading-progress .rp-h2,
+.reading-progress .rp-h3,
+.reading-progress .rp-h4 {
+  appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+.reading-progress .rp-h2:hover,
+.reading-progress .rp-h3:hover,
+.reading-progress .rp-h4:hover {
+  color: var(--AT-body-link-hover-color, currentColor);
+  text-decoration: underline;
+}
+.reading-progress .rp-h2:focus-visible,
+.reading-progress .rp-h3:focus-visible,
+.reading-progress .rp-h4:focus-visible {
+  outline: 1px dotted currentColor;
+  outline-offset: 2px;
 }
 
 .reading-progress .rp-h2 {
@@ -91,7 +130,7 @@
     left: calc((100vw - var(--AT-body-max-width, 935px)) / 2 - 64px - 320px);
     right: auto;
     bottom: auto;
-    top: 33vh;
+    top: 8vh;
     width: 320px;
   }
   .reading-progress .rp-bar {
