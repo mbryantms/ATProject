@@ -26,6 +26,9 @@ from .base import (
     TimeStampedModel,
 )
 
+# Citation (bibliography)
+from .citation import PostCitation
+
 # Organization models
 from .organization import (
     AssetCollection,
@@ -47,9 +50,6 @@ from .post import (
 
 # Settings
 from .settings import SiteSettings
-
-# Citation (bibliography)
-from .citation import PostCitation
 
 # Source (bibliography)
 from .source import (

@@ -10,6 +10,7 @@ env:
   DJANGO_SETTINGS_MODULE: ATProject.settings
   SECRET_KEY: ci-test-secret-key-not-for-production
   DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_atproject
+  REDIS_URL: redis://localhost:6379
   DEBUG: "True"
   ALLOWED_HOSTS: "*"
 
