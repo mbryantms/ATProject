@@ -2,10 +2,14 @@
  * Injected into <body> by static/js/reading-progress.js when a post is
  * detected. Hidden until the user scrolls past the inline post title. */
 
+/* Hidden by default. Only revealed in the two breakpoint ranges below:
+ *   - mobile (≤ 649px): fixed-bottom layout
+ *   - wide desktop (≥ 1761px): left-margin layout, alongside sidenotes
+ * Everything in between (laptops, normal monitors) gets no widget at all. */
 .reading-progress {
   position: fixed;
   z-index: 50;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 0.25em;
   background: var(--AT-body-background-color);
@@ -119,31 +123,31 @@
   transition: width 0.08s linear;
 }
 
-/* Mobile / fallback: fixed bottom, full width minus small gutters.
- * Progress bar sits at the TOP edge so it visually connects to the article. */
-.reading-progress {
-  left: 8px;
-  right: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-}
-.reading-progress .rp-bar {
-  order: -1;
-  margin-bottom: 0.35em;
-}
-
-/* Below the desktop breakpoint, give the article enough bottom padding that
- * the floating widget never covers the last lines of content. */
-@media (max-width: 1760px) {
+/* Mobile (≤ 649px): fixed bottom, full width minus small gutters. Progress
+ * bar sits at the TOP edge so it visually connects to the article. Article
+ * gets bottom padding so the widget never covers the last lines of content. */
+@media (max-width: 649px) {
+  .reading-progress {
+    display: flex;
+    left: 8px;
+    right: 8px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  .reading-progress .rp-bar {
+    order: -1;
+    margin-bottom: 0.35em;
+  }
   #markdownBody {
     padding-bottom: clamp(96px, 14vh, 160px);
   }
 }
 
-/* Desktop ≥ 1761px: pinned to the left margin column where full sidenotes
- * appear. Body max-width is 935px (--AT-body-max-width); 64px gap; 320px
- * widget gives at least 29px breathing room at the breakpoint. */
+/* Wide desktop (≥ 1761px): pinned to the left margin column where full
+ * sidenotes appear. Body max-width is 935px (--AT-body-max-width); 64px gap;
+ * 320px widget gives at least 29px breathing room at the breakpoint. */
 @media (min-width: 1761px) {
   .reading-progress {
+    display: flex;
     left: calc((100vw - var(--AT-body-max-width, 935px)) / 2 - 64px - 320px);
     right: auto;
     bottom: auto;
