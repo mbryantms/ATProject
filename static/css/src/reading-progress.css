@@ -26,6 +26,7 @@
 .reading-progress.rp-visible {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 /* Eclipsed: full-width content (image, table, code block, etc.) is in
@@ -41,8 +42,10 @@
   font-family: var(--AT-serif-font-stack);
   font-variant-caps: small-caps;
   text-align: center;
-  font-size: 0.95em;
-  letter-spacing: 0.02em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.15em;
 }
 
 /* Slots are <button>s for built-in click + keyboard interaction; reset the
@@ -61,6 +64,12 @@
   display: block;
   width: 100%;
   cursor: pointer;
+}
+/* Re-assert UA `[hidden]` semantics — `display: block` above otherwise wins. */
+.reading-progress .rp-h2[hidden],
+.reading-progress .rp-h3[hidden],
+.reading-progress .rp-h4[hidden] {
+  display: none;
 }
 .reading-progress .rp-h2:hover,
 .reading-progress .rp-h3:hover,
