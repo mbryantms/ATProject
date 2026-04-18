@@ -7,6 +7,7 @@ internal links (backlinks), post-asset relationships, and revision history.
 
 import csv
 import difflib
+import re
 
 from django.contrib import admin, messages
 from django.http import Http404, HttpResponse, HttpResponseRedirect
@@ -18,6 +19,731 @@ from django.utils.safestring import mark_safe
 from engine.models import InternalLink, Post, PostAsset, PostCitation, PostRevision
 
 from .mixins import SoftDeleteAdminMixin
+
+# Curated list of CSL styles supported by the citeproc-js bridge.
+# Leaving blank uses the site-wide default.
+CITATION_STYLE_CHOICES = [
+    ("", "— Use site default —"),
+    ("chicago-author-date", "Chicago (author-date)"),
+    ("chicago-note-bibliography", "Chicago (notes & bibliography)"),
+    ("apa", "APA 7th edition"),
+    ("modern-language-association", "MLA 9th edition"),
+    ("ieee", "IEEE"),
+    ("nature", "Nature"),
+    ("harvard-cite-them-right", "Harvard (Cite Them Right)"),
+    ("vancouver", "Vancouver"),
+]
+
+# Static sample renderings to help an author pick a citation style
+# without leaving the change form. These are illustrative, not authoritative —
+# the real renderer is citeproc-js on the server.
+_CITATION_STYLE_SAMPLES = [
+    ("chicago-author-date", "(Smith 2024, 42)",
+     "Smith, Jane. 2024. “A Short Article.” Journal of Things 12 (3): 37–58."),
+    ("chicago-note-bibliography", "¹ Jane Smith, “A Short Article,”…",
+     "Smith, Jane. “A Short Article.” Journal of Things 12, no. 3 (2024): 37–58."),
+    ("apa", "(Smith, 2024, p. 42)",
+     "Smith, J. (2024). A short article. Journal of Things, 12(3), 37–58."),
+    ("modern-language-association", "(Smith 42)",
+     "Smith, Jane. “A Short Article.” Journal of Things, vol. 12, no. 3, 2024, pp. 37–58."),
+    ("ieee", "[1]",
+     "[1] J. Smith, “A short article,” J. Things, vol. 12, no. 3, pp. 37–58, 2024."),
+    ("nature", "Smith, J. ¹",
+     "1. Smith, J. A short article. J. Things 12, 37–58 (2024)."),
+    ("harvard-cite-them-right", "(Smith, 2024)",
+     "Smith, J. (2024) ‘A short article’, Journal of Things, 12(3), pp. 37–58."),
+    ("vancouver", "(1)",
+     "1. Smith J. A short article. J Things. 2024;12(3):37–58."),
+]
+
+
+def _build_citation_style_help_html():
+    rows = []
+    for key, inline, bib in _CITATION_STYLE_SAMPLES:
+        label = dict(CITATION_STYLE_CHOICES).get(key, key)
+        rows.append(
+            f'<div class="mk-cs-entry">'
+            f'<h5>{label} <code>{key}</code></h5>'
+            f'<div class="mk-cs-sample">Inline: {inline}</div>'
+            f'<div class="mk-cs-sample">Bibliography: {bib}</div>'
+            f"</div>"
+        )
+    return (
+        '<span class="mk-citestyle-help">'
+        "<button type='button' class='mk-citestyle-help-btn' "
+        "aria-label='Show citation style examples'>?</button>"
+        '<div class="mk-citestyle-help-panel" role="dialog">'
+        "<strong>Sample output per style</strong>"
+        '<div style="margin-top:6px;">' + "".join(rows) + "</div>"
+        "</div>"
+        "</span>"
+        "<script>(function(){"
+        "if(window.__mkCsHelpBound)return;window.__mkCsHelpBound=true;"
+        "document.addEventListener('click',function(e){"
+        "if(e.target&&e.target.classList.contains('mk-citestyle-help-btn')){"
+        "e.preventDefault();"
+        "var p=e.target.nextElementSibling;"
+        "var shown=p.style.display==='block';"
+        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
+        "function(el){el.style.display='none';});"
+        "if(!shown){p.style.display='block';"
+        "var r=e.target.getBoundingClientRect();"
+        "p.style.left=(window.scrollX+r.left)+'px';"
+        "p.style.top=(window.scrollY+r.bottom+6)+'px';}"
+        "}else if(!(e.target.closest&&e.target.closest('.mk-citestyle-help-panel'))){"
+        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
+        "function(el){el.style.display='none';});"
+        "}});"
+        "})();</script>"
+    )
+
+
+CITATION_STYLE_HELP_HTML = _build_citation_style_help_html()
+
+# Regex matching asset references in markdown: @asset:key or @alias used
+# inside a markdown link/image target. Mirrors the production
+# asset_resolver preprocessor pattern so orphan warnings stay in sync.
+_ASSET_REF_RE = re.compile(
+    r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)"
+)
+
+
+_CITE_PICKER_JS = """
+<script>
+(function() {
+    if (window.__mkCitePickerBound) return;
+    window.__mkCitePickerBound = true;
+
+    var state = { results: [], selected: 0, savedCursor: null };
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>\"']/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+
+    function openModal() {
+        var m = document.getElementById('mk-cite-modal');
+        if (!m) return;
+        // Remember cursor position before focus is stolen.
+        var view = window.__atpPostEditorView;
+        if (view) state.savedCursor = view.state.selection.main.head;
+        m.style.display = 'flex';
+        var input = document.getElementById('mk-cite-search');
+        if (input) { input.value = ''; setTimeout(function(){ input.focus(); }, 0); }
+        renderResults([]);
+        fetchResults('');
+    }
+
+    function closeModal() {
+        var m = document.getElementById('mk-cite-modal');
+        if (m) m.style.display = 'none';
+    }
+
+    function renderResults(rows) {
+        var out = document.getElementById('mk-cite-results');
+        if (!out) return;
+        state.results = rows;
+        if (state.selected >= rows.length) state.selected = 0;
+        if (!rows.length) {
+            out.innerHTML = '<div style=\"padding:14px 16px;color:var(--body-quiet-color);\">No matches.</div>';
+            return;
+        }
+        out.innerHTML = rows.map(function(r, i) {
+            var meta = [r.author, r.year].filter(Boolean).join(' ');
+            return '<div class=\"mk-cite-row' + (i === state.selected ? ' mk-active' : '') +
+                '\" data-idx=\"' + i + '\">' +
+                '<code>' + escapeHtml(r.key) + '</code>' +
+                '<div class=\"mk-cite-title\" title=\"' + escapeHtml(r.title) + '\">' +
+                escapeHtml(r.title) + '</div>' +
+                '<div class=\"mk-cite-meta\">' + escapeHtml(meta) + '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    var fetchTimer = null;
+    function fetchResults(q) {
+        var wrap = document.querySelector('.mk-cite-controls');
+        if (!wrap) return;
+        var url = wrap.getAttribute('data-cite-url');
+        if (fetchTimer) clearTimeout(fetchTimer);
+        fetchTimer = setTimeout(function() {
+            fetch(url + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+                .then(function(r) { return r.ok ? r.json() : { results: [] }; })
+                .then(function(data) { renderResults(data.results || []); })
+                .catch(function() { renderResults([]); });
+        }, 180);
+    }
+
+    function insertAt(key) {
+        if (!key) return;
+        var view = window.__atpPostEditorView;
+        var insertText = '[@' + key + ']';
+        if (!view) {
+            // Fall back to textarea for authors without CM6 (just in case).
+            var ta = document.getElementById('id_content_markdown');
+            if (!ta) { closeModal(); return; }
+            var p = ta.selectionStart || 0;
+            ta.value = ta.value.slice(0, p) + insertText + ta.value.slice(p);
+            ta.selectionStart = ta.selectionEnd = p + insertText.length;
+            closeModal();
+            return;
+        }
+        var pos = state.savedCursor != null ? state.savedCursor : view.state.selection.main.head;
+        pos = Math.max(0, Math.min(pos, view.state.doc.length));
+        view.dispatch({
+            changes: { from: pos, insert: insertText },
+            selection: { anchor: pos + insertText.length },
+        });
+        view.focus();
+        closeModal();
+    }
+
+    function moveSelection(delta) {
+        if (!state.results.length) return;
+        state.selected = Math.max(0, Math.min(state.results.length - 1, state.selected + delta));
+        renderResults(state.results);
+        var active = document.querySelector('.mk-cite-row.mk-active');
+        if (active) active.scrollIntoView({ block: 'nearest' });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('mk-cite-picker-btn')) {
+            e.preventDefault();
+            openModal();
+            return;
+        }
+        if (e.target && e.target.id === 'mk-cite-close') { closeModal(); return; }
+        if (e.target && e.target.id === 'mk-cite-modal') { closeModal(); return; }
+        var row = e.target && e.target.closest && e.target.closest('.mk-cite-row');
+        if (row) {
+            var idx = parseInt(row.getAttribute('data-idx'), 10);
+            if (!isNaN(idx) && state.results[idx]) insertAt(state.results[idx].key);
+        }
+    });
+
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.id === 'mk-cite-search') {
+            fetchResults(e.target.value || '');
+            state.selected = 0;
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        var modal = document.getElementById('mk-cite-modal');
+        if (!modal || modal.style.display !== 'flex') return;
+        if (e.key === 'Escape') { closeModal(); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            var r = state.results[state.selected];
+            if (r) insertAt(r.key);
+        }
+    });
+})();
+</script>
+"""
+
+
+_PREVIEW_MODAL_JS = """
+<script>
+(function() {
+    if (window.__markdownPreviewBound) return;
+    window.__markdownPreviewBound = true;
+
+    function getCookie(name) {
+        var cookies = document.cookie ? document.cookie.split('; ') : [];
+        for (var i = 0; i < cookies.length; i++) {
+            var parts = cookies[i].split('=');
+            if (parts[0] === name) return decodeURIComponent(parts.slice(1).join('='));
+        }
+        return '';
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>]/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
+        });
+    }
+
+    function openModal() {
+        document.getElementById('markdown-preview-modal').style.display = 'flex';
+    }
+    function closeModal() {
+        document.getElementById('markdown-preview-modal').style.display = 'none';
+    }
+
+    function renderLint(items) {
+        var box = document.getElementById('markdown-preview-lint');
+        if (!items || !items.length) { box.innerHTML = ''; return; }
+        var html = '<div class="mk-lint-box"><strong>⚠️ Lint warnings:</strong><ul>';
+        items.forEach(function(m) { html += '<li>' + escapeHtml(m) + '</li>'; });
+        html += '</ul></div>';
+        box.innerHTML = html;
+    }
+
+    function setIframeDoc(doc) {
+        var iframe = document.getElementById('markdown-preview-iframe');
+        iframe.srcdoc = doc;
+    }
+
+    function errorDoc(msg) {
+        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
+            'padding:20px;color:#b00;">' + escapeHtml(msg) + '</body></html>';
+    }
+
+    function loadingDoc() {
+        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
+            'padding:20px;color:#888;"><em>Rendering…</em></body></html>';
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('markdown-preview-btn')) {
+            e.preventDefault();
+            var wrap = e.target.closest('.markdown-preview-controls');
+            var url = wrap.getAttribute('data-preview-url');
+            var postId = wrap.getAttribute('data-post-id');
+            var textarea = document.getElementById('id_content_markdown');
+            if (!textarea) { alert('Content textarea not found.'); return; }
+
+            setIframeDoc(loadingDoc());
+            renderLint([]);
+            openModal();
+
+            var form = new FormData();
+            form.append('content', textarea.value || '');
+            if (postId) form.append('post_id', postId);
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                body: form,
+                credentials: 'same-origin'
+            }).then(function(r) { return r.json(); })
+              .then(function(json) {
+                  renderLint(json.lint || []);
+                  if (json.ok) {
+                      setIframeDoc(json.html);
+                  } else {
+                      setIframeDoc(errorDoc(json.error || 'Preview failed.'));
+                  }
+              }).catch(function(err) {
+                  setIframeDoc(errorDoc('Preview failed: ' + err));
+              });
+        }
+        if (e.target && e.target.id === 'markdown-preview-close') { closeModal(); }
+        if (e.target && e.target.id === 'markdown-preview-modal') { closeModal(); }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var modal = document.getElementById('markdown-preview-modal');
+            if (modal && modal.style.display !== 'none') closeModal();
+        }
+    });
+})();
+</script>
+"""
+
+
+_ADMIN_AUX_STYLE = """
+<style>
+/* --- Markdown cheatsheet (Phase 1) --- */
+.markdown-cheatsheet {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--darkened-bg);
+  margin: 0 0 12px 0;
+  color: var(--body-fg);
+}
+.markdown-cheatsheet > summary {
+  cursor: pointer; padding: 10px 14px; font-weight: 600;
+  color: var(--body-fg); user-select: none;
+}
+.markdown-cheatsheet details { margin-bottom: 10px; }
+.markdown-cheatsheet details > summary {
+  cursor: pointer; font-weight: 600; color: var(--link-fg, var(--body-fg));
+}
+.markdown-cheatsheet .mc-body { padding: 10px 16px 16px 16px; font-size: 13px; line-height: 1.5; }
+.markdown-cheatsheet .mc-lead, .markdown-cheatsheet .mc-note {
+  color: var(--body-quiet-color); margin: 0 0 10px 0;
+}
+.markdown-cheatsheet .mc-note { font-size: 12px; margin: 6px 0 0 0; }
+.markdown-cheatsheet table { border-collapse: collapse; margin-top: 6px; width: 100%; }
+.markdown-cheatsheet td { padding: 4px 8px; vertical-align: top; }
+.markdown-cheatsheet td.mc-syntax { width: 50%; }
+.markdown-cheatsheet td.mc-desc { color: var(--body-quiet-color); }
+.markdown-cheatsheet code {
+  background: var(--body-bg); color: var(--body-fg);
+  padding: 2px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
+}
+.markdown-cheatsheet pre {
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color);
+  padding: 8px 10px; border-radius: 4px; margin: 6px 0;
+  font-size: 12px; overflow-x: auto;
+}
+.markdown-cheatsheet a { color: var(--link-fg); }
+
+/* --- Asset reference helper --- */
+.mk-asset-info, .mk-asset-none, .mk-asset-orphan {
+  padding: 10px 12px; border-radius: 4px; margin-bottom: 10px;
+  border: 1px solid var(--border-color); background: var(--darkened-bg);
+  color: var(--body-fg); font-size: 13px;
+}
+.mk-asset-info code, .mk-asset-none code {
+  background: var(--body-bg); color: var(--body-fg);
+  padding: 1px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
+}
+.mk-asset-orphan { border-color: var(--error-fg, #ba2121); }
+.mk-asset-orphan strong { color: var(--error-fg, #ba2121); }
+.mk-asset-orphan .mk-orphan-chip {
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--border-color);
+  padding: 2px 6px; border-radius: 3px; margin-right: 6px;
+  display: inline-block;
+}
+.mk-asset-orphan .mk-hint { font-size: 11px; margin-top: 4px; color: var(--body-quiet-color); }
+
+.mk-asset-list {
+  max-height: 400px; overflow-y: auto;
+  border: 1px solid var(--border-color); border-radius: 4px;
+  padding: 12px; background: var(--darkened-bg);
+}
+.mk-asset-list .mk-asset-header {
+  margin-bottom: 8px; font-weight: 600; color: var(--body-fg);
+}
+.mk-asset-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+.mk-asset-card {
+  background: var(--body-bg); border: 1px solid var(--border-color);
+  border-radius: 3px; padding: 8px; cursor: pointer; color: var(--body-fg);
+}
+.mk-asset-card:hover { border-color: var(--link-fg); background: var(--selected-bg, var(--body-bg)); }
+.mk-asset-card.mk-copied { border-color: #28a745; }
+.mk-asset-card .mk-meta { font-size: 11px; color: var(--body-quiet-color); margin-bottom: 3px; }
+.mk-asset-card .mk-title {
+  font-weight: 500; font-size: 13px; margin-bottom: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mk-asset-card code {
+  font-size: 10px; background: var(--darkened-bg); color: var(--body-fg);
+  padding: 2px 4px; border-radius: 2px; display: block;
+  font-family: monospace; border: 1px solid var(--hairline-color);
+}
+.mk-asset-order-badge {
+  background: var(--border-color); color: var(--body-fg);
+  padding: 2px 6px; border-radius: 2px; font-size: 9px;
+  font-weight: 600; margin-right: 4px;
+}
+.mk-asset-tip {
+  margin-top: 8px; padding: 8px; border-radius: 3px;
+  background: var(--darkened-bg); border: 1px solid var(--hairline-color);
+  font-size: 11px; color: var(--body-quiet-color);
+}
+
+/* --- Preview button + modal --- */
+.markdown-preview-controls { margin: 4px 0 10px 0; }
+.markdown-preview-btn {
+  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
+  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
+}
+.markdown-preview-btn:hover { background: var(--button-hover-bg); }
+.markdown-preview-hint {
+  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
+}
+.markdown-preview-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55); z-index: 9999;
+  align-items: stretch; justify-content: center; padding: 16px;
+}
+.markdown-preview-modal .mk-panel {
+  background: var(--body-bg); color: var(--body-fg);
+  width: min(1400px, 96vw); height: calc(100vh - 32px);
+  border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-color);
+}
+.markdown-preview-modal .mk-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; background: var(--darkened-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+.markdown-preview-modal .mk-header strong { color: var(--body-fg); }
+.markdown-preview-modal .mk-close {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 20px; color: var(--body-quiet-color);
+}
+.markdown-preview-modal .mk-lint { padding: 0 16px; }
+.markdown-preview-modal .mk-lint-box {
+  background: var(--message-warning-bg, #ffc); color: var(--body-fg);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px; margin: 10px 0; border-radius: 4px; font-size: 12px;
+}
+.markdown-preview-modal .mk-lint-box ul { margin: 4px 0 0 18px; padding: 0; }
+.markdown-preview-modal .mk-iframe {
+  flex: 1; min-height: 600px; width: 100%; border: 0;
+  background: #ffffff;
+}
+
+/* --- Inline asset preview card (PostAssetInline) --- */
+.mk-ap-card, .mk-ap-img {
+  width: 120px; text-align: center;
+}
+.mk-ap-card {
+  height: 90px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--darkened-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px; color: var(--body-fg);
+}
+.mk-ap-empty {
+  border: 2px dashed var(--border-color);
+  color: var(--body-quiet-color);
+}
+.mk-ap-icon { font-size: 40px; margin-bottom: 4px; opacity: 0.9; }
+.mk-ap-empty .mk-ap-icon { font-size: 32px; }
+.mk-ap-label { font-size: 11px; font-weight: 500; }
+.mk-ap-empty .mk-ap-label { opacity: 0.7; }
+.mk-ap-img-thumb {
+  max-width: 120px; max-height: 90px; border-radius: 6px;
+  border: 1px solid var(--border-color);
+  display: block; margin: 0 auto 4px;
+}
+.mk-ap-dims { font-size: 10px; color: var(--body-quiet-color); }
+
+/* --- Inline reference copy button (PostAssetInline) --- */
+.mk-inline-ref { display: flex; align-items: center; gap: 8px; }
+.mk-inline-ref-code {
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color);
+  padding: 4px 8px; border-radius: 3px; font-family: monospace;
+}
+.mk-inline-ref-copy {
+  background: var(--button-bg); color: var(--button-fg);
+  border: 1px solid var(--border-color); border-radius: 3px;
+  padding: 4px 12px; cursor: pointer; font-size: 12px;
+}
+.mk-inline-ref-copy:hover { background: var(--button-hover-bg); }
+
+/* --- Override fallback previews (Phase 5.3) --- */
+.mk-override-fallback {
+  display: block; margin-top: 4px; padding: 6px 8px;
+  background: var(--darkened-bg); color: var(--body-quiet-color);
+  border: 1px dashed var(--hairline-color); border-radius: 3px;
+  font-size: 11px; line-height: 1.4;
+}
+.mk-override-fallback .mk-of-label {
+  color: var(--body-fg); font-weight: 600; margin-right: 4px;
+}
+.mk-override-fallback code {
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color);
+  padding: 1px 4px; border-radius: 2px;
+}
+
+/* --- Citation style help popover (Phase 4.2) --- */
+.mk-citestyle-help {
+  display: inline-flex; align-items: center; margin-left: 8px;
+  vertical-align: middle;
+}
+.mk-citestyle-help-btn {
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--border-color); border-radius: 50%;
+  width: 20px; height: 20px; line-height: 0; padding: 0;
+  font-size: 12px; cursor: pointer;
+}
+.mk-citestyle-help-btn:hover { background: var(--darkened-bg); }
+.mk-citestyle-help-panel {
+  display: none; position: absolute; z-index: 200;
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--border-color); border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  padding: 10px 12px; max-width: 480px; font-size: 12px; line-height: 1.45;
+}
+.mk-citestyle-help-panel h5 {
+  margin: 0 0 4px 0; font-size: 12px; color: var(--link-fg, var(--body-fg));
+}
+.mk-citestyle-help-panel .mk-cs-sample {
+  padding: 4px 6px; margin-bottom: 8px;
+  background: var(--darkened-bg); border-left: 2px solid var(--border-color);
+  font-family: Georgia, serif;
+}
+
+/* --- Citation picker modal (Phase 4.1) --- */
+.mk-cite-controls { margin: 4px 0 10px 0; }
+.mk-cite-picker-btn {
+  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
+  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
+}
+.mk-cite-picker-btn:hover { background: var(--button-hover-bg); }
+.mk-cite-picker-hint {
+  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
+}
+.mk-cite-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55); z-index: 9999;
+  align-items: center; justify-content: center; padding: 16px;
+}
+.mk-cite-modal .mk-panel {
+  background: var(--body-bg); color: var(--body-fg);
+  width: min(820px, 96vw); max-height: 85vh;
+  border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-color);
+}
+.mk-cite-modal .mk-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; background: var(--darkened-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+.mk-cite-modal .mk-close {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 20px; color: var(--body-quiet-color);
+}
+.mk-cite-modal .mk-search-row {
+  display: flex; gap: 8px; padding: 10px 16px;
+  border-bottom: 1px solid var(--hairline-color);
+}
+.mk-cite-modal .mk-search-row input {
+  flex: 1; padding: 6px 10px;
+  background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--border-color); border-radius: 3px;
+}
+.mk-cite-modal .mk-results {
+  flex: 1; overflow-y: auto; padding: 4px 0;
+}
+.mk-cite-row {
+  padding: 8px 16px; border-bottom: 1px solid var(--hairline-color);
+  cursor: pointer; display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr auto;
+  gap: 12px; align-items: baseline;
+}
+.mk-cite-row:hover, .mk-cite-row.mk-active {
+  background: var(--selected-row, rgba(127,127,127,0.1));
+}
+.mk-cite-row code {
+  background: var(--darkened-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color);
+  padding: 1px 6px; border-radius: 2px; font-size: 12px;
+}
+.mk-cite-row .mk-cite-title {
+  color: var(--body-fg); font-size: 13px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.mk-cite-row .mk-cite-meta {
+  color: var(--body-quiet-color); font-size: 11px; white-space: nowrap;
+}
+.mk-cite-footer {
+  padding: 8px 16px; font-size: 11px; color: var(--body-quiet-color);
+  border-top: 1px solid var(--hairline-color);
+  background: var(--darkened-bg);
+}
+</style>
+"""
+
+
+MARKDOWN_CHEATSHEET_HTML = _ADMIN_AUX_STYLE + """
+<details class="markdown-cheatsheet">
+<summary>📖 Markdown reference — click to expand</summary>
+<div class="mc-body">
+  <p class="mc-lead">Content is parsed by Pandoc with custom pre/postprocessors. Common patterns:</p>
+
+  <details open>
+    <summary>Basics</summary>
+    <table>
+      <tr><td class="mc-syntax"><code># Heading 1</code><br/><code>## Heading 2</code></td>
+          <td class="mc-desc">Headings — auto-anchored, auto-sectionized</td></tr>
+      <tr><td class="mc-syntax"><code>**bold**</code> · <code>*italic*</code> · <code>~~strike~~</code></td>
+          <td class="mc-desc">Inline emphasis</td></tr>
+      <tr><td class="mc-syntax"><code>[text](/posts/other-slug/)</code></td>
+          <td class="mc-desc">Internal link — backlinks auto-extracted on save</td></tr>
+      <tr><td class="mc-syntax"><code>- item</code> / <code>1. item</code></td>
+          <td class="mc-desc">Lists (nesting auto-styled)</td></tr>
+      <tr><td class="mc-syntax"><code>---</code></td>
+          <td class="mc-desc">Horizontal rule</td></tr>
+      <tr><td class="mc-syntax"><code>&gt; quote</code></td>
+          <td class="mc-desc">Blockquote</td></tr>
+      <tr><td class="mc-syntax"><code>`inline`</code> / ```` ```lang ... ``` ```` </td>
+          <td class="mc-desc">Inline and fenced code</td></tr>
+    </table>
+  </details>
+
+  <details>
+    <summary>Admonitions (callout boxes)</summary>
+    <pre>::: {.admonition-tip}
+A helpful tip.
+:::
+
+::: {.admonition-note}
+A neutral note.
+:::
+
+::: {.admonition-warning}
+Warn the reader.
+:::
+
+::: {.admonition-error}
+Flag an error or pitfall.
+:::</pre>
+    <p class="mc-note">Four types: <code>tip</code>, <code>note</code>, <code>warning</code>, <code>error</code>.</p>
+  </details>
+
+  <details>
+    <summary>Assets (images, video, docs)</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>![Alt text](@asset:my-key)</code></td>
+          <td class="mc-desc">Global asset by its key</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt text](@fig1)</code></td>
+          <td class="mc-desc">Post-local alias (set on the Post Asset)</td></tr>
+      <tr><td class="mc-syntax"><code>![](@asset:clip?autoplay=1)</code></td>
+          <td class="mc-desc">Query params passed through for video/audio</td></tr>
+    </table>
+    <p class="mc-note">Images get responsive <code>srcset</code>, lazy loading, and captions automatically. Attach assets in the "Post Assets" section below; the reference panel beneath this one gives you one-click copy of every attached asset's reference.</p>
+  </details>
+
+  <details>
+    <summary>Citations &amp; footnotes</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>[@smith2020]</code></td>
+          <td class="mc-desc">Parenthetical citation</td></tr>
+      <tr><td class="mc-syntax"><code>[@smith2020, pp. 42–44]</code></td>
+          <td class="mc-desc">With locator</td></tr>
+      <tr><td class="mc-syntax"><code>@smith2020</code></td>
+          <td class="mc-desc">Narrative ("Smith (2020) showed…")</td></tr>
+      <tr><td class="mc-syntax"><code>[-@smith2020]</code></td>
+          <td class="mc-desc">Suppress author (year only)</td></tr>
+      <tr><td class="mc-syntax"><code>[@a; @b; @c]</code></td>
+          <td class="mc-desc">Multiple sources in one citation</td></tr>
+      <tr><td class="mc-syntax"><code>A claim.[^1]</code><br/><code>[^1]: The footnote body.</code></td>
+          <td class="mc-desc">Footnote</td></tr>
+    </table>
+    <p class="mc-note">Unknown citation keys render as <code>[??key]</code> in the output. Keys come from the <a href="/admin/engine/source/" target="_blank">Source library</a>.</p>
+  </details>
+
+  <details>
+    <summary>Advanced</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>$E = mc^2$</code> · <code>$$...$$</code></td>
+          <td class="mc-desc">Inline / display math (MathJax)</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.epigraph}<br/>An opening quote<br/>:::</code></td>
+          <td class="mc-desc">Epigraph block</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.columns}<br/>:::</code></td>
+          <td class="mc-desc">Multi-column layout</td></tr>
+      <tr><td class="mc-syntax"><code>&lt;span class="marked-date"&gt;2024-03-15&lt;/span&gt;</code></td>
+          <td class="mc-desc">Marked date — auto-appends "N years ago"</td></tr>
+      <tr><td class="mc-syntax">Pandoc tables (pipe or grid)</td>
+          <td class="mc-desc">Wrapped + size-classified automatically</td></tr>
+    </table>
+  </details>
+
+  <p class="mc-note">Links to external sites get icon decoration and <code>rel="noopener"</code> automatically. The full pipeline is in <code>engine/markdown/</code>.</p>
+</div>
+</details>
+"""
 
 
 class PostAssetInline(admin.StackedInline):
@@ -48,16 +774,64 @@ class PostAssetInline(admin.StackedInline):
             "Custom Overrides (Optional)",
             {
                 "fields": (
-                    ("custom_alt_text",),
-                    ("custom_caption",),
+                    ("custom_alt_text", "asset_default_alt"),
+                    ("custom_caption", "asset_default_caption"),
                 ),
                 "classes": ["collapse"],
-                "description": "Override default asset metadata for this post only",
+                "description": "Override default asset metadata for this post only. The right column shows what will appear on the site if you leave the override blank.",
             },
         ),
     ]
 
-    readonly_fields = ["asset_preview", "markdown_ref_display"]
+    readonly_fields = [
+        "asset_preview",
+        "markdown_ref_display",
+        "asset_default_alt",
+        "asset_default_caption",
+    ]
+
+    @admin.display(description="Default alt (fallback)")
+    def asset_default_alt(self, obj):
+        if not obj or not obj.asset:
+            return mark_safe(
+                '<div class="mk-override-fallback">Pick an asset first.</div>'
+            )
+        default = obj.asset.alt_text or ""
+        if not default:
+            return mark_safe(
+                '<div class="mk-override-fallback">'
+                '<span class="mk-of-label">No default set</span>'
+                "The underlying asset has no <code>alt_text</code>. "
+                "Set one here or on the asset itself so screen readers have something to read."
+                "</div>"
+            )
+        return format_html(
+            '<div class="mk-override-fallback">'
+            '<span class="mk-of-label">Default:</span>{}'
+            "</div>",
+            default,
+        )
+
+    @admin.display(description="Default caption (fallback)")
+    def asset_default_caption(self, obj):
+        if not obj or not obj.asset:
+            return mark_safe(
+                '<div class="mk-override-fallback">Pick an asset first.</div>'
+            )
+        default = obj.asset.caption or ""
+        if not default:
+            return mark_safe(
+                '<div class="mk-override-fallback">'
+                '<span class="mk-of-label">No default caption.</span>'
+                "Leave blank for no caption, or enter one on the left."
+                "</div>"
+            )
+        return format_html(
+            '<div class="mk-override-fallback">'
+            '<span class="mk-of-label">Default:</span>{}'
+            "</div>",
+            default,
+        )
 
     def get_formset(self, request, obj=None, **kwargs):
         """Customize formset to improve UX."""
@@ -100,22 +874,20 @@ class PostAssetInline(admin.StackedInline):
 
     @admin.display(description="Preview")
     def asset_preview(self, obj):
-        """Show enhanced preview in inline."""
+        """Show enhanced preview in inline (theme-aware)."""
         if not obj or not obj.asset or not obj.asset.file:
             return mark_safe(
-                '<div style="width: 120px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; '
-                'background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 6px; color: #6c757d;">'
-                '<span style="font-size: 32px; margin-bottom: 4px;">📎</span>'
-                '<span style="font-size: 11px; opacity: 0.7;">No asset</span>'
+                '<div class="mk-ap-card mk-ap-empty">'
+                '<span class="mk-ap-icon">📎</span>'
+                '<span class="mk-ap-label">No asset</span>'
                 "</div>"
             )
 
         if obj.asset.asset_type == "image":
             return format_html(
-                '<div style="text-align: center;">'
-                '<img src="{}" style="max-width: 120px; max-height: 90px; border-radius: 6px; '
-                'box-shadow: 0 2px 4px rgba(0,0,0,0.15); border: 1px solid #e9ecef; display: block; margin-bottom: 4px;" />'
-                '<div style="font-size: 10px; color: #6c757d;">{} × {}</div>'
+                '<div class="mk-ap-img">'
+                '<img src="{}" class="mk-ap-img-thumb" />'
+                '<div class="mk-ap-dims">{} × {}</div>'
                 "</div>",
                 obj.asset.file.url,
                 obj.asset.width or "?",
@@ -123,33 +895,26 @@ class PostAssetInline(admin.StackedInline):
             )
 
         icons_info = {
-            "video": ("🎬", "Video", "#dc3545"),
-            "audio": ("🎵", "Audio", "#198754"),
-            "document": ("📄", "Document", "#0dcaf0"),
-            "archive": ("📦", "Archive", "#6610f2"),
-            "other": ("📎", "File", "#6c757d"),
+            "video": ("🎬", "Video"),
+            "audio": ("🎵", "Audio"),
+            "document": ("📄", "Document"),
+            "archive": ("📦", "Archive"),
+            "other": ("📎", "File"),
         }
-        icon, label, color = icons_info.get(
-            obj.asset.asset_type, ("📎", "File", "#6c757d")
-        )
-
+        icon, label = icons_info.get(obj.asset.asset_type, ("📎", "File"))
         return format_html(
-            '<div style="width: 120px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; '
-            'background: {}; border-radius: 6px; border: 1px solid {}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">'
-            '<span style="font-size: 40px; opacity: 0.9; margin-bottom: 4px;">{}</span>'
-            '<span style="font-size: 11px; color: {}; font-weight: 500;">{}</span>'
+            '<div class="mk-ap-card mk-ap-type-{}">'
+            '<span class="mk-ap-icon">{}</span>'
+            '<span class="mk-ap-label">{}</span>'
             "</div>",
-            f"{color}15",
-            color,
+            obj.asset.asset_type,
             icon,
-            color,
             label,
         )
 
     @admin.display(description="Reference")
     def markdown_ref_display(self, obj):
-        """Show the markdown reference with copy button."""
-        # Generate reference - this displays correctly for saved objects
+        """Show the markdown reference with copy button (theme-aware)."""
         if obj and obj.pk and obj.asset:
             if obj.alias:
                 ref = f"@{obj.alias}"
@@ -158,12 +923,10 @@ class PostAssetInline(admin.StackedInline):
         else:
             ref = "-"
 
-        # Simple display with copy button
         return format_html(
-            '<div style="display: flex; align-items: center; gap: 8px;">'
-            '<code style="background: #f0f0f0; padding: 4px 8px; border-radius: 3px; font-family: monospace;">{}</code>'
-            "<button type='button' "
-            "style='padding: 4px 12px; cursor: pointer;' "
+            '<div class="mk-inline-ref">'
+            '<code class="mk-inline-ref-code">{}</code>'
+            "<button type='button' class='mk-inline-ref-copy' "
             'onclick="'
             "const code = this.previousElementSibling.textContent; "
             "if (code !== '-') {{ "
@@ -284,6 +1047,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     save_on_top = True
     date_hierarchy = "published_at"
 
+    class Media:
+        js = ("js/dist/admin-post-editor.js",)
+        css = {"all": ("css/admin-post.css",)}
+
     list_display = (
         "post_title_with_status",
         "author",
@@ -330,11 +1097,31 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     filter_horizontal = ("co_authors", "categories", "tags", "related_posts")
 
+    # Fields excluded from the form entirely — internal caches and
+    # derived columns that the Celery pipeline / DB triggers manage.
+    exclude = (
+        "content_html_cached",
+        "table_of_contents",
+        "extras",
+        "search_vector",
+    )
+
     readonly_fields = (
+        # Content aids
+        "markdown_cheatsheet",
+        "asset_markdown_reference_helper",
+        "cite_picker_controls",
+        "preview_controls",
+        # Derived metrics
         "word_count",
         "reading_time_minutes",
-        "table_of_contents",
-        "asset_markdown_reference_helper",
+        "view_count",
+        "comment_count",
+        "like_count",
+        # Audit
+        "version",
+        "published_by",
+        "last_edited_by",
         "created_at",
         "updated_at",
         "deleted_at",
@@ -346,6 +1133,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         "feature_selected",
         "unfeature_selected",
         "rebuild_backlinks_for_selected",
+        "attach_referenced_assets",
+        "regenerate_html_cache",
         "soft_delete_selected",
         "restore_selected",
         "export_posts_csv",
@@ -365,18 +1154,39 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     }
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        from django import forms as dj_forms
         from django.contrib.admin.widgets import AdminTextareaWidget
 
         # Make text fields full-width with better editing experience
         if db_field.name == "content_markdown":
+            # Resolve admin URLs once and stamp them onto the widget so the
+            # CM6 bootstrap doesn't need to hardcode them.
             kwargs["widget"] = AdminTextareaWidget(
                 attrs={
                     "rows": 30,
                     "cols": 120,
                     "style": "width: 100%; font-family: monospace; font-size: 16px;",
+                    "data-cm-citations-url": reverse(
+                        "admin:engine_post_autocomplete_citations"
+                    ),
+                    "data-cm-assets-url": reverse(
+                        "admin:engine_post_autocomplete_assets"
+                    ),
+                    "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
+                    "data-cm-post-id": str(
+                        request.resolver_match.kwargs.get("object_id", "")
+                    )
+                    if getattr(request, "resolver_match", None)
+                    else "",
                 }
             )
-            return super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Pandoc-flavoured Markdown. See the reference panel above for "
+                "admonitions, asset (<code>@asset:key</code>), citation "
+                "(<code>[@key]</code>), footnote, and math syntax."
+            )
+            return formfield
         elif db_field.name == "description":
             kwargs["widget"] = AdminTextareaWidget(
                 attrs={
@@ -395,6 +1205,83 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 }
             )
             return super().formfield_for_dbfield(db_field, request, **kwargs)
+        elif db_field.name == "citation_style":
+            # Present curated CSL styles as a dropdown without changing the
+            # underlying CharField, so unusual styles can still be set via the
+            # ORM or a data migration if needed.
+            return dj_forms.ChoiceField(
+                choices=CITATION_STYLE_CHOICES,
+                required=False,
+                label=db_field.verbose_name.title(),
+                help_text=mark_safe(
+                    "Override the site-wide citation style for this post. "
+                    "Leave as default unless the post specifically requires a "
+                    "different style." + CITATION_STYLE_HELP_HTML
+                ),
+            )
+        elif db_field.name == "certainty":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "How confident are you in the claims? 1 = highly uncertain / "
+                "speculative, 10 = confident / well-evidenced."
+            )
+            return formfield
+        elif db_field.name == "importance":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "How important is this post to the archive? 1 = trivial / "
+                "ephemeral, 10 = core / canonical."
+            )
+            return formfield
+        elif db_field.name == "completion_status":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Editorial state shown in page metadata: "
+                "<strong>Notes</strong> = raw thoughts, "
+                "<strong>Draft</strong> = early pass, "
+                "<strong>In Progress</strong> = actively revising, "
+                "<strong>Finished</strong> = complete, "
+                "<strong>Abandoned</strong> = shelved."
+            )
+            return formfield
+        elif db_field.name == "meta_description":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Override the meta description in <code>&lt;head&gt;</code> and "
+                "on social cards. If blank, the <em>description</em> field above "
+                "is used."
+            )
+            return formfield
+        elif db_field.name == "hero_image_url":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Primary featured image for cards / hero banner. If blank, the "
+                "first image attached to this post is used; if there are no "
+                "attached images, the site's default OG image is used."
+            )
+            return formfield
+        elif db_field.name == "og_image_url":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Open Graph override — only set this if you want a different "
+                "image for social sharing than the hero image. Leave blank to "
+                "reuse <em>hero_image_url</em>."
+            )
+            return formfield
+        elif db_field.name == "canonical_url":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "For syndicated / cross-posted content, point here at the "
+                "authoritative URL. Blank means this post is the canonical."
+            )
+            return formfield
+        elif db_field.name == "rating":
+            formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+            formfield.help_text = (
+                "Optional author self-rating (0.00–9.99). Purely editorial; not "
+                "shown to readers unless a template surfaces it."
+            )
+            return formfield
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def get_urls(self):
@@ -409,8 +1296,441 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 self.admin_site.admin_view(self.revision_restore_view),
                 name="engine_post_revision_restore",
             ),
+            path(
+                "preview-markdown/",
+                self.admin_site.admin_view(self.preview_markdown_view),
+                name="engine_post_preview_markdown",
+            ),
+            path(
+                "autocomplete-citations/",
+                self.admin_site.admin_view(self.autocomplete_citations_view),
+                name="engine_post_autocomplete_citations",
+            ),
+            path(
+                "autocomplete-assets/",
+                self.admin_site.admin_view(self.autocomplete_assets_view),
+                name="engine_post_autocomplete_assets",
+            ),
+            path(
+                "lint-content/",
+                self.admin_site.admin_view(self.lint_content_view),
+                name="engine_post_lint_content",
+            ),
         ]
         return custom_urls + super().get_urls()
+
+    # ------------------------------------------------------------------
+    # CM6 editor support endpoints
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _author_label(authors):
+        """Return 'Smith' or 'Smith & Jones' or 'Smith et al.' from CSL names."""
+        if not authors:
+            return ""
+        families = [a.get("family") or a.get("literal") or "" for a in authors]
+        families = [f for f in families if f]
+        if not families:
+            return ""
+        if len(families) == 1:
+            return families[0]
+        if len(families) == 2:
+            return f"{families[0]} & {families[1]}"
+        return f"{families[0]} et al."
+
+    @staticmethod
+    def _issued_year(issued_date):
+        """Pull the year out of a CSL ``issued_date`` dict, or ''."""
+        if not issued_date:
+            return ""
+        parts = issued_date.get("date-parts") or []
+        if parts and parts[0]:
+            return str(parts[0][0])
+        return ""
+
+    def autocomplete_citations_view(self, request):
+        """Return top Source matches for the citation autocomplete."""
+        from django.db.models import Q
+        from django.http import JsonResponse
+
+        from engine.models import Source
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"results": []}, status=403)
+
+        q = (request.GET.get("q") or "").strip()
+        qs = Source.objects.all()
+        if q:
+            qs = qs.filter(
+                Q(citation_key__istartswith=q)
+                | Q(citation_key__icontains=q)
+                | Q(title__icontains=q)
+            )
+
+        qs = qs.order_by("citation_key")[:20]
+        results = []
+        for s in qs:
+            results.append(
+                {
+                    "key": s.citation_key,
+                    "title": (s.title or "")[:140],
+                    "author": self._author_label(s.authors or []),
+                    "year": self._issued_year(s.issued_date),
+                }
+            )
+        return JsonResponse({"results": results})
+
+    def autocomplete_assets_view(self, request):
+        """Return asset matches, post-scoped aliases first then global keys.
+
+        Query params: ``q`` (prefix filter), ``post_id`` (optional; scopes
+        alias lookup to the post's attached PostAssets).
+        """
+        from django.db.models import Q
+        from django.http import JsonResponse
+
+        from engine.models import Asset, PostAsset
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"results": []}, status=403)
+
+        q = (request.GET.get("q") or "").strip()
+        post_id = request.GET.get("post_id") or ""
+
+        results = []
+        seen = set()
+
+        # Post-local aliases first — these are what authors typically want.
+        if post_id:
+            try:
+                pa_qs = PostAsset.objects.filter(post_id=int(post_id)).select_related(
+                    "asset"
+                )
+                if q:
+                    pa_qs = pa_qs.filter(
+                        Q(alias__icontains=q)
+                        | Q(asset__key__icontains=q)
+                        | Q(asset__title__icontains=q)
+                    )
+                for pa in pa_qs.order_by("order")[:20]:
+                    if not pa.alias or not pa.asset:
+                        continue
+                    ref_key = pa.alias
+                    if ref_key in seen:
+                        continue
+                    seen.add(ref_key)
+                    results.append(
+                        {
+                            "key": ref_key,
+                            "global": False,
+                            "type": pa.asset.asset_type,
+                            "title": (pa.asset.title or "")[:140],
+                        }
+                    )
+            except (ValueError, TypeError):
+                pass
+
+        # Then global asset keys.
+        asset_qs = Asset.objects.filter(is_deleted=False, status="ready")
+        if q:
+            asset_qs = asset_qs.filter(
+                Q(key__icontains=q) | Q(title__icontains=q)
+            )
+        for a in asset_qs.order_by("key")[: 20 - len(results)]:
+            if a.key in seen:
+                continue
+            seen.add(a.key)
+            results.append(
+                {
+                    "key": a.key,
+                    "global": True,
+                    "type": a.asset_type,
+                    "title": (a.title or "")[:140],
+                }
+            )
+
+        return JsonResponse({"results": results})
+
+    def lint_content_view(self, request):
+        """Return CM6-compatible diagnostics for the submitted content.
+
+        Diagnostics carry absolute character offsets (``from`` / ``to``)
+        into the source text plus severity + message, matching the shape
+        of ``@codemirror/lint`` ``Diagnostic``.
+        """
+        from django.http import JsonResponse
+
+        from engine.models import Asset, Source
+
+        if request.method != "POST":
+            return JsonResponse({"diagnostics": []}, status=405)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"diagnostics": []}, status=403)
+
+        content = request.POST.get("content", "")
+        post_id = request.POST.get("post_id") or ""
+
+        post = None
+        if post_id:
+            try:
+                post = Post.all_objects.prefetch_related("post_assets__asset").get(
+                    pk=int(post_id)
+                )
+            except (ValueError, Post.DoesNotExist):
+                pass
+
+        diagnostics = []
+
+        # Asset references: find every @asset:key / @alias inside a markdown
+        # link/image target, then flag any that don't resolve.
+        if "@" in content:
+            post_assets = (
+                list(post.post_assets.select_related("asset").all()) if post else []
+            )
+            aliases = {pa.alias for pa in post_assets if pa.alias}
+            post_keys = {pa.asset.key for pa in post_assets if pa.asset}
+
+            candidate_keys = set()
+            candidate_globals = set()
+            for m in _ASSET_REF_RE.finditer(content):
+                key = m.group(2)
+                if m.group(1) == "asset:":
+                    candidate_globals.add(key)
+                else:
+                    candidate_keys.add(key)
+            all_candidates = candidate_keys | candidate_globals
+            known_globals = (
+                set(
+                    Asset.objects.filter(
+                        key__in=all_candidates, is_deleted=False, status="ready"
+                    ).values_list("key", flat=True)
+                )
+                if all_candidates
+                else set()
+            )
+
+            for m in _ASSET_REF_RE.finditer(content):
+                is_global = m.group(1) == "asset:"
+                key = m.group(2)
+                if is_global:
+                    if key in post_keys or key in known_globals:
+                        continue
+                    label = f"@asset:{key}"
+                else:
+                    if key in aliases or key in post_keys or key in known_globals:
+                        continue
+                    label = f"@{key}"
+                # Position the diagnostic on just the @...key span, not the
+                # whole image syntax, so the underline lines up with the
+                # broken reference.
+                frag_start = m.start(1) - 1 if is_global else m.start(2) - 1
+                frag_end = m.end(2)
+                diagnostics.append(
+                    {
+                        "from": frag_start,
+                        "to": frag_end,
+                        "severity": "warning",
+                        "message": f"Unresolved asset reference: {label}",
+                    }
+                )
+
+        # Citations — locate each @key with its source position, then
+        # flag anything not present in the Source library.
+        if "@" in content:
+            stripped_ranges = []  # positions to skip (code + asset refs)
+            for pat in (r"```[\s\S]*?```", r"~~~[\s\S]*?~~~", r"`[^`\n]+`"):
+                for m in re.finditer(pat, content):
+                    stripped_ranges.append((m.start(), m.end()))
+            for m in _ASSET_REF_RE.finditer(content):
+                stripped_ranges.append((m.start(), m.end()))
+
+            def _in_stripped(pos):
+                return any(a <= pos < b for a, b in stripped_ranges)
+
+            found = []  # list of (key, from_offset, to_offset)
+
+            # Bracketed citations: walk each @key occurrence inside the
+            # bracket span so multi-cite and locator forms both work.
+            for m in re.finditer(r"\[(-?@[^\]]+)\]", content):
+                if _in_stripped(m.start()):
+                    continue
+                base = m.start(1)
+                for km in re.finditer(
+                    r"-?@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*)",
+                    m.group(1),
+                ):
+                    key = km.group(1).rstrip(".")
+                    key_start = base + km.start(1)
+                    # Include the leading @ so the underline covers the sigil.
+                    found.append((key, key_start - 1, key_start + len(key)))
+
+            # Narrative citations: @key not preceded by another word / [ / @.
+            for m in re.finditer(
+                r"(?<![@\[\\\w])@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9])",
+                content,
+            ):
+                if _in_stripped(m.start()):
+                    continue
+                key = m.group(1).rstrip(".")
+                found.append((key, m.start(), m.start(1) + len(key)))
+
+            if found:
+                keys_seen = {k for k, _, _ in found}
+                known = set(
+                    Source.objects.filter(citation_key__in=keys_seen).values_list(
+                        "citation_key", flat=True
+                    )
+                )
+                for key, s, e in found:
+                    if key in known:
+                        continue
+                    diagnostics.append(
+                        {
+                            "from": s,
+                            "to": e,
+                            "severity": "warning",
+                            "message": f"Unknown citation key: @{key}",
+                        }
+                    )
+
+        # Internal links: /posts/<slug>/
+        link_pattern = re.compile(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)")
+        slug_matches = list(link_pattern.finditer(content))
+        if slug_matches:
+            slugs = {m.group(1) for m in slug_matches}
+            known_slugs = set(
+                Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
+            )
+            for m in slug_matches:
+                slug = m.group(1)
+                if slug in known_slugs:
+                    continue
+                diagnostics.append(
+                    {
+                        "from": m.start(1) - len("/posts/"),
+                        "to": m.end(1) + 1,
+                        "severity": "warning",
+                        "message": f"Internal link to unknown slug: /posts/{slug}/",
+                    }
+                )
+
+        # Unclosed admonition fences — flag the final unclosed opener.
+        fence_matches = list(re.finditer(r"^:::+.*$", content, flags=re.MULTILINE))
+        if len(fence_matches) % 2 == 1 and fence_matches:
+            last = fence_matches[-1]
+            diagnostics.append(
+                {
+                    "from": last.start(),
+                    "to": last.end(),
+                    "severity": "warning",
+                    "message": "Unclosed ::: fence — missing matching ::: below.",
+                }
+            )
+
+        return JsonResponse({"diagnostics": diagnostics})
+
+    # Site CSS files loaded inside the preview iframe. Matches the set
+    # included by templates/base.html so rendered posts look close to the
+    # real site within the admin modal.
+    _PREVIEW_CSS_FILES = (
+        "css/dist/base.css",
+        "css/dist/colors.css",
+        "css/dist/link-icons.css",
+        "css/dist/image-focus.css",
+        "css/dist/bibliography.css",
+    )
+
+    def preview_markdown_view(self, request):
+        """Render markdown through the full pipeline for admin preview.
+
+        Accepts POST with ``content`` (markdown text) and optional
+        ``post_id`` so post-scoped alias resolution works for drafts that
+        haven't been saved yet. Returns JSON ``{ok, html, lint}`` where
+        ``html`` is a complete document (HTML + site CSS links) suitable
+        for iframe ``srcdoc`` and ``lint`` is a list of warning strings.
+        """
+        from django.http import JsonResponse
+        from django.templatetags.static import static
+
+        from engine.markdown.renderer import render_markdown
+
+        if request.method != "POST":
+            return JsonResponse({"ok": False, "error": "POST required"}, status=405)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+        content = request.POST.get("content", "")
+        post_id = request.POST.get("post_id")
+
+        context = {}
+        post = None
+        if post_id:
+            try:
+                post = Post.all_objects.prefetch_related("post_assets__asset").get(
+                    pk=int(post_id)
+                )
+                context["post"] = post
+            except (ValueError, Post.DoesNotExist):
+                pass
+
+        lint_items = []
+        post_assets = (
+            list(post.post_assets.select_related("asset").all()) if post else []
+        )
+
+        orphans = self._find_orphan_asset_refs(content, post_assets)
+        if orphans:
+            lint_items.append("Unresolved asset references: " + ", ".join(orphans))
+        missing_cites = self._find_unresolved_citation_keys(content)
+        if missing_cites:
+            lint_items.append(
+                "Unknown citation keys: " + ", ".join(f"@{k}" for k in missing_cites)
+            )
+        broken_links = self._find_broken_internal_links(content)
+        if broken_links:
+            lint_items.append(
+                "Broken internal links: "
+                + ", ".join(f"/posts/{s}/" for s in broken_links)
+            )
+        if self._find_unmatched_admonitions(content):
+            lint_items.append(
+                "Odd number of ::: fences — check for an unclosed admonition."
+            )
+
+        try:
+            rendered = render_markdown(content, context=context)
+        except Exception as exc:
+            return JsonResponse(
+                {"ok": False, "error": f"Render failed: {exc}", "lint": lint_items},
+                status=500,
+            )
+
+        css_links = "\n".join(
+            f'<link rel="stylesheet" href="{static(path)}">'
+            for path in self._PREVIEW_CSS_FILES
+        )
+        iframe_doc = (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+            f"{css_links}"
+            "<style>body{margin:0;padding:24px 28px;}"
+            ".admin-preview-banner{font:12px/1.4 system-ui,sans-serif;"
+            "color:#555;background:#f4f4f4;border:1px solid #ddd;"
+            "padding:6px 10px;border-radius:4px;margin-bottom:14px;}"
+            "</style></head>"
+            "<body>"
+            "<div class='admin-preview-banner'>"
+            "Admin preview — site CSS is loaded; MathJax and client-side "
+            "enhancements are not."
+            "</div>"
+            '<div id="markdownBody" class="markdownBody">'
+            f"{rendered}"
+            "</div></body></html>"
+        )
+
+        return JsonResponse(
+            {"ok": True, "html": iframe_doc, "lint": lint_items}
+        )
 
     def revision_diff_view(self, request, post_id, revision_id):
         post = Post.all_objects.get(pk=post_id)
@@ -480,70 +1800,79 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     fieldsets = (
         (
-            "Basic Information",
+            "Identity",
             {
                 "fields": (
                     ("title", "slug"),
                     ("subtitle", "language"),
                     ("author", "co_authors"),
+                    ("description",),
                 ),
-                "classes": [],
-                "description": "Core post identity and authorship",
-            },
-        ),
-        (
-            "Publishing & Status",
-            {
-                "fields": (
-                    ("status", "completion_status"),
-                    ("visibility",),
-                    ("published_at", "expire_at"),
-                    ("is_featured", "is_pinned", "pin_order"),
-                    ("published_by", "last_edited_by", "version"),
+                "description": (
+                    "Title, URL slug, language, and a short description used "
+                    "as the teaser on cards and as the meta-description fallback."
                 ),
-                "classes": [],
-                "description": "Control post status, visibility, and publication schedule",
-            },
-        ),
-        (
-            "Organization & Taxonomy",
-            {
-                "fields": (
-                    ("series", "series_order"),
-                    ("categories", "tags"),
-                    ("related_posts", "certainty", "importance"),
-                    (
-                        "show_toc",
-                        "first_line_caps",
-                        "citation_style",
-                    ),
-                ),
-                "classes": ["collapse"],
-                "description": "Categorize and relate your content",
             },
         ),
         (
             "Content",
             {
                 "fields": (
-                    ("description",),
-                    ("abstract",),
-                    ("content_markdown",),
+                    ("markdown_cheatsheet",),
                     ("asset_markdown_reference_helper",),
+                    ("cite_picker_controls",),
+                    ("preview_controls",),
+                    ("content_markdown",),
+                    ("abstract",),
                 ),
-                "description": "Write your post content in Markdown. The renderer automatically processes this when displayed in templates.",
+                "description": (
+                    "Write your post content in Pandoc-flavoured Markdown. "
+                    "The render pipeline processes it on save; the preview button "
+                    "renders it live with site CSS."
+                ),
             },
         ),
         (
-            "Engagement & Analytics",
+            "Publishing",
             {
                 "fields": (
-                    ("allow_comments", "comment_count"),
-                    ("view_count", "like_count", "rating"),
-                    ("reading_time_minutes", "word_count"),
+                    ("status", "completion_status"),
+                    ("visibility",),
+                    ("published_at", "expire_at"),
+                    ("is_featured", "is_pinned", "pin_order"),
                 ),
-                "classes": [],
-                "description": "User engagement metrics and reading statistics",
+                "description": (
+                    "Lifecycle state, who can see the post, and scheduled "
+                    "go-live / expiry times."
+                ),
+            },
+        ),
+        (
+            "Taxonomy & Relations",
+            {
+                "fields": (
+                    ("series", "series_order"),
+                    ("categories", "tags"),
+                    ("related_posts",),
+                ),
+                "classes": ["collapse"],
+                "description": "Categorize and cross-link this post.",
+            },
+        ),
+        (
+            "Rendering & Metadata",
+            {
+                "fields": (
+                    ("show_toc", "first_line_caps"),
+                    ("citation_style",),
+                    ("certainty", "importance"),
+                    ("allow_comments", "rating"),
+                ),
+                "classes": ["collapse"],
+                "description": (
+                    "Per-post rendering toggles, editorial ratings, and "
+                    "comment allowance."
+                ),
             },
         ),
         (
@@ -551,35 +1880,52 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             {
                 "fields": (
                     ("meta_description",),
-                    ("hero_image_url", "og_image_url"),
+                    ("hero_image_url",),
+                    ("og_image_url",),
                     ("canonical_url",),
                     ("noindex",),
                 ),
                 "classes": ["collapse"],
-                "description": "Override auto-generated SEO metadata. Leave blank to use defaults.",
+                "description": (
+                    "Override auto-generated SEO / OG metadata. Fallback "
+                    "chain for images: og_image_url → hero_image_url → first "
+                    "in-content image → site default."
+                ),
             },
         ),
         (
-            "Advanced",
+            "Metrics",
             {
                 "fields": (
-                    ("table_of_contents",),
-                    ("content_html_cached",),
-                    ("extras",),
+                    ("word_count", "reading_time_minutes"),
+                    ("view_count", "comment_count", "like_count"),
                 ),
                 "classes": ["collapse"],
-                "description": "Advanced settings and metadata",
+                "description": "Read-only counters. Updated by the render pipeline and views.",
             },
         ),
         (
-            "System Information",
+            "Audit",
             {
                 "fields": (
+                    ("version",),
+                    ("published_by", "last_edited_by"),
                     ("created_at", "updated_at"),
-                    ("is_deleted", "deleted_at"),
                 ),
                 "classes": ["collapse"],
-                "description": "System-managed timestamps and soft-delete status",
+                "description": (
+                    "Auto-managed provenance. Version bumps when "
+                    "content_markdown changes; published_by is stamped on the "
+                    "first publish; last_edited_by updates on every admin save."
+                ),
+            },
+        ),
+        (
+            "System",
+            {
+                "fields": (("is_deleted", "deleted_at"),),
+                "classes": ["collapse"],
+                "description": "Soft-delete state.",
             },
         ),
     )
@@ -687,21 +2033,21 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         badges = []
         if obj.is_featured:
             badges.append(
-                '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 3px; font-size: 10px;">⭐ FEATURED</span>'
+                '<span class="mk-pill mk-pill-featured">⭐ FEATURED</span>'
             )
         if obj.is_pinned:
             badges.append(
-                f'<span style="background: #e0e7ff; color: #3730a3; padding: 2px 6px; border-radius: 3px; font-size: 10px;">📌 PIN {obj.pin_order}</span>'
+                f'<span class="mk-pill mk-pill-pin">📌 PIN {obj.pin_order}</span>'
             )
         if not badges:
-            return mark_safe('<span style="color: #999;">—</span>')
+            return mark_safe('<span class="mk-muted">—</span>')
         return mark_safe(" ".join(badges))
 
     @admin.display(description="Stats")
     def stats_compact(self, obj):
         """Display compact statistics."""
         return format_html(
-            '<div style="font-size: 11px; color: #6c757d;">'
+            '<div class="mk-stats-compact">'
             "<div>👁️ {} | 💬 {} | ❤️ {}</div>"
             "<div>📖 {}min | {} words</div>"
             "</div>",
@@ -712,43 +2058,130 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             obj.word_count,
         )
 
+    @admin.display(description="Markdown reference")
+    def markdown_cheatsheet(self, obj=None):
+        """Collapsible cheatsheet of supported markdown syntax.
+
+        Rendered above the content textarea so authors can discover
+        admonitions, asset/citation syntax, and other custom features
+        without leaving the change form.
+        """
+        return mark_safe(MARKDOWN_CHEATSHEET_HTML)
+
+    @admin.display(description="Preview")
+    def preview_controls(self, obj=None):
+        """Render the 'Preview markdown' button + iframe modal skeleton.
+
+        Posts the current textarea contents to
+        ``engine_post_preview_markdown`` and injects the returned HTML
+        document into an iframe so the production site CSS applies and
+        there's no style bleed from the admin.
+        """
+        post_id = obj.pk if obj and obj.pk else ""
+        preview_url = reverse("admin:engine_post_preview_markdown")
+        return format_html(
+            '<div class="markdown-preview-controls" '
+            'data-preview-url="{}" data-post-id="{}">'
+            "<button type='button' class='markdown-preview-btn'>"
+            "🔍 Preview rendered markdown</button>"
+            "<span class='markdown-preview-hint'>"
+            "Opens in a modal with the live site's CSS loaded — no save required. "
+            "MathJax isn't evaluated in the preview."
+            "</span></div>"
+            '<div id="markdown-preview-modal" class="markdown-preview-modal">'
+            '<div class="mk-panel">'
+            '<div class="mk-header">'
+            "<strong>Markdown preview</strong>"
+            "<button type='button' id='markdown-preview-close' class='mk-close' aria-label='Close'>✕</button>"
+            "</div>"
+            '<div id="markdown-preview-lint" class="mk-lint"></div>'
+            '<iframe id="markdown-preview-iframe" class="mk-iframe" '
+            'sandbox="allow-same-origin"></iframe>'
+            "</div></div>"
+            "{}",
+            preview_url,
+            post_id,
+            mark_safe(_PREVIEW_MODAL_JS),
+        )
+
+    @admin.display(description="Insert citation")
+    def cite_picker_controls(self, obj=None):
+        """Render the citation picker button + modal (Phase 4.1).
+
+        The CM6 bootstrap exposes its view via ``window.__atpPostEditorView``.
+        Clicking a row inserts ``[@key]`` at the editor's current cursor.
+        """
+        citations_url = reverse("admin:engine_post_autocomplete_citations")
+        return format_html(
+            '<div class="mk-cite-controls" data-cite-url="{}">'
+            "<button type='button' class='mk-cite-picker-btn'>"
+            "📚 Browse &amp; insert citation</button>"
+            "<span class='mk-cite-picker-hint'>"
+            "Keyboard: <code>↑</code>/<code>↓</code> to navigate, "
+            "<code>Enter</code> to insert, <code>Esc</code> to close."
+            "</span></div>"
+            '<div id="mk-cite-modal" class="mk-cite-modal">'
+            '<div class="mk-panel">'
+            '<div class="mk-header">'
+            "<strong>Insert citation</strong>"
+            "<button type='button' id='mk-cite-close' class='mk-close' aria-label='Close'>✕</button>"
+            "</div>"
+            '<div class="mk-search-row">'
+            '<input id="mk-cite-search" type="search" '
+            'placeholder="Search by key, title, or author…" autocomplete="off">'
+            "</div>"
+            '<div id="mk-cite-results" class="mk-results"></div>'
+            '<div class="mk-cite-footer">'
+            "Inserts <code>[@key]</code> at the current cursor position in the markdown editor."
+            "</div></div></div>"
+            "{}",
+            citations_url,
+            mark_safe(_CITE_PICKER_JS),
+        )
+
     @admin.display(description="Asset Markdown References")
     def asset_markdown_reference_helper(self, obj=None):
         """Display assets attached to this post with their markdown references for quick copying."""
-        # If no post object (add page), show help message
         if not obj or not obj.pk:
             return mark_safe(
-                '<div style="padding: 12px; background: #e7f3ff; border: 1px solid #0dcaf0; border-radius: 4px; color: #004085;">'
-                'ℹ️ Asset references will appear here after you add assets to this post in the "Post Assets" section below.'
+                '<div class="mk-asset-info">'
+                'ℹ️ Asset references will appear here after you save the post and attach assets in the "Post Assets" section below. '
+                "Use <code>@asset:key</code> for global references or <code>@alias</code> for post-local aliases inside your markdown."
                 "</div>"
             )
 
-        # Get assets attached to this post via PostAsset relationship
         post_assets = obj.post_assets.select_related("asset").order_by("order")
+        orphan_html = self._orphan_asset_ref_warning(obj, post_assets)
 
         if not post_assets.exists():
-            return mark_safe(
-                '<div style="padding: 12px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">'
+            no_assets_html = (
+                '<div class="mk-asset-none">'
                 '⚠️ No assets attached to this post yet. Add assets in the "Post Assets" section below, then save to see their markdown references here.'
                 "</div>"
             )
+            return mark_safe(orphan_html + no_assets_html)
 
-        # Build HTML parts as a list to avoid string concatenation issues
         parts = []
+        parts.append('<div class="mk-asset-list">')
         parts.append(
-            '<div style="max-height: 400px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; background: #f9f9f9;">'
+            format_html(
+                '<div class="mk-asset-header">📎 Assets in this Post ({}) — Click to copy:</div>',
+                post_assets.count(),
+            )
         )
-        parts.append(
-            f'<div style="margin-bottom: 8px; font-weight: 600; color: #333;">📎 Assets in this Post ({post_assets.count()}) — Click to copy:</div>'
-        )
-        parts.append(
-            '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;">'
-        )
+        parts.append('<div class="mk-asset-grid">')
+
+        icons = {
+            "image": "🖼️",
+            "video": "🎬",
+            "audio": "🎵",
+            "document": "📄",
+            "archive": "📦",
+            "other": "📎",
+        }
 
         for post_asset in post_assets:
             asset = post_asset.asset
-
-            # Determine the reference to use (alias or asset key)
             if post_asset.alias:
                 ref = "@" + post_asset.alias
                 ref_type = "Alias"
@@ -756,85 +2189,274 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 ref = "@asset:" + asset.key
                 ref_type = "Global"
 
-            # Get asset type icon
-            icons = {
-                "image": "🖼️",
-                "video": "🎬",
-                "audio": "🎵",
-                "document": "📄",
-                "archive": "📦",
-                "other": "📎",
-            }
             icon = icons.get(asset.asset_type, "📎")
-
-            # Truncate title
             display_title = asset.title[:40] if len(asset.title) > 40 else asset.title
-
-            # Add order indicator
-            order_badge = (
-                f'<span style="background: #e9ecef; padding: 2px 6px; border-radius: 2px; font-size: 9px; font-weight: 600; margin-right: 4px;">#{post_asset.order}</span>'
+            order_badge_html = (
+                format_html(
+                    '<span class="mk-asset-order-badge">#{}</span>',
+                    post_asset.order,
+                )
                 if post_asset.order
                 else ""
             )
 
             parts.append(
-                f"""
-            <div class="asset-ref-card" data-ref="{ref}" style="background: white; border: 1px solid #ddd; border-radius: 3px; padding: 8px; cursor: pointer;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 3px;">{order_badge}{icon} {asset.asset_type.title()} <span style="color: #999;">• {ref_type}</span></div>
-                <div style="font-weight: 500; font-size: 13px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{asset.title}">{display_title}</div>
-                <code style="font-size: 10px; background: #f5f5f5; padding: 2px 4px; border-radius: 2px; display: block; font-family: monospace;">{ref}</code>
-            </div>
-            """
+                format_html(
+                    '<div class="mk-asset-card" data-ref="{}">'
+                    '<div class="mk-meta">{}{} {} • {}</div>'
+                    '<div class="mk-title" title="{}">{}</div>'
+                    "<code>{}</code>"
+                    "</div>",
+                    ref,
+                    mark_safe(order_badge_html) if order_badge_html else "",
+                    icon,
+                    asset.asset_type.title(),
+                    ref_type,
+                    asset.title,
+                    display_title,
+                    ref,
+                )
             )
 
         parts.append("</div></div>")
         parts.append(
-            '<div style="margin-top: 8px; padding: 8px; background: #e7f3ff; border-radius: 3px; font-size: 11px; color: #004085;">💡 <strong>Tip:</strong> Click any asset card above to copy its markdown reference.</div>'
+            '<div class="mk-asset-tip">💡 <strong>Tip:</strong> Click any asset card above to copy its markdown reference.</div>'
         )
-
-        # Add JavaScript for click handling
         parts.append(
             """
-        <script>
-        (function() {
-            setTimeout(function() {
-                document.querySelectorAll('.asset-ref-card').forEach(function(card) {
-                    if (card.hasAttribute('data-listener')) return;
-                    card.setAttribute('data-listener', 'true');
-
-                    card.addEventListener('click', function() {
-                        var ref = this.getAttribute('data-ref');
-                        navigator.clipboard.writeText(ref).then(function() {
-                            card.style.background = '#d4edda';
-                            card.style.borderColor = '#28a745';
-                            setTimeout(function() {
-                                card.style.background = 'white';
-                                card.style.borderColor = '#ddd';
-                            }, 2000);
-                        });
-                    });
-
-                    card.addEventListener('mouseover', function() {
-                        if (this.style.background !== 'rgb(212, 237, 218)') {
-                            this.style.background = '#f8f9fa';
-                            this.style.borderColor = '#999';
-                        }
-                    });
-
-                    card.addEventListener('mouseout', function() {
-                        if (this.style.background !== 'rgb(212, 237, 218)') {
-                            this.style.background = 'white';
-                            this.style.borderColor = '#ddd';
-                        }
-                    });
+<script>
+(function() {
+    setTimeout(function() {
+        document.querySelectorAll('.mk-asset-card').forEach(function(card) {
+            if (card.hasAttribute('data-listener')) return;
+            card.setAttribute('data-listener', 'true');
+            card.addEventListener('click', function() {
+                var ref = this.getAttribute('data-ref');
+                navigator.clipboard.writeText(ref).then(function() {
+                    card.classList.add('mk-copied');
+                    setTimeout(function() { card.classList.remove('mk-copied'); }, 2000);
                 });
-            }, 500);
-        })();
-        </script>
-        """
+            });
+        });
+    }, 500);
+})();
+</script>
+"""
         )
 
-        return mark_safe("".join(parts))
+        return mark_safe(orphan_html + "".join(parts))
+
+    def _orphan_asset_ref_warning(self, obj, post_assets):
+        """Render HTML listing asset references in content that don't resolve."""
+        orphans = self._find_orphan_asset_refs(
+            obj.content_markdown or "", post_assets
+        )
+        if not orphans:
+            return ""
+
+        chips = "".join(
+            format_html('<span class="mk-orphan-chip">{}</span>', ref)
+            for ref in orphans
+        )
+        return format_html(
+            '<div class="mk-asset-orphan">'
+            "⚠️ <strong>Unresolved asset references in content:</strong> {}"
+            '<div class="mk-hint">'
+            "Attach the matching asset below, fix the key/alias, or remove the reference."
+            "</div>"
+            "</div>",
+            mark_safe(chips),
+        )
+
+    @staticmethod
+    def _find_orphan_asset_refs(content, post_assets):
+        """Return the sorted list of unresolved ``@asset:`` / ``@alias`` refs.
+
+        Compares every reference against the PostAsset aliases attached to
+        this post and the global Asset key set.
+        """
+        if not content or "@" not in content:
+            return []
+
+        from engine.models import Asset
+
+        aliases = {pa.alias for pa in post_assets if pa.alias}
+        global_keys = {pa.asset.key for pa in post_assets if pa.asset}
+
+        orphans = []
+        checked = set()
+
+        for match in _ASSET_REF_RE.finditer(content):
+            is_global = match.group(1) == "asset:"
+            key = match.group(2)
+            cache_key = (is_global, key)
+            if cache_key in checked:
+                continue
+            checked.add(cache_key)
+
+            if is_global:
+                if key in global_keys:
+                    continue
+                if Asset.objects.filter(
+                    key=key, is_deleted=False, status="ready"
+                ).exists():
+                    continue
+                orphans.append(f"@asset:{key}")
+            else:
+                if key in aliases or key in global_keys:
+                    continue
+                if Asset.objects.filter(
+                    key=key, is_deleted=False, status="ready"
+                ).exists():
+                    continue
+                orphans.append(f"@{key}")
+
+        return orphans
+
+    @staticmethod
+    def _find_unresolved_citation_keys(content):
+        """Return the sorted list of citation keys not in the Source library.
+
+        Matches Pandoc-style bracketed citations ``[@key]`` / ``[-@key]`` /
+        ``[@a; @b]`` and bare narrative ``@key``. Code spans, fenced code,
+        and asset-reference link targets are stripped first so they don't
+        produce false positives (mirrors the production preprocessor
+        ordering: asset_resolver runs before citation_escaper).
+        """
+        if not content or "@" not in content:
+            return []
+
+        from engine.models import Source
+
+        # Strip fenced and inline code so citations inside examples don't flag.
+        stripped = re.sub(r"```[\s\S]*?```", "", content)
+        stripped = re.sub(r"~~~[\s\S]*?~~~", "", stripped)
+        stripped = re.sub(r"`[^`\n]+`", "", stripped)
+        # Strip markdown link/image targets that contain @ (asset references).
+        stripped = _ASSET_REF_RE.sub("", stripped)
+
+        # Keys end in an alphanumeric character — trailing `.` is sentence
+        # punctuation, not part of the key.
+        key_pat = r"[a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9]"
+
+        keys = set()
+        # Bracketed: [@key] / [-@key] / [@k1; @k2, pp. 3]
+        for match in re.finditer(r"\[(-?@[^\]]+)\]", stripped):
+            for piece in match.group(1).split(";"):
+                piece = piece.strip().lstrip("-").lstrip("@")
+                head = piece.split(",", 1)[0].strip()
+                m = re.match(r"([a-zA-Z0-9][\w:.#$%&\-+?<>~/]*?)\.?$", head)
+                key = m.group(1) if m else ""
+                if key:
+                    keys.add(key)
+        # Narrative: @key (not already inside brackets, not after a word char)
+        for match in re.finditer(
+            rf"(?<![@\[\\\w])@({key_pat})", stripped
+        ):
+            keys.add(match.group(1))
+
+        if not keys:
+            return []
+
+        known = set(
+            Source.objects.filter(citation_key__in=keys).values_list(
+                "citation_key", flat=True
+            )
+        )
+        return sorted(keys - known)
+
+    @staticmethod
+    def _find_broken_internal_links(content, current_post_pk=None):
+        """Return sorted list of ``/posts/<slug>/`` targets not matching a Post."""
+        if not content:
+            return []
+        slugs = set(re.findall(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)", content))
+        if not slugs:
+            return []
+        known = set(
+            Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
+        )
+        return sorted(slugs - known)
+
+    @staticmethod
+    def _find_unmatched_admonitions(content):
+        """Return diagnostic count of unmatched ``:::`` fenced divs.
+
+        Pandoc fenced divs come in matched pairs: an opener like
+        ``::: {.admonition-tip}`` and a bare ``:::`` closer. An odd total
+        almost always means the author forgot to close a block.
+        """
+        if not content:
+            return 0
+        fences = re.findall(r"^:::+.*$", content, flags=re.MULTILINE)
+        return len(fences) % 2
+
+    def _collect_content_lint_messages(self, post):
+        """Return a list of (level, message) tuples for save-time lint warnings."""
+        messages_out = []
+        content = post.content_markdown or ""
+        if not content:
+            return messages_out
+
+        post_assets = (
+            list(post.post_assets.select_related("asset").all())
+            if post.pk
+            else []
+        )
+
+        orphans = self._find_orphan_asset_refs(content, post_assets)
+        if orphans:
+            messages_out.append(
+                (
+                    messages.WARNING,
+                    "Unresolved asset reference(s): "
+                    + ", ".join(orphans)
+                    + ". Attach the asset or fix the key/alias.",
+                )
+            )
+
+        missing_cites = self._find_unresolved_citation_keys(content)
+        if missing_cites:
+            messages_out.append(
+                (
+                    messages.WARNING,
+                    "Unknown citation key(s) — will render as [??key]: "
+                    + ", ".join(f"@{k}" for k in missing_cites)
+                    + ". Add to the Source library or correct the key.",
+                )
+            )
+
+        broken_links = self._find_broken_internal_links(content, post.pk)
+        if broken_links:
+            messages_out.append(
+                (
+                    messages.WARNING,
+                    "Internal link(s) to unknown slugs: "
+                    + ", ".join(f"/posts/{s}/" for s in broken_links)
+                    + ".",
+                )
+            )
+
+        if self._find_unmatched_admonitions(content):
+            messages_out.append(
+                (
+                    messages.WARNING,
+                    "Odd number of ::: fences detected — an admonition "
+                    "or fenced div is likely unclosed.",
+                )
+            )
+
+        return messages_out
+
+    def save_model(self, request, obj, form, change):
+        # Auto-stamp audit provenance so authors can't forget.
+        obj.last_edited_by = request.user
+        if obj.status == Post.Status.PUBLISHED and not obj.published_by:
+            obj.published_by = request.user
+
+        super().save_model(request, obj, form, change)
+        for level, msg in self._collect_content_lint_messages(obj):
+            self.message_user(request, msg, level=level)
 
     @admin.action(description="Publish selected posts")
     def publish_selected(self, request, queryset):
@@ -911,6 +2533,140 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 request,
                 f"Warning: {total_stats['links_failed']} link(s) failed to resolve.",
                 level=messages.WARNING,
+            )
+
+    @admin.action(description="Regenerate HTML cache & table of contents")
+    def regenerate_html_cache(self, request, queryset):
+        """Re-render content and rebuild the cached HTML + TOC.
+
+        ``Post.save()`` clears the TOC when content changes and the Celery
+        pipeline eventually repopulates ``content_html_cached``. This action
+        forces that work synchronously for the selected posts, which is
+        useful after pipeline changes or a content/asset migration.
+        """
+        from engine.markdown.renderer import render_markdown
+        from engine.markdown.extensions.toc_extractor import extract_toc_from_html
+
+        count = 0
+        failed = 0
+        for post in queryset:
+            try:
+                context = {"post": post}
+                html = render_markdown(post.content_markdown or "", context=context)
+                post.content_html_cached = html
+                try:
+                    post.table_of_contents = extract_toc_from_html(html) or []
+                except Exception:
+                    # TOC extraction is best-effort; leave it empty on failure.
+                    post.table_of_contents = []
+                post.save(update_fields=["content_html_cached", "table_of_contents"])
+                count += 1
+            except Exception as exc:
+                failed += 1
+                self.message_user(
+                    request,
+                    f"Failed to re-render '{post.title}': {exc}",
+                    level=messages.ERROR,
+                )
+        self.message_user(
+            request,
+            f"Regenerated HTML + TOC for {count} post(s)"
+            + (f", {failed} failed." if failed else "."),
+            level=messages.SUCCESS if count else messages.WARNING,
+        )
+
+    @admin.action(description="Attach @asset: references found in content")
+    def attach_referenced_assets(self, request, queryset):
+        """Scan each selected post's content for @asset:key / @alias refs
+        and create PostAsset rows for any that resolve to real Assets but
+        aren't yet attached."""
+        from engine.models import Asset
+
+        total_attached = 0
+        total_posts = 0
+        total_skipped = 0
+        unresolved = set()
+
+        for post in queryset:
+            content = post.content_markdown or ""
+            if not content or "@" not in content:
+                continue
+
+            existing_keys = {
+                pa.asset.key
+                for pa in post.post_assets.select_related("asset").all()
+                if pa.asset
+            }
+            existing_aliases = {
+                pa.alias
+                for pa in post.post_assets.select_related("asset").all()
+                if pa.alias
+            }
+
+            candidate_keys = set()
+            for m in _ASSET_REF_RE.finditer(content):
+                is_global = m.group(1) == "asset:"
+                key = m.group(2)
+                if is_global:
+                    if key not in existing_keys:
+                        candidate_keys.add(key)
+                else:
+                    if key in existing_aliases or key in existing_keys:
+                        continue
+                    candidate_keys.add(key)
+
+            if not candidate_keys:
+                continue
+
+            # Resolve to real Assets in one query.
+            found_assets = {
+                a.key: a
+                for a in Asset.objects.filter(
+                    key__in=candidate_keys, is_deleted=False, status="ready"
+                )
+            }
+
+            # Figure out a starting order offset so we don't collide.
+            next_order = (
+                post.post_assets.order_by("-order").values_list("order", flat=True)[:1]
+            )
+            next_order = (next_order[0] if next_order else 0) + 1
+
+            post_touched = False
+            for key in candidate_keys:
+                asset = found_assets.get(key)
+                if not asset:
+                    unresolved.add(key)
+                    total_skipped += 1
+                    continue
+                PostAsset.objects.create(
+                    post=post, asset=asset, order=next_order
+                )
+                next_order += 1
+                total_attached += 1
+                post_touched = True
+
+            if post_touched:
+                total_posts += 1
+
+        self.message_user(
+            request,
+            f"Attached {total_attached} asset(s) across {total_posts} post(s).",
+            level=messages.SUCCESS if total_attached else messages.INFO,
+        )
+        if unresolved:
+            self.message_user(
+                request,
+                "Unresolved keys (no matching ready Asset): "
+                + ", ".join(sorted(unresolved)[:25])
+                + ("…" if len(unresolved) > 25 else ""),
+                level=messages.WARNING,
+            )
+        if total_skipped and not unresolved:
+            self.message_user(
+                request,
+                f"Skipped {total_skipped} key(s) — likely aliases already set or missing assets.",
+                level=messages.INFO,
             )
 
     @admin.action(description="Export selected posts as CSV")

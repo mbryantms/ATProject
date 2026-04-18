@@ -281,6 +281,45 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         )
         return queryset, may_have_duplicates
 
+    # ------------------------------------------------------------------
+    # Phase 5.1 — richer autocomplete: include asset type + short title in
+    # the dropdown text so authors can tell items apart without opening the
+    # change page. The underlying ``__str__`` is unchanged so other places
+    # that rely on it aren't affected.
+    # ------------------------------------------------------------------
+    def autocomplete_view(self, request):
+        from django.contrib.admin.views.autocomplete import AutocompleteJsonView
+
+        type_icons = {
+            "image": "🖼️",
+            "video": "🎬",
+            "audio": "🎵",
+            "document": "📄",
+            "archive": "📦",
+            "other": "📎",
+        }
+
+        class EnrichedAutocompleteJsonView(AutocompleteJsonView):
+            def serialize_result(self, obj, to_field_name):
+                icon = type_icons.get(getattr(obj, "asset_type", ""), "📎")
+                title = (getattr(obj, "title", "") or "").strip()
+                key = getattr(obj, "key", "") or ""
+                type_label = obj.get_asset_type_display() if hasattr(obj, "get_asset_type_display") else ""
+                bits = [f"{icon} {title}" if title else f"{icon} (no title)"]
+                suffix = []
+                if type_label:
+                    suffix.append(type_label)
+                if key:
+                    suffix.append(key)
+                if suffix:
+                    bits.append(" — " + " · ".join(suffix))
+                return {
+                    "id": str(getattr(obj, to_field_name)),
+                    "text": "".join(bits),
+                }
+
+        return EnrichedAutocompleteJsonView.as_view(model_admin=self)(request)
+
     # Performance optimization
     list_select_related = ["uploaded_by"]
     list_per_page = 50

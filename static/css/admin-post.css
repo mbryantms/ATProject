@@ -1,0 +1,32 @@
+/* Admin list-view pills + misc theming for PostAdmin.
+ * Uses Django admin CSS variables so light/dark mode both look right.
+ */
+
+.mk-pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  background: var(--darkened-bg);
+  color: var(--body-fg);
+}
+
+.mk-pill-featured {
+  border-color: var(--accent, #f5dd5d);
+}
+
+.mk-pill-pin {
+  border-color: var(--link-fg, #447e9b);
+}
+
+.mk-muted {
+  color: var(--body-quiet-color);
+}
+
+.mk-stats-compact {
+  font-size: 11px;
+  color: var(--body-quiet-color);
+  line-height: 1.45;
+}

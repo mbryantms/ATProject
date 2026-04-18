@@ -9,11 +9,13 @@
     "build:js:standalone": "esbuild static/js/standalone-entry.js --bundle --minify --target=es2017 --outfile=static/js/dist/standalone.js --legal-comments=none",
     "build:js:main": "esbuild static/js/main-entry.js --bundle --minify --target=es2017 --outfile=static/js/dist/main.js --legal-comments=none",
     "build:js:citations": "esbuild static/js/citation-tooltip.js --bundle --minify --target=es2017 --outfile=static/js/dist/citation-tooltip.js --legal-comments=none",
+    "build:js:admin-post-editor": "esbuild static/js/admin-post-editor-entry.js --bundle --minify --target=es2017 --outfile=static/js/dist/admin-post-editor.js --legal-comments=none",
     "dev": "npm-run-all --parallel watch:css watch:js:*",
     "watch:css": "postcss static/css/src/*.css --dir static/css/dist/ --watch",
     "watch:js:standalone": "npm run build:js:standalone -- --watch",
     "watch:js:main": "npm run build:js:main -- --watch",
     "watch:js:citations": "npm run build:js:citations -- --watch",
+    "watch:js:admin-post-editor": "npm run build:js:admin-post-editor -- --watch",
     "format": "prettier --write \"**/*.{css,html,js,json}\"",
     "format:check": "prettier --check \"**/*.{css,html,js,json}\"",
     "lint:js": "eslint \"**/*.js\" --fix"
@@ -38,6 +40,15 @@
     "prettier": "^3.6.2"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.7.4"
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/lint": "^6.9.5",
+    "@codemirror/search": "^6.6.0",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.41.0",
+    "@floating-ui/dom": "^1.7.4",
+    "@lezer/highlight": "^1.2.3"
   }
 }
