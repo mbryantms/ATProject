@@ -5,3 +5,4 @@ import './theme.js';
 import './search.js';
 import './scroll-to-top.js';
 import './reading-progress.js';
+import './page-metadata-separators.js';
