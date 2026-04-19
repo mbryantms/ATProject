@@ -47,6 +47,7 @@ import {
   makeAssetCompletionSource,
 } from './admin-post-editor/completions.js';
 import { makeLintSource } from './admin-post-editor/lint-source.js';
+import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
 
 const TEXTAREA_ID = 'id_content_markdown';
 
@@ -79,6 +80,25 @@ function initEditor() {
   }
   if (assetsUrl) {
     completionSources.push(makeAssetCompletionSource(assetsUrl, getPostId));
+  }
+
+  // Cheatsheet-driven snippets + class-name hints. The data is stamped
+  // onto the textarea as JSON so we don't need a round-trip.
+  let fenceSnippets = [];
+  let inlineClasses = [];
+  try {
+    if (textarea.dataset.cmFenceSnippets) {
+      fenceSnippets = JSON.parse(textarea.dataset.cmFenceSnippets);
+    }
+    if (textarea.dataset.cmInlineClasses) {
+      inlineClasses = JSON.parse(textarea.dataset.cmInlineClasses);
+    }
+  } catch (err) {
+    // Malformed JSON — leave snippet completion off but don't break the editor.
+    console.warn('CM6: failed to parse snippet data', err);
+  }
+  if (fenceSnippets.length || inlineClasses.length) {
+    completionSources.push(makeSnippetCompletionSource(fenceSnippets, inlineClasses));
   }
 
   const linterExtensions = [];

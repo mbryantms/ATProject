@@ -347,6 +347,114 @@ _PREVIEW_MODAL_JS = """
 """
 
 
+# Fenced-div snippets surfaced in the CM6 editor when a line starts with ``:::``.
+# Templates use CM6 snippet syntax (``${n:placeholder}`` / ``$0`` for final cursor).
+EDITOR_FENCE_SNIPPETS = [
+    {
+        "className": "admonition-tip",
+        "detail": "Tip callout",
+        "template": "::: {.admonition-tip}\n# ${1:Title}\n\n${2:Body}\n:::\n$0",
+    },
+    {
+        "className": "admonition-note",
+        "detail": "Neutral note callout",
+        "template": "::: {.admonition-note}\n# ${1:Title}\n\n${2:Body}\n:::\n$0",
+    },
+    {
+        "className": "admonition-warning",
+        "detail": "Warning callout",
+        "template": "::: {.admonition-warning}\n# ${1:Title}\n\n${2:Body}\n:::\n$0",
+    },
+    {
+        "className": "admonition-error",
+        "detail": "Error / pitfall callout",
+        "template": "::: {.admonition-error}\n# ${1:Title}\n\n${2:Body}\n:::\n$0",
+    },
+    {
+        "className": "epigraph",
+        "detail": "Opening epigraph quote",
+        "template": "::: {.epigraph}\n> ${1:Quote}\n>\n> --- ${2:Attribution}\n:::\n$0",
+    },
+    {
+        "className": "columns",
+        "detail": "Multi-column list",
+        "template": "::: {.columns}\n- ${1:item}\n- ${2:item}\n- ${3:item}\n:::\n$0",
+    },
+    {
+        "className": "text-center",
+        "detail": "Center-aligned block",
+        "template": "::: {.text-center}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "text-right",
+        "detail": "Right-aligned block",
+        "template": "::: {.text-right}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "sans-serif",
+        "detail": "Sans-serif paragraphs",
+        "template": "::: {.sans-serif}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "float-left",
+        "detail": "Float a block to the left",
+        "template": "::: {.float-left}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "float-right",
+        "detail": "Float a block to the right",
+        "template": "::: {.float-right}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "width-full",
+        "detail": "Full-bleed width block",
+        "template": "::: {.width-full}\n${1:Content}\n:::\n$0",
+    },
+    {
+        "className": "table-small",
+        "detail": "Compact/dense table variant",
+        "template": "::: {.table-small}\n| ${1:a} | ${2:b} |\n|---|---|\n| ${3:1} | ${4:2} |\n:::\n$0",
+    },
+    {
+        "className": "sortable",
+        "detail": "Client-sortable table",
+        "template": "::: {.sortable}\n| ${1:Col 1} | ${2:Col 2} |\n|---|---|\n| ${3:a} | ${4:b} |\n:::\n$0",
+    },
+]
+
+# Inline class names surfaced when the cursor is inside ``{.``. These apply to
+# bracketed spans (``[text]{.smallcaps}``), images/links (``![alt](src){.class}``),
+# and fenced divs. Not every class is valid in every context, but that's on the
+# author — the list is grouped rough-by-use.
+EDITOR_INLINE_CLASSES = [
+    # Spans
+    {"name": "smallcaps", "detail": "Small caps"},
+    {"name": "marginnote", "detail": "Margin note (outer-margin)"},
+    {"name": "sidenote", "detail": "Sidebar sidenote"},
+    {"name": "tabular-nums", "detail": "Tabular / lined numerals"},
+    {"name": "sans-serif", "detail": "Sans-serif run"},
+    {"name": "date-since", "detail": "Date + 'N years ago' subscript"},
+    {"name": "date-range", "detail": "Date range with duration subscript"},
+    {"name": "date-range-since", "detail": "Date range + years since end"},
+    # Layout utilities
+    {"name": "text-center", "detail": "Center-align"},
+    {"name": "text-right", "detail": "Right-align"},
+    {"name": "float-left", "detail": "Float left"},
+    {"name": "float-right", "detail": "Float right"},
+    {"name": "width-full", "detail": "Full-bleed width"},
+    {"name": "icon-not", "detail": "Suppress auto link icon"},
+    # Fenced-div modifiers
+    {"name": "admonition-tip", "detail": "Tip callout"},
+    {"name": "admonition-note", "detail": "Note callout"},
+    {"name": "admonition-warning", "detail": "Warning callout"},
+    {"name": "admonition-error", "detail": "Error callout"},
+    {"name": "epigraph", "detail": "Epigraph block"},
+    {"name": "columns", "detail": "Multi-column list"},
+    {"name": "table-small", "detail": "Compact table"},
+    {"name": "sortable", "detail": "Sortable table"},
+]
+
+
 _ADMIN_AUX_STYLE = """
 <style>
 /* --- Markdown cheatsheet (Phase 1) --- */
@@ -650,97 +758,186 @@ MARKDOWN_CHEATSHEET_HTML = _ADMIN_AUX_STYLE + """
 <details class="markdown-cheatsheet">
 <summary>📖 Markdown reference — click to expand</summary>
 <div class="mc-body">
-  <p class="mc-lead">Content is parsed by Pandoc with custom pre/postprocessors. Common patterns:</p>
+  <p class="mc-lead">Pandoc-flavoured Markdown with project extensions. All sections collapsed by default — open the ones you need.</p>
 
-  <details open>
-    <summary>Basics</summary>
+  <details>
+    <summary>Inline formatting</summary>
     <table>
-      <tr><td class="mc-syntax"><code># Heading 1</code><br/><code>## Heading 2</code></td>
-          <td class="mc-desc">Headings — auto-anchored, auto-sectionized</td></tr>
-      <tr><td class="mc-syntax"><code>**bold**</code> · <code>*italic*</code> · <code>~~strike~~</code></td>
-          <td class="mc-desc">Inline emphasis</td></tr>
-      <tr><td class="mc-syntax"><code>[text](/posts/other-slug/)</code></td>
-          <td class="mc-desc">Internal link — backlinks auto-extracted on save</td></tr>
-      <tr><td class="mc-syntax"><code>- item</code> / <code>1. item</code></td>
-          <td class="mc-desc">Lists (nesting auto-styled)</td></tr>
-      <tr><td class="mc-syntax"><code>---</code></td>
-          <td class="mc-desc">Horizontal rule</td></tr>
-      <tr><td class="mc-syntax"><code>&gt; quote</code></td>
-          <td class="mc-desc">Blockquote</td></tr>
-      <tr><td class="mc-syntax"><code>`inline`</code> / ```` ```lang ... ``` ```` </td>
-          <td class="mc-desc">Inline and fenced code</td></tr>
+      <tr><td class="mc-syntax"><code>**bold**</code></td><td class="mc-desc">Bold</td></tr>
+      <tr><td class="mc-syntax"><code>*italic*</code></td><td class="mc-desc">Italic</td></tr>
+      <tr><td class="mc-syntax"><code>***bold italic***</code></td><td class="mc-desc">Bold + italic</td></tr>
+      <tr><td class="mc-syntax"><code>~~strike~~</code></td><td class="mc-desc">Strikethrough</td></tr>
+      <tr><td class="mc-syntax"><code>`inline code`</code></td><td class="mc-desc">Inline code</td></tr>
+      <tr><td class="mc-syntax"><code>H~2~O</code></td><td class="mc-desc">Subscript</td></tr>
+      <tr><td class="mc-syntax"><code>x^2^</code></td><td class="mc-desc">Superscript (adjacent sub+sup are auto-stacked)</td></tr>
+      <tr><td class="mc-syntax"><code>[SPQR]{.smallcaps}</code></td><td class="mc-desc">Small caps</td></tr>
+      <tr><td class="mc-syntax"><code>[note here]{.marginnote}</code></td><td class="mc-desc">Margin note (bracketed span, renders in outer margin)</td></tr>
+      <tr><td class="mc-syntax"><code>[0123]{.tabular-nums}</code></td><td class="mc-desc">Tabular (lined-up) numerals</td></tr>
+      <tr><td class="mc-syntax"><code>[text]{.sans-serif}</code></td><td class="mc-desc">Sans-serif inline run</td></tr>
+      <tr><td class="mc-syntax">line 1 <em>(two trailing spaces)</em><br/>line 2</td><td class="mc-desc">Hard line break</td></tr>
+      <tr><td class="mc-syntax"><code>*[HTML]: Hyper Text Markup Language</code></td><td class="mc-desc">Abbreviation — expands all occurrences into <code>&lt;abbr&gt;</code></td></tr>
+    </table>
+    <p class="mc-note">Smart punctuation is automatic: <code>--</code> → en-dash, <code>---</code> → em-dash, <code>...</code> → ellipsis, straight quotes → curly.</p>
+  </details>
+
+  <details>
+    <summary>Headings &amp; structural blocks</summary>
+    <table>
+      <tr><td class="mc-syntax"><code># H1</code> … <code>###### H6</code></td><td class="mc-desc">Headings — auto-anchored, auto-sectionized, copy-link button</td></tr>
+      <tr><td class="mc-syntax"><code>## Heading {#custom-id}</code></td><td class="mc-desc">Heading with explicit anchor ID</td></tr>
+      <tr><td class="mc-syntax"><code>&gt; quote</code></td><td class="mc-desc">Blockquote (nesting supported; nested levels auto-classed)</td></tr>
+      <tr><td class="mc-syntax"><code>&gt; {&gt;&gt;} text</code><br/><code>&gt; {&lt;&lt;} text</code></td><td class="mc-desc">Float blockquote right / left</td></tr>
+      <tr><td class="mc-syntax"><code>---</code> · <code>***</code> · <code>___</code></td><td class="mc-desc">Horizontal rule (three or more)</td></tr>
+      <tr><td class="mc-syntax"><code>```lang<br/>code<br/>```</code></td><td class="mc-desc">Fenced code block with syntax highlighting</td></tr>
+      <tr><td class="mc-syntax"><code>&lt;blank line&gt;<br/>    4-space indent</code></td><td class="mc-desc">Indented code block (no highlighting)</td></tr>
+      <tr><td class="mc-syntax"><code>term<br/>:   definition</code></td><td class="mc-desc">Definition list</td></tr>
+      <tr><td class="mc-syntax"><code>- [ ] todo</code><br/><code>- [x] done</code></td><td class="mc-desc">Task list (display-only checkboxes)</td></tr>
+    </table>
+  </details>
+
+  <details>
+    <summary>Lists</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>- item</code> · <code>* item</code> · <code>+ item</code></td><td class="mc-desc">Unordered list (indent 4 spaces to nest)</td></tr>
+      <tr><td class="mc-syntax"><code>1. item</code> or <code>1) item</code></td><td class="mc-desc">Ordered list</td></tr>
+      <tr><td class="mc-syntax"><code>5. item</code></td><td class="mc-desc">Ordered list starting at 5 (fancy-lists)</td></tr>
+      <tr><td class="mc-syntax"><code>a. item</code> · <code>I) item</code> · <code>i. item</code></td><td class="mc-desc">Alpha / roman numbering</td></tr>
+    </table>
+    <p class="mc-note">Nesting auto-classifies levels (<code>.list-level-1</code>, etc.). Mixed ordered/unordered is supported at each level.</p>
+  </details>
+
+  <details>
+    <summary>Links &amp; decorators</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>[text](https://example.com)</code></td><td class="mc-desc">External link — auto gets <code>target="_blank"</code>, <code>rel="noopener"</code>, and a domain or file-type icon</td></tr>
+      <tr><td class="mc-syntax"><code>[text](/posts/other-slug/)</code></td><td class="mc-desc">Internal link — backlinks auto-extracted on save</td></tr>
+      <tr><td class="mc-syntax"><code>[text](url "hover title")</code></td><td class="mc-desc">Link with title attribute</td></tr>
+      <tr><td class="mc-syntax"><code>[text](url){.icon-not}</code></td><td class="mc-desc">Suppress the auto link icon</td></tr>
+      <tr><td class="mc-syntax"><code>https://example.com</code></td><td class="mc-desc">Bare URL is auto-linked</td></tr>
+      <tr><td class="mc-syntax"><code>[text][ref]</code> … <code>[ref]: url</code></td><td class="mc-desc">Reference-style link (defined anywhere in the doc)</td></tr>
+    </table>
+    <p class="mc-note">Auto-decorated domains include ArXiv, GitHub, Wikipedia, YouTube, Twitter/X, Mastodon, Reddit, NYT, Google Scholar, PubMed, Internet Archive, and more. File-type icons cover PDF, doc, image, video, audio, archive, code.</p>
+  </details>
+
+  <details>
+    <summary>Images &amp; media</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>![Alt text](@asset:my-key)</code></td><td class="mc-desc">Global asset by key — responsive srcset, lazy, sized from metadata</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt text](@fig1)</code></td><td class="mc-desc">Post-local alias (set on the Post Asset row)</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt](@asset:key?width=400)</code></td><td class="mc-desc">Width override (in px); aspect ratio preserved</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt](@asset:key "Caption text")</code></td><td class="mc-desc">Image with caption (rendered in a <code>&lt;figure&gt;</code>)</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt](@asset:key){.float-right}</code></td><td class="mc-desc">Float right (also <code>.float-left</code>)</td></tr>
+      <tr><td class="mc-syntax"><code>![Alt](@asset:key){.width-full}</code></td><td class="mc-desc">Full bleed width</td></tr>
+      <tr><td class="mc-syntax"><code>![](@asset:clip)</code></td><td class="mc-desc">Video / audio — asset type is auto-detected, controls added</td></tr>
+      <tr><td class="mc-syntax"><code>![](@asset:clip?loop=1&amp;autoplay=1)</code></td><td class="mc-desc">Video query params: <code>loop</code>, <code>autoplay</code>, <code>muted</code></td></tr>
+    </table>
+  </details>
+
+  <details>
+    <summary>Citations</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>[@smith2020]</code></td><td class="mc-desc">Parenthetical citation</td></tr>
+      <tr><td class="mc-syntax"><code>[@smith2020, pp. 42–44]</code></td><td class="mc-desc">With locator</td></tr>
+      <tr><td class="mc-syntax"><code>@smith2020</code></td><td class="mc-desc">Narrative ("Smith (2020) showed…")</td></tr>
+      <tr><td class="mc-syntax"><code>[-@smith2020]</code></td><td class="mc-desc">Suppress author (year only)</td></tr>
+      <tr><td class="mc-syntax"><code>[@a; @b, p. 10; @c]</code></td><td class="mc-desc">Multi-citation (semicolon-separated)</td></tr>
+    </table>
+    <p class="mc-note">Unknown keys render as <code>[??key]</code>. Keys come from the <a href="/admin/engine/source/" target="_blank">Source library</a>. Citation style is set per-post or site-wide — see the <em>Rendering &amp; Metadata</em> section.</p>
+  </details>
+
+  <details>
+    <summary>Footnotes</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>A claim.[^1]</code><br/><code>[^1]: The footnote body.</code></td><td class="mc-desc">Reference-style footnote (define anywhere)</td></tr>
+      <tr><td class="mc-syntax"><code>A claim.^[Inline footnote.]</code></td><td class="mc-desc">Inline footnote (no separate definition)</td></tr>
+    </table>
+    <p class="mc-note">All footnotes collect into a single "Footnotes" section at the bottom with backlink arrows.</p>
+  </details>
+
+  <details>
+    <summary>Math</summary>
+    <table>
+      <tr><td class="mc-syntax"><code>$E = mc^2$</code></td><td class="mc-desc">Inline math</td></tr>
+      <tr><td class="mc-syntax"><code>$$<br/>\\int_0^\\infty e^{-x}\\,dx = 1<br/>$$</code></td><td class="mc-desc">Display math (copy-LaTeX button added automatically)</td></tr>
+    </table>
+    <p class="mc-note">Full LaTeX math via MathJax — custom <code>\\newcommand</code> persists within a post.</p>
+  </details>
+
+  <details>
+    <summary>Tables</summary>
+    <pre>| Right | Left | Center | Default |
+|------:|:-----|:------:|---------|
+|    12 | foo  |  bar   | baz     |
+
+: Caption goes under the table.</pre>
+    <table>
+      <tr><td class="mc-syntax"><code>: Caption here</code></td><td class="mc-desc">Caption line after the table</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.table-small} … :::</code></td><td class="mc-desc">Compact / dense table variant</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.width-full} … :::</code></td><td class="mc-desc">Full-width table</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.sortable} … :::</code></td><td class="mc-desc">Client-sortable table</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.float-right} … :::</code></td><td class="mc-desc">Floated table</td></tr>
+      <tr><td class="mc-syntax">Pandoc grid tables</td><td class="mc-desc">Use <code>+---+---+</code> / <code>|…|</code> grids for multi-line or spanned cells</td></tr>
     </table>
   </details>
 
   <details>
     <summary>Admonitions (callout boxes)</summary>
     <pre>::: {.admonition-tip}
-A helpful tip.
+# Optional title
+Body paragraph.
 :::
 
 ::: {.admonition-note}
-A neutral note.
-:::
-
-::: {.admonition-warning}
-Warn the reader.
-:::
-
-::: {.admonition-error}
-Flag an error or pitfall.
+Body without a title still works.
 :::</pre>
-    <p class="mc-note">Four types: <code>tip</code>, <code>note</code>, <code>warning</code>, <code>error</code>.</p>
+    <p class="mc-note">Four types: <code>tip</code>, <code>note</code>, <code>warning</code>, <code>error</code>. Title is optional — if present, it must be a heading line (<code>#</code>…<code>######</code>) immediately inside the fence; it's converted to a styled title row.</p>
   </details>
 
   <details>
-    <summary>Assets (images, video, docs)</summary>
+    <summary>Layout &amp; utility blocks</summary>
     <table>
-      <tr><td class="mc-syntax"><code>![Alt text](@asset:my-key)</code></td>
-          <td class="mc-desc">Global asset by its key</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt text](@fig1)</code></td>
-          <td class="mc-desc">Post-local alias (set on the Post Asset)</td></tr>
-      <tr><td class="mc-syntax"><code>![](@asset:clip?autoplay=1)</code></td>
-          <td class="mc-desc">Query params passed through for video/audio</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.epigraph}<br/>&gt; Quote<br/>&gt;<br/>&gt; --- Attribution<br/>:::</code></td><td class="mc-desc">Epigraph — blockquote + right-aligned attribution</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.columns}<br/>- a<br/>- b<br/>- c<br/>:::</code></td><td class="mc-desc">Multi-column layout (applies to the nested list)</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.text-center} … :::</code></td><td class="mc-desc">Center-align the paragraphs inside</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.text-right} … :::</code></td><td class="mc-desc">Right-align</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.sans-serif} … :::</code></td><td class="mc-desc">Switch paragraphs to the sans-serif stack</td></tr>
+      <tr><td class="mc-syntax"><code>::: {.float-left} … :::</code> · <code>{.float-right}</code> · <code>{.width-full}</code></td><td class="mc-desc">Float or full-bleed any block</td></tr>
     </table>
-    <p class="mc-note">Images get responsive <code>srcset</code>, lazy loading, and captions automatically. Attach assets in the "Post Assets" section below; the reference panel beneath this one gives you one-click copy of every attached asset's reference.</p>
   </details>
 
   <details>
-    <summary>Citations &amp; footnotes</summary>
+    <summary>Dates</summary>
     <table>
-      <tr><td class="mc-syntax"><code>[@smith2020]</code></td>
-          <td class="mc-desc">Parenthetical citation</td></tr>
-      <tr><td class="mc-syntax"><code>[@smith2020, pp. 42–44]</code></td>
-          <td class="mc-desc">With locator</td></tr>
-      <tr><td class="mc-syntax"><code>@smith2020</code></td>
-          <td class="mc-desc">Narrative ("Smith (2020) showed…")</td></tr>
-      <tr><td class="mc-syntax"><code>[-@smith2020]</code></td>
-          <td class="mc-desc">Suppress author (year only)</td></tr>
-      <tr><td class="mc-syntax"><code>[@a; @b; @c]</code></td>
-          <td class="mc-desc">Multiple sources in one citation</td></tr>
-      <tr><td class="mc-syntax"><code>A claim.[^1]</code><br/><code>[^1]: The footnote body.</code></td>
-          <td class="mc-desc">Footnote</td></tr>
+      <tr><td class="mc-syntax"><code>[2020-01-15]{.date-since}</code></td><td class="mc-desc">Renders date + subscript "Ny ago"</td></tr>
+      <tr><td class="mc-syntax"><code>[1500–1600]{.date-range}</code></td><td class="mc-desc">Date range with duration subscript between the years</td></tr>
+      <tr><td class="mc-syntax"><code>[1500–1600]{.date-range-since}</code></td><td class="mc-desc">Range + "years since end date"</td></tr>
     </table>
-    <p class="mc-note">Unknown citation keys render as <code>[??key]</code> in the output. Keys come from the <a href="/admin/engine/source/" target="_blank">Source library</a>.</p>
+    <p class="mc-note">Separator must be an en-dash (<code>–</code>), em-dash (<code>—</code>), or <code>--</code>. Year-only, ISO dates, BC/BCE, and natural dates all supported.</p>
   </details>
 
   <details>
-    <summary>Advanced</summary>
+    <summary>Raw HTML &amp; escapes</summary>
     <table>
-      <tr><td class="mc-syntax"><code>$E = mc^2$</code> · <code>$$...$$</code></td>
-          <td class="mc-desc">Inline / display math (MathJax)</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.epigraph}<br/>An opening quote<br/>:::</code></td>
-          <td class="mc-desc">Epigraph block</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.columns}<br/>:::</code></td>
-          <td class="mc-desc">Multi-column layout</td></tr>
-      <tr><td class="mc-syntax"><code>&lt;span class="marked-date"&gt;2024-03-15&lt;/span&gt;</code></td>
-          <td class="mc-desc">Marked date — auto-appends "N years ago"</td></tr>
-      <tr><td class="mc-syntax">Pandoc tables (pipe or grid)</td>
-          <td class="mc-desc">Wrapped + size-classified automatically</td></tr>
+      <tr><td class="mc-syntax"><code>&lt;div class="my-class"&gt;…&lt;/div&gt;</code></td><td class="mc-desc">Raw HTML is passed through, then sanitized — scripts and event handlers stripped</td></tr>
+      <tr><td class="mc-syntax"><code>\\*not italic\\*</code></td><td class="mc-desc">Backslash escape any markdown metacharacter</td></tr>
+    </table>
+    <p class="mc-note">Allowed tags include all structural, semantic, and media tags plus <code>data-*</code> / <code>aria-*</code> attributes. Disallowed: <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, <code>on*=</code> handlers.</p>
+  </details>
+
+  <details>
+    <summary>Automatic — things you don't have to type</summary>
+    <table>
+      <tr><td class="mc-syntax">Heading anchors</td><td class="mc-desc">Every heading gets a slugified <code>id</code> + copy-link button</td></tr>
+      <tr><td class="mc-syntax">First paragraph</td><td class="mc-desc">Tagged <code>.first-graf</code>; post-level "Intro paragraph small caps" toggle uses it</td></tr>
+      <tr><td class="mc-syntax">Smart punctuation</td><td class="mc-desc"><code>"…"</code>, en/em-dashes, ellipsis, no-break spaces for units</td></tr>
+      <tr><td class="mc-syntax">Sub/super stacking</td><td class="mc-desc">Adjacent <code>~sub~</code> + <code>^sup^</code> wrapped in <code>.subsup</code> to stack</td></tr>
+      <tr><td class="mc-syntax">External link icons</td><td class="mc-desc">Domain / file-type icons attached via <code>data-link-icon</code></td></tr>
+      <tr><td class="mc-syntax">Bibliography</td><td class="mc-desc">Appended to post whenever citations resolve</td></tr>
+      <tr><td class="mc-syntax">TOC</td><td class="mc-desc">Generated from headings when the <em>Show Table of Contents</em> toggle is on</td></tr>
     </table>
   </details>
 
-  <p class="mc-note">Links to external sites get icon decoration and <code>rel="noopener"</code> automatically. The full pipeline is in <code>engine/markdown/</code>.</p>
+  <p class="mc-note">Full pipeline lives in <code>engine/markdown/</code>. If something renders unexpectedly, the preview button below the editor shows the live site CSS applied.</p>
 </div>
 </details>
 """
@@ -1159,6 +1356,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         # Make text fields full-width with better editing experience
         if db_field.name == "content_markdown":
+            import json as _json
+
             # Resolve admin URLs once and stamp them onto the widget so the
             # CM6 bootstrap doesn't need to hardcode them.
             kwargs["widget"] = AdminTextareaWidget(
@@ -1178,6 +1377,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     )
                     if getattr(request, "resolver_match", None)
                     else "",
+                    "data-cm-fence-snippets": _json.dumps(EDITOR_FENCE_SNIPPETS),
+                    "data-cm-inline-classes": _json.dumps(EDITOR_INLINE_CLASSES),
                 }
             )
             formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
@@ -1819,10 +2020,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             {
                 "fields": (
                     ("markdown_cheatsheet",),
-                    ("asset_markdown_reference_helper",),
-                    ("cite_picker_controls",),
-                    ("preview_controls",),
                     ("content_markdown",),
+                    ("preview_controls",),
+                    ("cite_picker_controls",),
+                    ("asset_markdown_reference_helper",),
                     ("abstract",),
                 ),
                 "description": (

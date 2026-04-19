@@ -516,6 +516,19 @@ header h1 em {
   display: none;
 }
 
+/*  No separator before a forced wrap either. The flex container breaks
+    between the order-1 group (author / date / status / categories) and
+    the order-3 group via a 100%-wide ::after spacer, so the visually
+    last order-1 span would otherwise show a dangling interpunct. Hide
+    the separator on whichever order-1 span is last in the DOM.
+ */
+#page-metadata .page-metadata-fields .page-categories::after,
+#page-metadata
+  .page-metadata-fields
+  .page-status:not(:has(~ .page-categories))::after {
+  display: none;
+}
+
 /*  Adjust icon spacing.
  */
 #page-metadata .page-metadata-fields .progress-indicator-icon {
