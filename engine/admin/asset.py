@@ -34,6 +34,17 @@ from engine.models import (
 from .mixins import SoftDeleteAdminMixin
 
 
+def _status_pill_class(status: str) -> str:
+    """Map Asset.Status values to shared .mk-pill tone classes."""
+    return {
+        "uploading": "mk-pill--info",
+        "processing": "mk-pill--info",
+        "ready": "mk-pill--success",
+        "failed": "mk-pill--danger",
+        "archived": "mk-pill--muted",
+    }.get(status, "")
+
+
 class BulkEditAssetsForm(forms.Form):
     """Intermediate form for bulk-editing selected assets.
 
@@ -166,64 +177,68 @@ class AssetMetadataInline(admin.StackedInline):
 
     @admin.display(description="GPS Location")
     def gps_map_display(self, obj):
-        """Display GPS coordinates with map link."""
-        if not obj.has_gps:
-            return mark_safe('<em style="color: #999;">No GPS data available</em>')
-
-        # Google Maps link
-        maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
-
-        return format_html(
-            '<div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">'
-            '<div style="font-family: monospace; margin-bottom: 4px;">📍 {:.6f}, {:.6f}</div>'
-            '<a href="{}" target="_blank" style="color: #007bff; text-decoration: none;">🗺️ View on Google Maps</a>'
-            "</div>",
-            obj.latitude,
-            obj.longitude,
-            maps_url,
-        )
+        return _gps_map_html(obj)
 
     @admin.display(description="Color Preview")
     def color_preview_display(self, obj):
-        """Display visual color preview."""
-        if not obj.average_color and not obj.dominant_colors:
-            return mark_safe('<em style="color: #999;">No color data available</em>')
+        return _color_preview_html(obj)
 
-        html_parts = []
 
-        # Average color swatch
-        if obj.average_color:
-            html_parts.append(
-                f'<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">'
-                f'<div style="width: 40px; height: 40px; background: {obj.average_color}; border-radius: 4px; '
-                f'border: 1px solid #dee2e6; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>'
-                f"<div><strong>Average:</strong> <code>{obj.average_color}</code></div>"
-                f"</div>"
+def _gps_map_html(obj):
+    if not obj.has_gps:
+        return mark_safe('<em class="mk-muted">No GPS data available</em>')
+    maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
+    return format_html(
+        '<div class="mk-gps-card">'
+        "<div>📍 {:.6f}, {:.6f}</div>"
+        '<a href="{}" target="_blank">🗺️ View on Google Maps</a>'
+        "</div>",
+        obj.latitude,
+        obj.longitude,
+        maps_url,
+    )
+
+
+def _color_preview_html(obj):
+    if not obj.average_color and not obj.dominant_colors:
+        return mark_safe('<em class="mk-muted">No color data available</em>')
+
+    parts = []
+    if obj.average_color:
+        parts.append(
+            format_html(
+                '<div class="mk-color-row">'
+                '<div class="mk-color-swatch" style="background:{};"></div>'
+                '<div><strong>Average:</strong> <code class="mk-code">{}</code></div>'
+                "</div>",
+                obj.average_color,
+                obj.average_color,
             )
-
-        # Dominant colors palette
-        if obj.dominant_colors and isinstance(obj.dominant_colors, list):
-            swatches = []
-            for color in obj.dominant_colors[:8]:  # Show up to 8 colors
-                if isinstance(color, str) and color.startswith("#"):
-                    swatches.append(
-                        f'<div style="width: 30px; height: 30px; background: {color}; border-radius: 3px; '
-                        f'border: 1px solid #dee2e6;" title="{color}"></div>'
-                    )
-
-            if swatches:
-                html_parts.append(
-                    f'<div style="margin-top: 8px;">'
-                    f'<div style="font-weight: 500; margin-bottom: 4px;">Dominant Colors:</div>'
-                    f'<div style="display: flex; gap: 4px; flex-wrap: wrap;">{"".join(swatches)}</div>'
-                    f"</div>"
-                )
-
-        return mark_safe(
-            "".join(html_parts)
-            if html_parts
-            else '<em style="color: #999;">No color preview available</em>'
         )
+    if obj.dominant_colors and isinstance(obj.dominant_colors, list):
+        swatches = []
+        for color in obj.dominant_colors[:8]:
+            if isinstance(color, str) and color.startswith("#"):
+                swatches.append(
+                    format_html(
+                        '<div class="mk-color-swatch mk-color-swatch--sm" '
+                        'style="background:{};" title="{}"></div>',
+                        color,
+                        color,
+                    )
+                )
+        if swatches:
+            parts.append(
+                format_html(
+                    '<div style="margin-top:8px;">'
+                    '<div style="font-weight:500;margin-bottom:4px;">Dominant colors:</div>'
+                    '<div class="mk-color-strip">{}</div></div>',
+                    mark_safe("".join(swatches)),
+                )
+            )
+    if not parts:
+        return mark_safe('<em class="mk-muted">No color preview available</em>')
+    return mark_safe("".join(parts))
 
 
 class AssetRenditionInline(admin.TabularInline):
@@ -250,7 +265,7 @@ class AssetRenditionInline(admin.TabularInline):
         """Show thumbnail of rendition."""
         if obj.file:
             return format_html(
-                '<img src="{}" style="max-width: 80px; max-height: 60px; border-radius: 4px;" />',
+                '<img src="{}" class="mk-rendition-thumb" alt="" />',
                 obj.file.url,
             )
         return "-"
@@ -404,7 +419,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     fieldsets = [
         (
-            "Asset Details",
+            "Asset",
             {
                 "fields": [
                     "preview_large",
@@ -412,14 +427,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("asset_type",),
                     "file",
                     ("key", "key_preview"),
-                    "processing_state",
                 ],
                 "classes": [],
-                "description": "Core asset information and file upload. Leave 'Key' blank for auto-generation with smart prefixes.",
+                "description": "Core info. Leave the key blank to auto-generate it from the title.",
             },
         ),
         (
-            "Content & Accessibility",
+            "Accessibility & description",
             {
                 "fields": [
                     "alt_text",
@@ -427,10 +441,42 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     "description",
                 ],
                 "classes": [],
+                "description": "Required for images. Alt text is read aloud by screen readers and shown if the image fails to load.",
             },
         ),
         (
-            "Attribution & Licensing",
+            "Organization",
+            {
+                "fields": [
+                    "asset_folder",
+                    "asset_tags",
+                    ("is_public", "uploaded_by"),
+                ],
+                "classes": [],
+                "description": "Where this asset lives and who can see it.",
+            },
+        ),
+        (
+            "Markdown reference",
+            {
+                "fields": [
+                    "markdown_reference_copyable",
+                    "markdown_usage_examples",
+                ],
+                "classes": ["collapse"],
+                "description": "Copy these into a post's markdown to embed the asset.",
+            },
+        ),
+        (
+            "Processing & renditions",
+            {
+                "fields": ["processing_state"],
+                "classes": ["collapse"],
+                "description": "Metadata extraction, rendition generation, and recent Celery task results for this asset.",
+            },
+        ),
+        (
+            "Attribution & licensing",
             {
                 "fields": [
                     ("credit", "license"),
@@ -440,7 +486,17 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             },
         ),
         (
-            "File Metadata",
+            "Image settings",
+            {
+                "fields": [
+                    ("focal_point_x", "focal_point_y"),
+                ],
+                "classes": ["collapse"],
+                "description": "Focal point coordinates (0.0-1.0) for smart cropping.",
+            },
+        ),
+        (
+            "File metadata",
             {
                 "fields": [
                     "metadata_status_detailed",
@@ -448,42 +504,25 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("width", "height"),
                     ("duration", "bitrate", "frame_rate"),
                     ("original_filename", "file_hash"),
-                    "duplicate_warning",
                 ],
                 "classes": ["collapse"],
-                "description": "Metadata is auto-populated on upload. Use 'Populate metadata' admin action to refresh.",
+                "description": "Auto-populated on upload. Use 'Populate metadata' admin action to refresh.",
             },
         ),
         (
-            "Image Settings",
+            "Duplicates",
             {
-                "fields": [
-                    ("focal_point_x", "focal_point_y"),
-                ],
+                "fields": ["duplicate_warning"],
                 "classes": ["collapse"],
-                "description": "Focal point coordinates (0.0-1.0) for smart cropping",
+                "description": "Other assets sharing this file's SHA256 hash.",
             },
         ),
         (
-            "Organization & Permissions",
+            "Advanced permissions",
             {
-                "fields": [
-                    "asset_tags",
-                    "asset_folder",
-                    ("is_public", "uploaded_by"),
-                    "permissions",
-                ],
+                "fields": ["permissions"],
                 "classes": ["collapse"],
-            },
-        ),
-        (
-            "Markdown Integration",
-            {
-                "fields": [
-                    "markdown_reference_copyable",
-                    "markdown_usage_examples",
-                ],
-                "description": "Use these references in your markdown content",
+                "description": "Raw JSON override for per-asset access rules.",
             },
         ),
         (
@@ -512,7 +551,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     inlines = [AssetMetadataInline, AssetRenditionInline, PostAssetInline]
 
     class Media:
-        css = {"all": ("css/admin-asset.css",)}
+        css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
     actions = [
         "bulk_edit_assets",
@@ -804,38 +843,30 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         if obj.asset_type == "image" and obj.file:
             return format_html(
-                '<div style="display: flex; align-items: center; gap: 12px;">'
-                '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; '
-                'box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e9ecef;" />'
+                '<div class="mk-asset-row">'
+                '<img src="{}" class="mk-asset-row__thumb" alt="" />'
                 "<div>"
-                '<div style="font-weight: 500; color: #212529;">{}</div>'
-                '<div style="font-size: 11px; color: #6c757d; margin-top: 2px;">{} × {}</div>'
-                "</div>"
-                "</div>",
+                '<div class="mk-asset-row__title">{}</div>'
+                '<div class="mk-asset-row__meta">{} × {}</div>'
+                "</div></div>",
                 obj.file.url,
                 obj.title,
                 obj.width or "?",
                 obj.height or "?",
             )
-        else:
-            return format_html(
-                '<div style="display: flex; align-items: center; gap: 12px;">'
-                '<div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; '
-                'background: #f8f9fa; border-radius: 6px; font-size: 24px; border: 1px solid #e9ecef;">{}</div>'
-                '<div style="font-weight: 500; color: #212529;">{}</div>'
-                "</div>",
-                icon,
-                obj.title,
-            )
+        return format_html(
+            '<div class="mk-asset-row">'
+            '<div class="mk-asset-row__thumb mk-asset-row__thumb--placeholder">{}</div>'
+            '<div class="mk-asset-row__title">{}</div>'
+            "</div>",
+            icon,
+            obj.title,
+        )
 
     @admin.display(description="Key", ordering="key")
     def key_display(self, obj):
         """Display key in compact format."""
-        return format_html(
-            '<code style="font-size: 11px; color: #495057; background: #f8f9fa; '
-            'padding: 3px 6px; border-radius: 3px; font-family: monospace;">{}</code>',
-            obj.key,
-        )
+        return format_html('<code class="mk-code">{}</code>', obj.key)
 
     @admin.display(description="File Info")
     def file_info_compact(self, obj):
@@ -858,7 +889,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 info.append(f"{seconds}s")
 
         return format_html(
-            '<span style="font-size: 11px; color: #6c757d;">{}</span>',
+            '<span class="mk-muted" style="font-size:11px;">{}</span>',
             " • ".join(info) if info else "—",
         )
 
@@ -866,15 +897,11 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def markdown_key_compact(self, obj):
         """Compact markdown copy button."""
         return format_html(
-            "<button type='button' "
+            "<button type='button' class='mk-copy-btn mk-copy-btn--ghost' "
             "onclick=\"navigator.clipboard.writeText('@asset:{}').then(() => {{ "
             "this.textContent = '✓'; "
             "setTimeout(() => {{ this.textContent = '📋'; }}, 1500); "
             '}}); event.stopPropagation();" '
-            "style='background: transparent; border: 1px solid #dee2e6; padding: 4px 8px; "
-            "border-radius: 4px; font-size: 12px; cursor: pointer; transition: all 0.15s;' "
-            "onmouseover=\"this.style.background='#e9ecef';\" "
-            "onmouseout=\"this.style.background='transparent';\" "
             "title='Copy markdown reference'>📋</button>",
             obj.key,
         )
@@ -890,9 +917,10 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "archive": "📦",
             "other": "📎",
         }
+        t = obj.asset_type or "other"
         return format_html(
-            '<span class="asset-badge asset-type asset-type--{}">{} {}</span>',
-            obj.asset_type or "other",
+            '<span class="mk-pill mk-pill--type-{}">{} {}</span>',
+            t,
             icons.get(obj.asset_type, ""),
             obj.get_asset_type_display(),
         )
@@ -901,13 +929,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def folder_badge(self, obj):
         """Display asset folder."""
         if not obj.asset_folder:
-            return mark_safe('<span class="asset-muted">—</span>')
+            return mark_safe('<span class="mk-muted">—</span>')
 
         depth = obj.asset_folder.path.count("/")
         icon = "📁" if depth > 0 else "📂"
 
         return format_html(
-            '<span class="asset-badge asset-badge--sm asset-folder">{} {}</span>',
+            '<span class="mk-pill mk-pill--sm mk-pill--folder">{} {}</span>',
             icon,
             obj.asset_folder.name,
         )
@@ -919,26 +947,26 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         collections = list(obj.collections.all()[:4])
         if not collections:
-            return mark_safe('<span class="asset-muted">—</span>')
+            return mark_safe('<span class="mk-muted">—</span>')
 
         shown = collections[:3]
         badges = [
-            f'<span class="asset-badge asset-badge--sm asset-collection">{escape(c.name)}</span>'
+            f'<span class="mk-pill mk-pill--sm mk-pill--collection">{escape(c.name)}</span>'
             for c in shown
         ]
         if len(collections) > 3:
             remaining = obj.collections.count() - 3
             badges.append(
-                f'<span class="asset-muted" style="font-size:11px;">+{remaining} more</span>'
+                f'<span class="mk-muted">+{remaining} more</span>'
             )
-        return mark_safe("".join(badges))
+        return mark_safe(" ".join(badges))
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with appropriate color."""
         return format_html(
-            '<span class="asset-badge asset-status asset-status--{}">{}</span>',
-            obj.status,
+            '<span class="mk-pill {}">{}</span>',
+            _status_pill_class(obj.status),
             obj.get_status_display(),
         )
 
@@ -946,7 +974,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def usage_indicator(self, obj):
         """Visual indicator of asset usage."""
         if obj.usage_count == 0:
-            return mark_safe('<span class="asset-usage--none">Unused</span>')
+            return mark_safe('<span class="mk-usage--none">Unused</span>')
         if obj.usage_count <= 3:
             level = "low"
         elif obj.usage_count <= 10:
@@ -955,7 +983,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             level = "high"
 
         return format_html(
-            '<strong class="asset-usage--{}">{}</strong> <span class="asset-muted">post{}</span>',
+            '<strong class="mk-usage--{}">{}</strong> <span class="mk-muted">post{}</span>',
             level,
             obj.usage_count,
             "s" if obj.usage_count != 1 else "",
@@ -966,23 +994,25 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Show full preview in detail view."""
         if obj.asset_type == "image" and obj.file:
             return format_html(
-                '<img src="{}" style="max-width: 600px; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" />',
+                '<img src="{}" class="mk-asset-preview" alt="" />',
                 obj.file.url,
             )
         elif obj.asset_type == "video" and obj.file:
             return format_html(
-                '<video controls width="600" style="border-radius: 8px;"><source src="{}" type="{}"></video>',
+                '<video controls class="mk-asset-preview mk-asset-preview--video">'
+                '<source src="{}" type="{}"></video>',
                 obj.file.url,
                 obj.mime_type or "video/mp4",
             )
         elif obj.asset_type == "audio" and obj.file:
             return format_html(
-                '<audio controls style="width: 600px;"><source src="{}" type="{}"></audio>',
+                '<audio controls class="mk-asset-preview mk-asset-preview--audio">'
+                '<source src="{}" type="{}"></audio>',
                 obj.file.url,
                 obj.mime_type or "audio/mpeg",
             )
         return format_html(
-            '<a href="{}" target="_blank" style="padding: 8px 16px; background: #007bff; color: white; border-radius: 4px; text-decoration: none;">Download File</a>',
+            '<a href="{}" target="_blank" class="mk-btn">Download file</a>',
             obj.file.url,
         )
 
@@ -994,29 +1024,28 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "MIME type": bool(obj.mime_type),
         }
 
-        # Add dimension checks for images and videos
         if obj.asset_type in ["image", "video"]:
             checks["Width"] = obj.width is not None
             checks["Height"] = obj.height is not None
-
-        # Add duration check for videos and audio
         if obj.asset_type in ["video", "audio"]:
             checks["Duration"] = obj.duration is not None
 
-        # Count missing fields
         missing = [name for name, present in checks.items() if not present]
         total = len(checks)
         present = total - len(missing)
 
-        # Build status message
         if not missing:
-            status_html = f'<strong style="color: #28a745;">✓ Complete</strong> ({present}/{total} fields)'
-        else:
-            status_html = f'<strong style="color: #ff9800;">⚠ Incomplete</strong> ({present}/{total} fields)<br>'
-            status_html += (
-                f'<span style="color: #666;">Missing: {", ".join(missing)}</span><br>'
+            status_html = (
+                f'<strong class="mk-meta-complete">✓ Complete</strong> '
+                f"({present}/{total} fields)"
             )
-            status_html += '<em style="color: #666;">Use "Populate metadata" action to auto-fill</em>'
+        else:
+            status_html = (
+                f'<strong class="mk-meta-incomplete">⚠ Incomplete</strong> '
+                f"({present}/{total} fields)<br>"
+                f'<span class="mk-muted">Missing: {", ".join(missing)}</span><br>'
+                '<em class="mk-muted">Use "Populate metadata" action to auto-fill</em>'
+            )
 
         return mark_safe(status_html)
 
@@ -1031,9 +1060,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         rows = []
 
         # Core asset status badge reuse
-        status_cls = f"asset-status--{obj.status}"
         rows.append(
-            f'<li>Status: <span class="asset-badge {status_cls}">{obj.get_status_display()}</span></li>'
+            f'<li>Status: <span class="mk-pill {_status_pill_class(obj.status)}">'
+            f"{obj.get_status_display()}</span></li>"
         )
 
         # Metadata extraction
@@ -1043,11 +1072,11 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         )
         if has_metadata:
             rows.append(
-                '<li>📋 Extended metadata: <span class="asset-badge asset-status--ready">Extracted</span></li>'
+                '<li>📋 Extended metadata: <span class="mk-pill mk-pill--success">Extracted</span></li>'
             )
         elif obj.asset_type in ("image", "audio", "document"):
             rows.append(
-                '<li>📋 Extended metadata: <span class="asset-badge asset-status--processing">'
+                '<li>📋 Extended metadata: <span class="mk-pill mk-pill--info">'
                 "Not yet extracted</span> — run the <em>Extract metadata</em> action</li>"
             )
 
@@ -1056,12 +1085,12 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             rendition_count = obj.renditions.count() if obj.pk else 0
             if rendition_count == 0:
                 rows.append(
-                    '<li>🖼️ Renditions: <span class="asset-badge asset-status--processing">'
+                    '<li>🖼️ Renditions: <span class="mk-pill mk-pill--info">'
                     "None yet</span> — run <em>Generate renditions</em></li>"
                 )
             else:
                 rows.append(
-                    f'<li>🖼️ Renditions: <span class="asset-badge asset-status--ready">'
+                    f'<li>🖼️ Renditions: <span class="mk-pill mk-pill--success">'
                     f"{rendition_count} generated</span></li>"
                 )
 
@@ -1078,22 +1107,22 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 for tr in recent:
                     short_name = (tr.task_name or "").rsplit(".", 1)[-1]
                     rows.append(
-                        f'<li><code>{short_name}</code> — {tr.status} '
-                        f'<small class="asset-muted">({tr.date_done:%Y-%m-%d %H:%M})</small></li>'
+                        f'<li><code class="mk-code">{short_name}</code> — {tr.status} '
+                        f'<small class="mk-muted">({tr.date_done:%Y-%m-%d %H:%M})</small></li>'
                     )
                 rows.append("</ul></li>")
         except Exception:
             pass
 
         return mark_safe(
-            '<ul style="margin:0;padding-left:18px;line-height:1.8;">' + "".join(rows) + "</ul>"
+            '<ul class="mk-inline-list">' + "".join(rows) + "</ul>"
         )
 
     @admin.display(description="Possible duplicates")
     def duplicate_warning(self, obj):
         """Warn if another non-deleted asset shares this file's SHA256 hash."""
         if not obj.pk or not obj.file_hash:
-            return mark_safe('<span class="asset-muted">—</span>')
+            return mark_safe('<span class="mk-muted">—</span>')
 
         dupes = (
             Asset.objects.filter(file_hash=obj.file_hash)
@@ -1102,7 +1131,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         )
         if not dupes:
             return mark_safe(
-                '<span class="asset-badge asset-status--ready">Unique</span>'
+                '<span class="mk-pill mk-pill--success">Unique</span>'
             )
 
         from django.urls import reverse
@@ -1112,8 +1141,8 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             url = reverse("admin:engine_asset_change", args=[dupe.pk])
             items.append(
                 format_html(
-                    '<li><a href="{}">{}</a> <code>{}</code> '
-                    '<small class="asset-muted">({:%Y-%m-%d})</small></li>',
+                    '<li><a href="{}">{}</a> <code class="mk-code">{}</code> '
+                    '<small class="mk-muted">({:%Y-%m-%d})</small></li>',
                     url,
                     dupe.title or "(untitled)",
                     dupe.key,
@@ -1121,13 +1150,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 )
             )
         header = format_html(
-            '<span class="asset-badge asset-status--failed">'
+            '<span class="mk-pill mk-pill--warn">'
             "{} duplicate(s) by file hash"
             "</span>",
             len(dupes),
         )
         return mark_safe(
-            f'{header}<ul style="margin:6px 0 0 0;padding-left:18px;">{"".join(items)}</ul>'
+            f'{header}<ul class="mk-inline-list" style="margin-top:6px;">{"".join(items)}</ul>'
         )
 
     @admin.display(description="Auto-Generated Key Preview")
@@ -1170,12 +1199,11 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def markdown_reference_copyable(self, obj):
         """Copyable markdown reference with copy button."""
         return format_html(
-            '<div style="display: flex; align-items: center; gap: 8px;">'
-            "<code>@asset:{}</code>"
-            "<button type='button' "
+            '<div class="mk-copy-row">'
+            '<code class="mk-code">@asset:{}</code>'
+            "<button type='button' class='mk-copy-btn' "
             "onclick=\"navigator.clipboard.writeText('@asset:{}').then(() => {{ "
-            "const orig = this.textContent; "
-            "this.textContent = '✓ Copied'; "
+            "const orig = this.textContent; this.textContent = '✓ Copied'; "
             "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
             '}}); event.preventDefault();">Copy</button>'
             "</div>",
@@ -1199,14 +1227,14 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         return format_html(
             "<div>"
             "<strong>Example usage:</strong><br>"
-            "<code>{}</code> "
-            "<button type='button' "
+            '<div class="mk-copy-row" style="margin-top:4px;">'
+            '<code class="mk-code">{}</code>'
+            "<button type='button' class='mk-copy-btn' "
             "onclick=\"navigator.clipboard.writeText('{}').then(() => {{ "
-            "const orig = this.textContent; "
-            "this.textContent = '✓ Copied'; "
+            "const orig = this.textContent; this.textContent = '✓ Copied'; "
             "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
             '}}); event.preventDefault();">Copy</button>'
-            "</div>",
+            "</div></div>",
             example,
             example,
         )
@@ -1216,24 +1244,30 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Show list of posts using this asset."""
         usages = obj.post_usages.select_related("post")[:10]
         if not usages:
-            return mark_safe('<em style="color: #999;">Not used in any posts</em>')
+            return mark_safe('<em class="mk-muted">Not used in any posts</em>')
 
-        html = '<ul style="margin: 0; padding-left: 20px;">'
+        from django.urls import reverse
+        from django.utils.html import escape
+
+        items = []
         for usage in usages:
-            post_url = f"/admin/engine/post/{usage.post.pk}/change/"
-            html += f"""
-            <li style="margin: 4px 0;">
-                <a href="{post_url}" target="_blank">{usage.post.title}</a>
-                {f'<code style="background: #f0f0f0; padding: 2px 4px; margin-left: 4px; border-radius: 2px;">@{usage.alias}</code>' if usage.alias else ""}
-            </li>
-            """
-        html += "</ul>"
+            post_url = reverse("admin:engine_post_change", args=[usage.post.pk])
+            alias = (
+                f' <code class="mk-code">@{escape(usage.alias)}</code>'
+                if usage.alias else ""
+            )
+            items.append(
+                f'<li><a href="{post_url}" target="_blank">{escape(usage.post.title)}</a>{alias}</li>'
+            )
 
         total = obj.post_usages.count()
+        more = ""
         if total > 10:
-            html += f'<p style="margin: 8px 0 0 0; color: #666;"><em>...and {total - 10} more</em></p>'
+            more = f'<p class="mk-muted" style="margin:8px 0 0 0;"><em>…and {total - 10} more</em></p>'
 
-        return mark_safe(html)
+        return mark_safe(
+            f'<ul class="mk-inline-list">{"".join(items)}</ul>{more}'
+        )
 
     @admin.action(description="Generate renditions for selected images")
     def generate_renditions(self, request, queryset):
@@ -1775,27 +1809,27 @@ class AssetMetadataAdmin(admin.ModelAdmin):
     @admin.display(description="Asset", ordering="asset__key")
     def asset_key_with_preview(self, obj):
         """Display asset key with thumbnail preview."""
+        from django.urls import reverse
+
+        change_url = reverse("admin:engine_asset_change", args=[obj.asset.pk])
         if obj.asset.asset_type == "image" and obj.asset.file:
             return format_html(
-                '<div style="display: flex; align-items: center; gap: 8px;">'
-                '<img src="{}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #dee2e6;" />'
-                '<a href="/admin/engine/asset/{}/change/"><code>{}</code></a>'
-                "</div>",
+                '<div class="mk-asset-row">'
+                '<img src="{}" class="mk-asset-row__thumb" alt="" />'
+                '<a href="{}"><code class="mk-code">{}</code></a></div>',
                 obj.asset.file.url,
-                obj.asset.pk,
+                change_url,
                 obj.asset.key,
             )
         return format_html(
-            '<a href="/admin/engine/asset/{}/change/"><code>{}</code></a>',
-            obj.asset.pk,
+            '<a href="{}"><code class="mk-code">{}</code></a>',
+            change_url,
             obj.asset.key,
         )
 
     @admin.display(description="Metadata Summary")
     def metadata_summary(self, obj):
         """Display compact summary of available metadata."""
-        from django.utils.safestring import mark_safe
-
         info_parts = []
 
         if obj.camera_make or obj.camera_model:
@@ -1814,16 +1848,16 @@ class AssetMetadataAdmin(admin.ModelAdmin):
 
         if obj.average_color:
             info_parts.append(
-                f'<span style="display: inline-block; width: 16px; height: 16px; background: {obj.average_color}; '
-                f'border: 1px solid #dee2e6; border-radius: 2px; vertical-align: middle; title="{obj.average_color}"></span>'
+                f'<span class="mk-color-swatch mk-color-swatch--sm" '
+                f'style="background:{obj.average_color};vertical-align:middle;" '
+                f'title="{obj.average_color}"></span>'
             )
 
         if not info_parts:
-            return mark_safe('<em style="color: #999;">No metadata</em>')
+            return mark_safe('<em class="mk-muted">No metadata</em>')
 
-        # Join with separator and mark as safe since we control the HTML
         return mark_safe(
-            f'<div style="font-size: 11px;">{" • ".join(info_parts)}</div>'
+            f'<div style="font-size:11px;">{" • ".join(info_parts)}</div>'
         )
 
     @admin.display(description="Camera", boolean=True)
@@ -1848,64 +1882,11 @@ class AssetMetadataAdmin(admin.ModelAdmin):
 
     @admin.display(description="GPS Location")
     def gps_map_display(self, obj):
-        """Display GPS coordinates with map link."""
-        if not obj.has_gps:
-            return mark_safe('<em style="color: #999;">No GPS data available</em>')
-
-        # Google Maps link
-        maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
-
-        return format_html(
-            '<div style="padding: 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">'
-            '<div style="font-family: monospace; margin-bottom: 4px;">📍 {:.6f}, {:.6f}</div>'
-            '<a href="{}" target="_blank" style="color: #007bff; text-decoration: none;">🗺️ View on Google Maps</a>'
-            "</div>",
-            obj.latitude,
-            obj.longitude,
-            maps_url,
-        )
+        return _gps_map_html(obj)
 
     @admin.display(description="Color Preview")
     def color_preview_display(self, obj):
-        """Display visual color preview."""
-        if not obj.average_color and not obj.dominant_colors:
-            return mark_safe('<em style="color: #999;">No color data available</em>')
-
-        html_parts = []
-
-        # Average color swatch
-        if obj.average_color:
-            html_parts.append(
-                f'<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">'
-                f'<div style="width: 40px; height: 40px; background: {obj.average_color}; border-radius: 4px; '
-                f'border: 1px solid #dee2e6; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>'
-                f"<div><strong>Average:</strong> <code>{obj.average_color}</code></div>"
-                f"</div>"
-            )
-
-        # Dominant colors palette
-        if obj.dominant_colors and isinstance(obj.dominant_colors, list):
-            swatches = []
-            for color in obj.dominant_colors[:8]:  # Show up to 8 colors
-                if isinstance(color, str) and color.startswith("#"):
-                    swatches.append(
-                        f'<div style="width: 30px; height: 30px; background: {color}; border-radius: 3px; '
-                        f'border: 1px solid #dee2e6;" title="{color}"></div>'
-                    )
-
-            if swatches:
-                html_parts.append(
-                    f'<div style="margin-top: 8px;">'
-                    f'<div style="font-weight: 500; margin-bottom: 4px;">Dominant Colors:</div>'
-                    f'<div style="display: flex; gap: 4px; flex-wrap: wrap;">{"".join(swatches)}</div>'
-                    f"</div>"
-                )
-
-        return mark_safe(
-            "".join(html_parts)
-            if html_parts
-            else '<em style="color: #999;">No color preview available</em>'
-        )
+        return _color_preview_html(obj)
 
 
 # --------------------------
@@ -2003,7 +1984,7 @@ class AssetRenditionAdmin(admin.ModelAdmin):
         """Show rendition preview."""
         if obj.file:
             return format_html(
-                '<img src="{}" style="max-width: 80px; max-height: 60px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" />',
+                '<img src="{}" class="mk-rendition-thumb" alt="" />',
                 obj.file.url,
             )
         return "-"
@@ -2011,9 +1992,11 @@ class AssetRenditionAdmin(admin.ModelAdmin):
     @admin.display(description="Asset")
     def asset_key(self, obj):
         """Display asset key with link."""
+        from django.urls import reverse
+
         return format_html(
-            '<a href="/admin/engine/asset/{}/change/"><code>{}</code></a>',
-            obj.asset.pk,
+            '<a href="{}"><code class="mk-code">{}</code></a>',
+            reverse("admin:engine_asset_change", args=[obj.asset.pk]),
             obj.asset.key,
         )
 
@@ -2021,9 +2004,9 @@ class AssetRenditionAdmin(admin.ModelAdmin):
     def preset_badge(self, obj):
         """Display preset as badge."""
         if not obj.preset:
-            return mark_safe('<span style="color: #999;">—</span>')
+            return mark_safe('<span class="mk-muted">—</span>')
         return format_html(
-            '<span style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-size: 11px;">{}</span>',
+            '<span class="mk-pill mk-pill--sm mk-pill--info">{}</span>',
             obj.preset,
         )
 
@@ -2035,22 +2018,15 @@ class AssetRenditionAdmin(admin.ModelAdmin):
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with color."""
-        colors = {
-            "pending": "#fff3cd",
-            "processing": "#cfe2ff",
-            "completed": "#d4edda",
-            "failed": "#f8d7da",
-        }
-        text_colors = {
-            "pending": "#856404",
-            "processing": "#084298",
-            "completed": "#155724",
-            "failed": "#721c24",
+        tone_map = {
+            "pending": "mk-pill--muted",
+            "processing": "mk-pill--info",
+            "completed": "mk-pill--success",
+            "failed": "mk-pill--danger",
         }
         return format_html(
-            '<span style="background: {}; color: {}; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">{}</span>',
-            colors.get(obj.status, "#e2e3e5"),
-            text_colors.get(obj.status, "#383d41"),
+            '<span class="mk-pill {}">{}</span>',
+            tone_map.get(obj.status, "mk-pill--muted"),
             obj.get_status_display(),
         )
 
@@ -2061,6 +2037,9 @@ class AssetRenditionAdmin(admin.ModelAdmin):
 @admin.register(AssetFolder)
 class AssetFolderAdmin(admin.ModelAdmin):
     """Admin for asset folder hierarchy."""
+
+    class Media:
+        css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
     list_display = (
         "folder_name_with_icon",
@@ -2106,11 +2085,11 @@ class AssetFolderAdmin(admin.ModelAdmin):
     def folder_name_with_icon(self, obj):
         """Display folder with icon and hierarchy."""
         depth = obj.path.count("/")
-        indent = "&nbsp;" * (depth * 4)
+        indent = mark_safe("&nbsp;" * (depth * 4))
         icon = "📁" if obj.children.exists() else "📂"
 
         return format_html(
-            '{}<span style="font-size: 16px;">{}</span> <strong>{}</strong>',
+            "{}{} <strong>{}</strong>",
             indent,
             icon,
             obj.name,
@@ -2121,9 +2100,9 @@ class AssetFolderAdmin(admin.ModelAdmin):
         """Display number of assets in folder."""
         count = obj.folder_assets.count()
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
+            return mark_safe('<span class="mk-muted">0</span>')
         return format_html(
-            '<span style="background: #e7f3ff; color: #004085; padding: 2px 8px; border-radius: 3px; font-weight: 500;">{}</span>',
+            '<span class="mk-pill mk-pill--sm mk-pill--info">{}</span>',
             count,
         )
 
@@ -2131,6 +2110,9 @@ class AssetFolderAdmin(admin.ModelAdmin):
 @admin.register(AssetTag)
 class AssetTagAdmin(admin.ModelAdmin):
     """Admin for asset tags."""
+
+    class Media:
+        css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
     list_display = ("tag_display", "slug", "asset_count_display", "color_preview")
     search_fields = ("name", "slug")
@@ -2151,9 +2133,9 @@ class AssetTagAdmin(admin.ModelAdmin):
 
     @admin.display(description="Tag", ordering="name")
     def tag_display(self, obj):
-        """Display tag with color badge."""
+        """Display tag with color-accent pill (tag color as left border)."""
         return format_html(
-            '<span style="background: {}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: 500;">{}</span>',
+            '<span class="mk-pill" style="border-left:3px solid {};">{}</span>',
             obj.color,
             obj.name,
         )
@@ -2163,10 +2145,9 @@ class AssetTagAdmin(admin.ModelAdmin):
         """Display number of assets with this tag."""
         count = obj.tagged_assets.count()
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
+            return mark_safe('<span class="mk-muted">0</span>')
         return format_html(
-            '<span style="background: {}20; color: {}; padding: 2px 8px; border-radius: 3px; font-weight: 500;">{}</span>',
-            obj.color,
+            '<span class="mk-pill mk-pill--sm" style="border-left:3px solid {};">{}</span>',
             obj.color,
             count,
         )
@@ -2175,7 +2156,7 @@ class AssetTagAdmin(admin.ModelAdmin):
     def color_preview(self, obj):
         """Show color swatch."""
         return format_html(
-            '<div style="width: 40px; height: 20px; background: {}; border: 1px solid #dee2e6; border-radius: 3px;"></div>',
+            '<div class="mk-color-swatch mk-color-swatch--sm" style="background:{};"></div>',
             obj.color,
         )
 
@@ -2183,6 +2164,9 @@ class AssetTagAdmin(admin.ModelAdmin):
 @admin.register(AssetCollection)
 class AssetCollectionAdmin(admin.ModelAdmin):
     """Admin for asset collections."""
+
+    class Media:
+        css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
     list_display = (
         "collection_name_with_cover",
@@ -2228,37 +2212,31 @@ class AssetCollectionAdmin(admin.ModelAdmin):
     @admin.display(description="Collection", ordering="name")
     def collection_name_with_cover(self, obj):
         """Display collection with cover image."""
+        visibility = "Public" if obj.is_public else "Private"
         if (
             obj.cover_asset
             and obj.cover_asset.asset_type == "image"
             and obj.cover_asset.file
         ):
             return format_html(
-                '<div style="display: flex; align-items: center; gap: 10px;">'
-                '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #dee2e6;" />'
-                "<div>"
-                '<div style="font-weight: 600;">{}</div>'
-                '<div style="font-size: 11px; color: #6c757d;">{}</div>'
-                "</div>"
-                "</div>",
+                '<div class="mk-asset-row">'
+                '<img src="{}" class="mk-asset-row__thumb" alt="" />'
+                '<div><div class="mk-asset-row__title">{}</div>'
+                '<div class="mk-asset-row__meta">{}</div></div></div>',
                 obj.cover_asset.file.url,
                 obj.name,
-                "Public" if obj.is_public else "Private",
+                visibility,
             )
 
         icon = "🌍" if obj.is_public else "🔒"
         return format_html(
-            '<div style="display: flex; align-items: center; gap: 10px;">'
-            '<div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; '
-            'background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 24px;">{}</div>'
-            "<div>"
-            '<div style="font-weight: 600;">{}</div>'
-            '<div style="font-size: 11px; color: #6c757d;">{}</div>'
-            "</div>"
-            "</div>",
+            '<div class="mk-asset-row">'
+            '<div class="mk-asset-row__thumb mk-asset-row__thumb--placeholder">{}</div>'
+            '<div><div class="mk-asset-row__title">{}</div>'
+            '<div class="mk-asset-row__meta">{}</div></div></div>',
             icon,
             obj.name,
-            "Public" if obj.is_public else "Private",
+            visibility,
         )
 
     @admin.display(description="Assets")
@@ -2267,12 +2245,10 @@ class AssetCollectionAdmin(admin.ModelAdmin):
         count = obj.asset_count()
         if count == 0:
             return mark_safe(
-                '<span style="color: #999; font-style: italic;">No assets yet</span>'
+                '<em class="mk-muted">No assets yet</em>'
             )
         return format_html(
-            '<span style="background: #e7f3ff; color: #004085; padding: 4px 12px; border-radius: 4px; font-weight: 600;">'
-            "{} asset{}"
-            "</span>",
+            '<span class="mk-pill mk-pill--info">{} asset{}</span>',
             count,
             "s" if count != 1 else "",
         )

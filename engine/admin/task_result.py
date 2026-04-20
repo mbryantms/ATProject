@@ -24,14 +24,14 @@ TASK_NAME_DISPLAY = {
     "celery.backend_cleanup": "Cleanup Old Results",
 }
 
-# Status display with colors
-STATUS_COLORS = {
-    "SUCCESS": "#28a745",  # Green
-    "FAILURE": "#dc3545",  # Red
-    "PENDING": "#ffc107",  # Yellow
-    "STARTED": "#17a2b8",  # Cyan
-    "RETRY": "#fd7e14",  # Orange
-    "REVOKED": "#6c757d",  # Gray
+# Map Celery result statuses to shared .mk-pill tone classes
+STATUS_PILL_CLASS = {
+    "SUCCESS": "mk-pill--success",
+    "FAILURE": "mk-pill--danger",
+    "PENDING": "mk-pill--warn",
+    "STARTED": "mk-pill--info",
+    "RETRY": "mk-pill--warn",
+    "REVOKED": "mk-pill--muted",
 }
 
 
@@ -79,12 +79,15 @@ class TaskResultAdmin(BaseTaskResultAdmin):
     @admin.display(description="Status", ordering="status")
     def colored_status(self, obj):
         """Display status with color coding."""
-        color = STATUS_COLORS.get(obj.status, "#6c757d")
+        pill = STATUS_PILL_CLASS.get(obj.status, "mk-pill--muted")
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
+            '<span class="mk-pill {}">{}</span>',
+            pill,
             obj.status,
         )
+
+    class Media:
+        css = {"all": ("css/admin-common.css",)}
 
     @admin.display(description="Duration")
     def duration(self, obj):

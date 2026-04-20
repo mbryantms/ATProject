@@ -51,25 +51,36 @@
 
 <fieldset class="module aligned" style="margin-top:24px;">
   <h2>Preview ({{ asset_count }} selected — showing first {{ assets|length }})</h2>
-  <table style="width:100%;border-collapse:collapse;">
+  <table class="mk-bulk-preview">
     <thead>
       <tr>
-        <th style="text-align:left;padding:6px;">Key</th>
-        <th style="text-align:left;padding:6px;">Title</th>
-        <th style="text-align:left;padding:6px;">Type</th>
-        <th style="text-align:left;padding:6px;">Folder</th>
+        <th>Key</th>
+        <th>Title</th>
+        <th>Type</th>
+        <th>Folder</th>
       </tr>
     </thead>
     <tbody>
       {% for a in assets %}
         <tr>
-          <td style="padding:6px;"><code>{{ a.key }}</code></td>
-          <td style="padding:6px;">{{ a.title }}</td>
-          <td style="padding:6px;">{{ a.get_asset_type_display }}</td>
-          <td style="padding:6px;">{{ a.asset_folder.path|default:"—" }}</td>
+          <td><code class="mk-code">{{ a.key }}</code></td>
+          <td>{{ a.title }}</td>
+          <td>{{ a.get_asset_type_display }}</td>
+          <td>{{ a.asset_folder.path|default:"—" }}</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 </fieldset>
+
+<style nonce="{{ csp_nonce }}">
+  .mk-bulk-preview { width: 100%; border-collapse: collapse; }
+  .mk-bulk-preview th,
+  .mk-bulk-preview td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--hairline-color);
+  }
+  .mk-bulk-preview th { color: var(--body-quiet-color); font-weight: 600; }
+</style>
 {% endblock %}

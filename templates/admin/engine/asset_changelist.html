@@ -2,13 +2,13 @@
 
 {% block object-tools-items %}
 <li>
-    <a href="{% url 'admin:engine_asset_cleanup' %}" class="viewlink" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        🧹 Cleanup Assets
+    <a href="{% url 'admin:engine_asset_presigned_upload' %}" class="addlink mk-object-tool mk-object-tool--primary">
+        Upload large file
     </a>
 </li>
 <li>
-    <a href="{% url 'admin:engine_asset_presigned_upload' %}" class="addlink" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        Upload Large File
+    <a href="{% url 'admin:engine_asset_cleanup' %}" class="viewlink mk-object-tool">
+        🧹 Cleanup
     </a>
 </li>
 {{ block.super }}

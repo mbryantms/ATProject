@@ -15,6 +15,9 @@ from .mixins import SoftDeleteAdminMixin
 
 @admin.register(Source)
 class SourceAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
+    class Media:
+        css = {"all": ("css/admin-common.css",)}
+
     list_display = (
         "citation_key_display",
         "title_truncated",
@@ -177,19 +180,17 @@ class SourceAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     def url_status_display(self, obj):
         if not obj.url:
             return "-"
-        colors = {
-            UrlStatus.OK: "#28a745",
-            UrlStatus.REDIRECT: "#ffc107",
-            UrlStatus.BROKEN: "#dc3545",
-            UrlStatus.ARCHIVED: "#6f42c1",
-            UrlStatus.UNCHECKED: "#6c757d",
-        }
-        color = colors.get(obj.url_status, "#6c757d")
-        label = obj.get_url_status_display()
+        pill_class = {
+            UrlStatus.OK: "mk-pill--success",
+            UrlStatus.REDIRECT: "mk-pill--warn",
+            UrlStatus.BROKEN: "mk-pill--danger",
+            UrlStatus.ARCHIVED: "mk-pill--info",
+            UrlStatus.UNCHECKED: "mk-pill--muted",
+        }.get(obj.url_status, "mk-pill--muted")
         return format_html(
-            '<span style="color: {}; font-weight: 600;">{}</span>',
-            color,
-            label,
+            '<span class="mk-pill {}">{}</span>',
+            pill_class,
+            obj.get_url_status_display(),
         )
 
     # -- Admin actions --

@@ -1246,7 +1246,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     class Media:
         js = ("js/dist/admin-post-editor.js",)
-        css = {"all": ("css/admin-post.css",)}
+        css = {"all": ("css/admin-common.css", "css/admin-post.css")}
 
     list_display = (
         "post_title_with_status",
