@@ -553,22 +553,26 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     class Media:
         css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
+    # Default "delete_selected" hard-deletes via queryset.delete() which
+    # bypasses the SoftDeleteModel.delete() override. Disable it so authors
+    # always go through soft_delete_selected.
     actions = [
         "bulk_edit_assets",
         "populate_metadata",
-        "extract_extended_metadata",
-        "extract_metadata_async_action",
+        "extract_metadata",
         "generate_renditions",
         "update_usage_count",
-        "regenerate_keys",
         "mark_as_ready",
         "mark_as_archived",
         "export_metadata_csv",
-        "cleanup_orphaned_renditions",
-        "cleanup_unused_assets",
         "soft_delete_selected",
         "restore_selected",
     ]
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop("delete_selected", None)
+        return actions
 
     def get_queryset(self, request):
         """Optimize queryset for list view."""
@@ -1272,67 +1276,79 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     @admin.action(description="Generate renditions for selected images")
     def generate_renditions(self, request, queryset):
-        """Admin action to generate renditions for selected images."""
-        from engine.utils import generate_asset_renditions
+        """Queue rendition generation for the image assets in the selection.
 
-        count = 0
-        for asset in queryset.filter(asset_type="image"):
-            generate_asset_renditions(asset)
-            count += 1
-
-        self.message_user(request, f"Generated renditions for {count} image(s).")
-
-    @admin.action(description="Update usage count")
-    def update_usage_count(self, request, queryset):
-        """Update usage count for selected assets."""
-        for asset in queryset:
-            asset.usage_count = asset.post_usages.count()
-            asset.save(update_fields=["usage_count"])
-
-        self.message_user(
-            request, f"Updated usage count for {queryset.count()} asset(s)."
+        Async by default; falls back to sync when Celery is unreachable
+        (capped at 5 images so the admin request doesn't time out).
+        """
+        image_ids = list(
+            queryset.filter(asset_type="image").values_list("pk", flat=True)
         )
-
-    @admin.action(description="Regenerate keys with organized format")
-    def regenerate_keys(self, request, queryset):
-        """Regenerate asset keys using the new organized format."""
-        from django.template.defaultfilters import slugify
-
-        regenerated = 0
-        errors = []
-
-        for asset in queryset:
-            old_key = asset.key
-            try:
-                # Temporarily clear key to trigger regeneration
-                asset.key = ""
-                # Generate new organized key
-                base_slug = slugify(asset.title) or "asset"
-                asset.key = asset._generate_unique_key(base_slug)
-                asset.save(update_fields=["key"])
-
-                regenerated += 1
-                self.message_user(
-                    request,
-                    f"✓ {asset.title}: '{old_key}' → '{asset.key}'",
-                    level="success",
-                )
-            except Exception as e:
-                errors.append(f"{asset.title}: {str(e)}")
-                # Restore old key on error
-                asset.key = old_key
-                asset.save(update_fields=["key"])
-
-        if regenerated > 0:
+        if not image_ids:
             self.message_user(
                 request,
-                f"Regenerated {regenerated} asset key(s) with organized format.",
-                level="success",
+                "No images in the selection — renditions are only generated for images.",
+                level=messages.WARNING,
+            )
+            return
+
+        try:
+            from engine.tasks import bulk_generate_renditions
+
+            result = bulk_generate_renditions.delay(image_ids)
+            self.message_user(
+                request,
+                f"Queued rendition generation for {len(image_ids)} image(s). "
+                f"Task ID: {result.id}",
+                level=messages.SUCCESS,
+            )
+            return
+        except Exception as exc:
+            if len(image_ids) > 5:
+                self.message_user(
+                    request,
+                    f"Celery broker unreachable ({exc}); refusing sync "
+                    f"generation for {len(image_ids)} images (limit 5).",
+                    level=messages.ERROR,
+                )
+                return
+            self.message_user(
+                request,
+                f"Celery broker unreachable ({exc}); running synchronously.",
+                level=messages.WARNING,
             )
 
-        if errors:
-            for error in errors:
-                self.message_user(request, f"Error: {error}", level="error")
+        from engine.utils import generate_asset_renditions
+
+        touched = 0
+        for asset in queryset.filter(asset_type="image"):
+            generate_asset_renditions(asset)
+            touched += 1
+        self.message_user(
+            request, f"Generated renditions for {touched} image(s).",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Recount asset usage (reconcile cached counter)")
+    def update_usage_count(self, request, queryset):
+        """Recompute Asset.usage_count from PostAsset.
+
+        The counter is a denormalized cache; nothing currently keeps it fresh
+        on PostAsset save/delete, so run this if you suspect drift.
+        """
+        touched = 0
+        for asset in queryset:
+            real = asset.post_usages.count()
+            if asset.usage_count != real:
+                asset.usage_count = real
+                asset.save(update_fields=["usage_count"])
+                touched += 1
+
+        self.message_user(
+            request,
+            f"Reconciled {touched} asset(s); {queryset.count() - touched} already accurate.",
+            level=messages.SUCCESS if touched else messages.INFO,
+        )
 
     @admin.action(description="Populate metadata (dimensions, MIME type, file size)")
     def populate_metadata(self, request, queryset):
@@ -1378,78 +1394,78 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         if not per_asset_errors and total_updated == 0 and not no_op_assets:
             self.message_user(request, "No assets selected.", level=messages.WARNING)
 
-    @admin.action(description="Extract extended metadata (EXIF, audio tags, etc.)")
-    def extract_extended_metadata(self, request, queryset):
-        """Admin action to extract extended metadata (EXIF, audio tags, document info, colors)."""
-        from engine.metadata_extractor import extract_all_metadata
-
-        successful = 0
-        skipped = 0
-        errors = []
-
-        for asset in queryset:
-            try:
-                metadata = extract_all_metadata(asset)
-                if metadata:
-                    successful += 1
-                else:
-                    skipped += 1
-            except Exception as e:
-                errors.append(f"{asset.key}: {str(e)}")
-
-        # Show results
-        if successful > 0:
+    @admin.action(description="Extract extended metadata (EXIF, audio tags, colors)")
+    def extract_metadata(self, request, queryset):
+        """Extract extended metadata. Queues via Celery when available; falls
+        back to sync execution (capped at 10 assets) when the broker can't be
+        reached.
+        """
+        asset_ids = list(queryset.values_list("pk", flat=True))
+        if not asset_ids:
             self.message_user(
-                request,
-                f"✓ Successfully extracted metadata for {successful} asset(s).",
-                level=messages.SUCCESS,
+                request, "No assets selected.", level=messages.WARNING
             )
+            return
 
-        if skipped > 0:
-            self.message_user(
-                request,
-                f"⚠ Skipped {skipped} asset(s) (no metadata available or unsupported type).",
-                level=messages.WARNING,
-            )
-
-        if errors:
-            for error in errors[:5]:  # Show first 5 errors
-                self.message_user(request, f"✗ Error: {error}", level=messages.ERROR)
-            if len(errors) > 5:
-                self.message_user(
-                    request,
-                    f"...and {len(errors) - 5} more errors.",
-                    level=messages.ERROR,
-                )
-
-    @admin.action(description="Extract metadata (async with Celery)")
-    def extract_metadata_async_action(self, request, queryset):
-        """Admin action to extract metadata asynchronously using Celery."""
+        # Try async path first — safe for any batch size.
         try:
             from engine.tasks import bulk_extract_metadata
 
-            asset_ids = list(queryset.values_list("pk", flat=True))
-
-            # Queue the task
             result = bulk_extract_metadata.delay(asset_ids)
-
             self.message_user(
                 request,
-                f"✓ Queued metadata extraction for {len(asset_ids)} asset(s). "
+                f"Queued metadata extraction for {len(asset_ids)} asset(s). "
                 f"Task ID: {result.id}",
                 level=messages.SUCCESS,
             )
-
-        except ImportError:
+            return
+        except Exception as exc:
+            # Broker unreachable — fall back to sync, but only for small batches.
+            if len(asset_ids) > 10:
+                self.message_user(
+                    request,
+                    f"Celery broker unreachable ({exc}); refusing sync "
+                    f"extraction for {len(asset_ids)} assets (limit 10).",
+                    level=messages.ERROR,
+                )
+                return
             self.message_user(
                 request,
-                "⚠ Celery is not installed. Use 'Extract extended metadata' action instead for synchronous processing.",
+                f"Celery broker unreachable ({exc}); running synchronously.",
                 level=messages.WARNING,
             )
-        except Exception as e:
+
+        from engine.metadata_extractor import extract_all_metadata
+
+        successful = skipped = 0
+        errors = []
+        for asset in queryset:
+            try:
+                if extract_all_metadata(asset):
+                    successful += 1
+                else:
+                    skipped += 1
+            except Exception as exc:
+                errors.append(f"{asset.key}: {exc}")
+
+        if successful:
             self.message_user(
                 request,
-                f"✗ Error queuing task: {str(e)}",
+                f"Extracted metadata for {successful} asset(s).",
+                level=messages.SUCCESS,
+            )
+        if skipped:
+            self.message_user(
+                request,
+                f"Skipped {skipped} asset(s) — no metadata available.",
+                level=messages.INFO,
+            )
+        for err in errors[:5]:
+            self.message_user(request, err, level=messages.ERROR)
+        if len(errors) > 5:
+            self.message_user(
+                request,
+                f"…and {len(errors) - 5} more errors.",
                 level=messages.ERROR,
             )
 
@@ -1597,71 +1613,6 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             )
 
         return response
-
-    @admin.action(description="Delete orphaned renditions")
-    def cleanup_orphaned_renditions(self, request, queryset):
-        """Delete renditions of soft-deleted assets."""
-        from engine.models import AssetRendition
-
-        # Find renditions of soft-deleted assets in the queryset
-        asset_ids = queryset.filter(is_deleted=True).values_list("id", flat=True)
-        orphaned = AssetRendition.objects.filter(asset_id__in=asset_ids)
-
-        count = orphaned.count()
-
-        if count == 0:
-            self.message_user(
-                request,
-                "No orphaned renditions found for selected assets.",
-                level=messages.INFO,
-            )
-            return
-
-        # Calculate total size
-        total_size = sum(r.file_size or 0 for r in orphaned)
-
-        # Delete renditions
-        deleted_count, _ = orphaned.delete()
-
-        self.message_user(
-            request,
-            f"✓ Deleted {deleted_count} orphaned rendition(s) "
-            f"({self._format_size(total_size)} freed)",
-            level=messages.SUCCESS,
-        )
-
-    @admin.action(description="Delete unused assets (not in posts)")
-    def cleanup_unused_assets(self, request, queryset):
-        """Delete selected assets that are not used in any posts."""
-        from django.db.models import Count
-
-        # Find unused assets in queryset
-        unused = queryset.annotate(post_count=Count("postasset")).filter(post_count=0)
-
-        count = unused.count()
-
-        if count == 0:
-            self.message_user(
-                request,
-                "All selected assets are being used in posts.",
-                level=messages.INFO,
-            )
-            return
-
-        # Calculate total size and renditions
-        total_size = sum(a.file_size or 0 for a in unused)
-        rendition_count = sum(a.renditions.count() for a in unused)
-
-        # Delete assets (will cascade to renditions)
-        deleted_count, details = unused.delete()
-
-        self.message_user(
-            request,
-            f"✓ Deleted {deleted_count} unused asset(s) and "
-            f"{details.get('engine.AssetRendition', 0)} rendition(s) "
-            f"({self._format_size(total_size)} freed)",
-            level=messages.SUCCESS,
-        )
 
     def _format_size(self, size_bytes):
         """Format bytes as human-readable size."""
