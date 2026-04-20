@@ -191,15 +191,31 @@ def enhance_image_assets(html: str, context: dict) -> str:
             img["data-aspect-ratio"] = aspect_ratio
             style_parts.append(f"aspect-ratio: {aspect_w} / {aspect_h}")
 
-        # Add display width to style (use display_width if specified, otherwise intrinsic_width)
-        final_width = display_width if display_width else intrinsic_width
-        if final_width:
-            style_parts.append(f"width: {final_width}px")
-
-        # Optionally add display height (uncommon, but supported)
-        if display_height and display_width:
-            # Only add explicit height if both display dimensions are specified
-            style_parts.append(f"height: {display_height}px")
+        # Emit inline ``width`` ONLY when the author explicitly requested a
+        # display size. Setting ``width: <intrinsic>px`` makes the width
+        # fixed, which breaks aspect ratio whenever the figure CSS's
+        # ``max-height`` clamps the computed height (common on short laptop
+        # viewports): width stays pinned while height shrinks, distorting
+        # the image.
+        #
+        # When the author didn't ask for a specific size, the <img>'s
+        # ``width="W" height="H"`` attributes plus the inline ``aspect-ratio``
+        # already tell the browser the intrinsic aspect ratio, and the
+        # stylesheet's ``max-width: 100%`` / ``max-height: …`` / ``width: auto``
+        # / ``height: auto`` cooperate to shrink both dimensions together,
+        # preserving aspect ratio under every clamp.
+        if display_width:
+            style_parts.append(f"width: {display_width}px")
+            if display_height:
+                # Only add explicit height when both display dimensions were
+                # specified — otherwise the browser derives it from the
+                # aspect ratio, which is what we want.
+                style_parts.append(f"height: {display_height}px")
+        elif intrinsic_width:
+            # Cap the natural size with max-width rather than pinning it.
+            # Browsers still shrink the image when the container narrows,
+            # but the image will never upscale past its intrinsic size.
+            style_parts.append(f"max-width: {intrinsic_width}px")
 
         # Combine with any existing style
         if style_parts:
