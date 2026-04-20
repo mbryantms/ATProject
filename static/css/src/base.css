@@ -4852,3 +4852,91 @@ a[data-link-icon-color]:hover {
 #page-metadata .page-staff-bar > span + span {
   margin-left: 0.5em;
 }
+
+/*  Feed index (/feeds/) — lists every syndication feed on the site.
+ */
+.feed-index-section {
+  margin: 2.5em 0;
+}
+
+.feed-index-section h2 {
+  border-bottom: 1px solid var(--AT-blockquote-border-color-level-one, #ccc);
+  padding-bottom: 0.25em;
+  margin-bottom: 1em;
+}
+
+.feed-index-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feed-index-row {
+  display: flex;
+  gap: 1.5em;
+  align-items: center;
+  padding: 0.9em 0;
+  border-bottom: 1px solid var(--AT-blockquote-border-color-level-one, #ccc);
+}
+
+.feed-index-row:last-child {
+  border-bottom: 0;
+}
+
+.feed-index-row__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.feed-index-row__body h3 {
+  margin: 0 0 0.2em;
+  font-size: 1.05em;
+  line-height: 1.3;
+}
+
+.feed-index-row__body p {
+  margin: 0;
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+.feed-index-row__links {
+  display: flex;
+  gap: 0.5em;
+  flex-shrink: 0;
+}
+
+.feed-index-pill {
+  display: inline-block;
+  padding: 0.25em 0.8em;
+  border: 1px solid var(--AT-blockquote-border-color-level-one, #ccc);
+  border-radius: 3px;
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--AT-body-link-color, #333);
+  background: var(--AT-blockquote-background-color-level-one, #f8f8f8);
+  line-height: 1.4;
+}
+
+.feed-index-pill:hover,
+.feed-index-pill:focus {
+  color: var(--AT-body-link-hover-color, #888);
+  text-decoration: none;
+  filter: brightness(0.96);
+}
+
+.feed-index-note {
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+@media (max-width: 600px) {
+  .feed-index-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6em;
+  }
+}

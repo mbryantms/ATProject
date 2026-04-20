@@ -4,6 +4,7 @@ from .search.views import SearchPageView
 from .views import (
     CategoryArchiveView,
     CategoryListView,
+    FeedIndexView,
     IndexView,
     PageView,
     PostArchiveView,
@@ -30,4 +31,5 @@ urlpatterns = [
         name="category-archive",
     ),
     path("about/", PageView.as_view(page_slug="about"), name="about"),
+    path("feeds/", FeedIndexView.as_view(), name="feed-index"),
 ]

@@ -572,6 +572,57 @@ class PageView(SEOContextMixin, TemplateView):
         return context
 
 
+class FeedIndexView(SEOContextMixin, TemplateView):
+    """Human-readable index of every syndication feed the site exposes.
+
+    Surfaces: global, featured, per-category, and per-series feeds. Per-tag
+    feeds aren't enumerated (the tag vocabulary can be large); the template
+    points readers at /tags/ where each tag page already links its own feed.
+    """
+
+    template_name = "posts/feed_index.html"
+    seo_title = "Feeds"
+    seo_description = (
+        "RSS and Atom feeds for every section of the site — subscribe in any feed reader."
+    )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(self.get_seo_context())
+
+        user = self.request.user
+        is_staff = user.is_authenticated and (user.is_staff or user.is_superuser)
+
+        # Categories with at least one visible post — mirrors CategoryListView.
+        now = timezone.now()
+        if is_staff:
+            cat_post_filter = Q(posts__is_deleted=False)
+            series_post_filter = Q(posts__is_deleted=False)
+        else:
+            cat_post_filter = Q(
+                posts__is_deleted=False,
+                posts__status=Post.Status.PUBLISHED,
+                posts__visibility=Post.Visibility.PUBLIC,
+                posts__published_at__isnull=False,
+                posts__published_at__lte=now,
+            )
+            series_post_filter = cat_post_filter
+
+        context["categories"] = (
+            Category.objects.annotate(post_count=Count("posts", filter=cat_post_filter))
+            .filter(post_count__gt=0)
+            .order_by("name")
+        )
+        context["series_list"] = (
+            Series.objects.annotate(
+                post_count=Count("posts", filter=series_post_filter)
+            )
+            .filter(post_count__gt=0)
+            .order_by("title")
+        )
+        return context
+
+
 class PostDetailView(SEOContextMixin, DetailView):
     """
     Shows a single post. Anonymous users can see only published+visible posts.

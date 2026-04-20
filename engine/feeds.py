@@ -13,19 +13,53 @@ import mimetypes
 from django.conf import settings as django_settings
 from django.contrib.syndication.views import Feed
 from django.http import Http404
-from django.utils.feedgenerator import Atom1Feed
+from django.utils.feedgenerator import Atom1Feed, Stylesheet
+from django.utils.xmlutils import SimplerXMLGenerator
 
 from .models import Category, Post, Series, SiteSettings, Tag, TagAlias
 
 DEFAULT_ITEM_LIMIT = 20
+
+# XSLT stylesheets that give the raw RSS/Atom XML a human-readable rendering
+# in browsers. Feed readers ignore the <?xml-stylesheet?> processing
+# instruction and consume the XML as normal. See static/feeds/*.xsl.
+RSS_STYLESHEET = Stylesheet("/static/feeds/rss.xsl", media="screen")
+ATOM_STYLESHEET = Stylesheet("/static/feeds/atom.xsl", media="screen")
+
+
+class StyledAtomFeed(Atom1Feed):
+    """Atom feed that emits a ``<?xml-stylesheet?>`` PI like RssFeed does.
+
+    Django's ``Atom1Feed.write()`` skips the ``add_stylesheets(handler)`` call
+    that ``RssFeed.write()`` makes between ``startDocument()`` and the root
+    element, so stylesheet PIs never appear on Atom output. We override both
+    hooks minimally — everything else remains Django's implementation.
+    """
+
+    def add_stylesheets(self, handler):
+        for stylesheet in self.feed["stylesheets"] or []:
+            handler.processingInstruction("xml-stylesheet", stylesheet)
+
+    def write(self, outfile, encoding):
+        handler = SimplerXMLGenerator(outfile, encoding, short_empty_elements=True)
+        handler.startDocument()
+        self.add_stylesheets(handler)
+        handler.startElement("feed", self.root_attributes())
+        self.add_root_elements(handler)
+        self.write_items(handler)
+        handler.endElement("feed")
 
 
 class BasePostFeed(Feed):
     """Shared rendering for every site feed."""
 
     # Inherit Feed.feed_type (Rss201rev2Feed) by default; Atom subclasses
-    # override to Atom1Feed. Do not assign None here — that would shadow the
-    # parent default and crash get_feed() with `'NoneType' object is not callable`.
+    # override to StyledAtomFeed. Do not assign None here — that would shadow
+    # the parent default and crash get_feed() with `'NoneType' object is not callable`.
+
+    # Every RSS feed ships with a browser-facing XSLT rendering. Atom variants
+    # override this to point at atom.xsl.
+    stylesheets = [RSS_STYLESHEET]
 
     # ---------- channel-level (override per subclass when scoped) ----------
 
@@ -123,7 +157,8 @@ class PostFeed(BasePostFeed):
 class PostAtomFeed(PostFeed):
     """Atom 1.0 twin of :class:`PostFeed`."""
 
-    feed_type = Atom1Feed
+    feed_type = StyledAtomFeed
+    stylesheets = [ATOM_STYLESHEET]
     subtitle = PostFeed.description
 
 
@@ -162,7 +197,8 @@ class TagFeed(BasePostFeed):
 
 
 class TagAtomFeed(TagFeed):
-    feed_type = Atom1Feed
+    feed_type = StyledAtomFeed
+    stylesheets = [ATOM_STYLESHEET]
     subtitle = TagFeed.description
 
 
@@ -195,7 +231,8 @@ class CategoryFeed(BasePostFeed):
 
 
 class CategoryAtomFeed(CategoryFeed):
-    feed_type = Atom1Feed
+    feed_type = StyledAtomFeed
+    stylesheets = [ATOM_STYLESHEET]
     subtitle = CategoryFeed.description
 
 
@@ -236,7 +273,8 @@ class SeriesFeed(BasePostFeed):
 
 
 class SeriesAtomFeed(SeriesFeed):
-    feed_type = Atom1Feed
+    feed_type = StyledAtomFeed
+    stylesheets = [ATOM_STYLESHEET]
     subtitle = SeriesFeed.description
 
 
@@ -260,5 +298,6 @@ class FeaturedFeed(BasePostFeed):
 
 
 class FeaturedAtomFeed(FeaturedFeed):
-    feed_type = Atom1Feed
+    feed_type = StyledAtomFeed
+    stylesheets = [ATOM_STYLESHEET]
     subtitle = FeaturedFeed.description

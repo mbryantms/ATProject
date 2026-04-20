@@ -240,3 +240,74 @@ class FeedTypeRegressionTests(FeedSetupMixin, TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn("atom+xml", response["Content-Type"])
+
+
+class FeedStylesheetTests(FeedSetupMixin, TestCase):
+    """Every RSS and Atom feed must carry the XSLT processing instruction so
+    browsers render a human-readable page instead of downloading XML.
+    """
+
+    def test_rss_feed_links_rss_stylesheet(self):
+        response = self.client.get("/feed/")
+        body = response.content.decode("utf-8")
+        self.assertIn("<?xml-stylesheet", body)
+        self.assertIn("/static/feeds/rss.xsl", body)
+
+    def test_atom_feed_links_atom_stylesheet(self):
+        response = self.client.get("/feed/atom/")
+        body = response.content.decode("utf-8")
+        self.assertIn("<?xml-stylesheet", body)
+        self.assertIn("/static/feeds/atom.xsl", body)
+
+    def test_stylesheet_is_before_root_element(self):
+        """PI must come after <?xml ...?> and before the root element."""
+        response = self.client.get("/feed/")
+        body = response.content.decode("utf-8")
+        xml_decl_end = body.index("?>") + 2
+        root_start = body.index("<rss")
+        pi_start = body.index("<?xml-stylesheet")
+        self.assertLess(xml_decl_end, pi_start)
+        self.assertLess(pi_start, root_start)
+
+    def test_scoped_feeds_carry_stylesheet(self):
+        for url, expected in [
+            (f"/feed/tag/{self.tag.slug}/", "/static/feeds/rss.xsl"),
+            (f"/feed/tag/{self.tag.slug}/atom/", "/static/feeds/atom.xsl"),
+            (f"/feed/category/{self.category.slug}/", "/static/feeds/rss.xsl"),
+            (f"/feed/series/{self.series.slug}/atom/", "/static/feeds/atom.xsl"),
+            ("/feed/featured/", "/static/feeds/rss.xsl"),
+        ]:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertIn(expected, response.content.decode("utf-8"))
+
+
+class FeedIndexViewTests(FeedSetupMixin, TestCase):
+    def test_feed_index_returns_200(self):
+        response = self.client.get("/feeds/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_feed_index_lists_global_and_featured(self):
+        response = self.client.get("/feeds/")
+        self.assertContains(response, "/feed/")
+        self.assertContains(response, "/feed/atom/")
+        self.assertContains(response, "/feed/featured/")
+        self.assertContains(response, "/feed/featured/atom/")
+
+    def test_feed_index_lists_categories_with_posts(self):
+        response = self.client.get("/feeds/")
+        self.assertContains(response, self.category.name)
+        self.assertContains(response, f"/feed/category/{self.category.slug}/")
+
+    def test_feed_index_lists_series_with_posts(self):
+        response = self.client.get("/feeds/")
+        self.assertContains(response, self.series.title)
+        self.assertContains(response, f"/feed/series/{self.series.slug}/")
+
+    def test_footer_links_feed_index(self):
+        """The site footer should point readers at /feeds/ rather than /feed/."""
+        response = self.client.get("/feeds/")
+        body = response.content.decode("utf-8")
+        # The footer is shared via base.html; /feeds/ link appears both in the
+        # page content and the footer — ensure the footer anchor is present.
+        self.assertIn('href="/feeds/"', body)

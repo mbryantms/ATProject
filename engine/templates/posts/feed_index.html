@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Feeds — Architextual{% endblock %}
+
+{% block page_title %}Feeds{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <div class="markdownBody" id="page-metadata">
+    <p>
+      Every section of this site exposes a web feed. Paste any of the URLs
+      below into a feed reader (Feedly, NetNewsWire, Inoreader, Miniflux, or
+      any app that understands RSS or Atom) and new posts will arrive there
+      automatically — no account or email needed.
+    </p>
+    <p class="feed-index-note">
+      RSS 2.0 and Atom 1.0 carry the same content; pick whichever your reader
+      prefers. If your browser opens the page below instead of subscribing,
+      copy the URL from the address bar into your reader.
+    </p>
+  </div>
+
+  <section class="feed-index-section">
+    <h2>Everything</h2>
+    <ul class="feed-index-list">
+      <li class="feed-index-row">
+        <div class="feed-index-row__body">
+          <h3>All posts</h3>
+          <p>Every published, public post across the site, newest first.</p>
+        </div>
+        <div class="feed-index-row__links">
+          <a class="feed-index-pill" rel="alternate" type="application/rss+xml"
+             href="{% url 'post-feed-rss' %}">RSS</a>
+          <a class="feed-index-pill" rel="alternate" type="application/atom+xml"
+             href="{% url 'post-feed-atom' %}">Atom</a>
+        </div>
+      </li>
+      <li class="feed-index-row">
+        <div class="feed-index-row__body">
+          <h3>Featured posts</h3>
+          <p>Only the posts flagged as featured — a curated highlight stream.</p>
+        </div>
+        <div class="feed-index-row__links">
+          <a class="feed-index-pill" rel="alternate" type="application/rss+xml"
+             href="{% url 'featured-feed-rss' %}">RSS</a>
+          <a class="feed-index-pill" rel="alternate" type="application/atom+xml"
+             href="{% url 'featured-feed-atom' %}">Atom</a>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  {% if categories %}
+  <section class="feed-index-section">
+    <h2>Categories</h2>
+    <ul class="feed-index-list">
+      {% for category in categories %}
+      <li class="feed-index-row">
+        <div class="feed-index-row__body">
+          <h3><a href="{{ category.get_absolute_url }}">{{ category.name }}</a></h3>
+          <p>
+            {% if category.description %}{{ category.description }}{% else %}Posts in {{ category.name }}.{% endif %}
+          </p>
+        </div>
+        <div class="feed-index-row__links">
+          <a class="feed-index-pill" rel="alternate" type="application/rss+xml"
+             href="{% url 'category-feed-rss' slug=category.slug %}">RSS</a>
+          <a class="feed-index-pill" rel="alternate" type="application/atom+xml"
+             href="{% url 'category-feed-atom' slug=category.slug %}">Atom</a>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if series_list %}
+  <section class="feed-index-section">
+    <h2>Series</h2>
+    <ul class="feed-index-list">
+      {% for series in series_list %}
+      <li class="feed-index-row">
+        <div class="feed-index-row__body">
+          <h3><a href="{{ series.get_absolute_url }}">{{ series.title }}</a></h3>
+          <p>
+            {% if series.description %}{{ series.description }}{% else %}Posts in the “{{ series.title }}” series, in reading order.{% endif %}
+          </p>
+        </div>
+        <div class="feed-index-row__links">
+          <a class="feed-index-pill" rel="alternate" type="application/rss+xml"
+             href="{% url 'series-feed-rss' slug=series.slug %}">RSS</a>
+          <a class="feed-index-pill" rel="alternate" type="application/atom+xml"
+             href="{% url 'series-feed-atom' slug=series.slug %}">Atom</a>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="feed-index-section">
+    <h2>Tags</h2>
+    <p>
+      Every tag has its own feed. Open <a href="{% url 'tag-list' %}">the tag
+      index</a>, pick a tag, and use the <strong>RSS</strong> link on that
+      page. The autodiscovery <code>&lt;link&gt;</code> tag is also set on
+      each tag page, so feed readers that sniff the page will offer the feed
+      directly.
+    </p>
+  </section>
+</div>
+{% endblock %}

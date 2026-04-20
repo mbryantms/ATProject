@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="alternate" type="application/rss+xml" title="{{ site_settings.site_name|default:'Architextual' }} RSS Feed" href="{% url 'post-feed-rss' %}">
     <link rel="alternate" type="application/atom+xml" title="{{ site_settings.site_name|default:'Architextual' }} Atom Feed" href="{% url 'post-feed-atom' %}">
+    <link rel="alternate" type="application/rss+xml" title="{{ site_settings.site_name|default:'Architextual' }} Featured (RSS)" href="{% url 'featured-feed-rss' %}">
+    <link rel="alternate" type="application/atom+xml" title="{{ site_settings.site_name|default:'Architextual' }} Featured (Atom)" href="{% url 'featured-feed-atom' %}">
     <script nonce="{{ csp_nonce }}">
       // Theme initialization - MUST run before CSS to prevent flash
       (function() {
