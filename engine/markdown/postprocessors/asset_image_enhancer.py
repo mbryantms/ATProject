@@ -191,6 +191,13 @@ def enhance_image_assets(html: str, context: dict) -> str:
             img["data-aspect-ratio"] = aspect_ratio
             style_parts.append(f"aspect-ratio: {aspect_w} / {aspect_h}")
 
+            # Expose the aspect ratio as a unit-less decimal via a custom
+            # property so the stylesheet can tie max-width to max-height.
+            # This is how we preserve aspect ratio under a short viewport:
+            # see the corresponding rule in base.css (figure img rules).
+            ar_decimal = intrinsic_width / intrinsic_height
+            style_parts.append(f"--img-ar: {ar_decimal:.4f}")
+
         # Emit inline ``width`` ONLY when the author explicitly requested a
         # display size. Setting ``width: <intrinsic>px`` makes the width
         # fixed, which breaks aspect ratio whenever the figure CSS's

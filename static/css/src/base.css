@@ -4617,11 +4617,34 @@ figure video,
 figure svg {
   position: relative;
   display: block;
-  max-height: calc(100vh - 8rem);
   max-width: 100%;
+
+  /*  Keep images from ever exceeding the viewport height, but do it via
+   *  max-width — not max-height — so the browser preserves aspect ratio.
+   *
+   *  Why not just max-height: CSS's replaced-element sizing algorithm
+   *  resolves max-width first, then clamps height to max-height without
+   *  going back to shrink the width. Result: a 1:1 image on a short
+   *  viewport renders as a wide rectangle (height clamped, width pinned).
+   *
+   *  With --img-ar set inline by the image enhancer (aspect = width/height),
+   *  max-width = (available vertical space) × aspect keeps the height
+   *  implicitly capped at 100vh - 8rem AND maintains the aspect ratio,
+   *  because the only active clamp is on the horizontal axis and
+   *  width:auto/height:auto + aspect-ratio derive the orthogonal dimension.
+   *
+   *  The fallback of 10 is large enough that any asset without --img-ar
+   *  set falls back to the 100% cap (same as the old behavior).
+   */
+  max-width: min(100%, calc((100vh - 8rem) * var(--img-ar, 10)));
   height: auto;
   width: auto;
   margin: 0 auto;
+
+  /*  Safety cap for documents where --img-ar isn't set (e.g. hero images
+   *  inserted via plain HTML) so tall images still don't dwarf the viewport.
+   */
+  max-height: calc(100vh - 8rem);
 
   /*  This is to prevent overflow of image alt-text in Chrome.
    */
