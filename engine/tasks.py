@@ -390,7 +390,6 @@ def finalize_presigned_upload(self, asset_id):
 
     from .metadata_extractor import extract_all_metadata
     from .models import Asset
-    from .utils import generate_asset_renditions
 
     lock = cache.lock(f"task:finalize_upload:{asset_id}", timeout=300)
     if not lock.acquire(blocking=False):
@@ -463,20 +462,22 @@ def finalize_presigned_upload(self, asset_id):
                 f"Metadata extraction failed for {asset.key}: {e}"
             )
 
-        # Generate renditions for images
+        # Mark as ready before kicking off renditions so downstream consumers
+        # (and the renditions task itself) see a non-processing asset.
+        asset.status = "ready"
+        asset.save(update_fields=["status"])
+
+        # Queue rendition generation in a separate task. This keeps finalize
+        # fast and lets the renditions job retry independently.
         if asset.asset_type == "image":
             try:
-                renditions = generate_asset_renditions(asset)
+                generate_renditions_async.delay(asset.pk)
             except Exception as e:
                 import logging
 
                 logging.getLogger(__name__).warning(
-                    f"Rendition generation failed for {asset.key}: {e}"
+                    f"Failed to queue renditions for {asset.key}: {e}"
                 )
-
-        # Mark as ready
-        asset.status = "ready"
-        asset.save(update_fields=["status"])
 
         return {
             "success": True,

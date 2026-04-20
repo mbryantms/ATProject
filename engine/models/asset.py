@@ -84,18 +84,11 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         ("other", "Other"),
     ]
 
-    STATUS_CHOICES = [
-        ("uploading", "Uploading"),
-        ("processing", "Processing"),
-        ("ready", "Ready"),
-        ("failed", "Failed"),
-        ("archived", "Archived"),
-    ]
-
-    # Status choices
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
+        UPLOADING = "uploading", "Uploading"
+        PROCESSING = "processing", "Processing"
         READY = "ready", "Ready for Use"
+        FAILED = "failed", "Failed"
         ARCHIVED = "archived", "Archived"
 
     # Core Fields
@@ -878,7 +871,7 @@ class AssetRendition(TimeStampedModel):
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
-        default=Status.COMPLETED,
+        default=Status.PENDING,
         help_text="Generation status",
     )
 

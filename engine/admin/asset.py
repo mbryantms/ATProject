@@ -12,7 +12,9 @@ This module contains admin configurations for the asset management system, inclu
 
 import csv
 
+from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import path
@@ -26,9 +28,53 @@ from engine.models import (
     AssetMetadata,
     AssetRendition,
     AssetTag,
+    PostAsset,
 )
 
 from .mixins import SoftDeleteAdminMixin
+
+
+class BulkEditAssetsForm(forms.Form):
+    """Intermediate form for bulk-editing selected assets.
+
+    Fields left blank are ignored. Tag mode picks how tags are merged.
+    """
+
+    TAG_MODE_CHOICES = [
+        ("skip", "Leave tags unchanged"),
+        ("add", "Add these tags"),
+        ("replace", "Replace tags with these"),
+        ("remove", "Remove these tags"),
+    ]
+
+    alt_text = forms.CharField(required=False, max_length=255)
+    credit = forms.CharField(required=False, max_length=255)
+    license = forms.CharField(required=False, max_length=100)
+    status = forms.ChoiceField(
+        required=False,
+        choices=[("", "— leave unchanged —")] + list(Asset.Status.choices),
+    )
+    is_public = forms.ChoiceField(
+        required=False,
+        choices=[("", "— leave unchanged —"), ("1", "Public"), ("0", "Not public")],
+    )
+    asset_folder = forms.ModelChoiceField(
+        queryset=AssetFolder.objects.all().order_by("path"),
+        required=False,
+        empty_label="— leave unchanged —",
+    )
+    clear_folder = forms.BooleanField(
+        required=False,
+        label="Clear folder (remove asset from any folder)",
+    )
+    asset_tags = forms.ModelMultipleChoiceField(
+        queryset=AssetTag.objects.all().order_by("name"),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+    tag_mode = forms.ChoiceField(
+        choices=TAG_MODE_CHOICES, initial="skip", required=True
+    )
 
 
 # --------------------------
@@ -41,10 +87,6 @@ class AssetMetadataInline(admin.StackedInline):
     can_delete = False
     verbose_name = "Extended Metadata"
     verbose_name_plural = "Extended Metadata"
-
-    # Unfold-specific options for better display
-    tab = True
-    hide_title = True
 
     fieldsets = [
         (
@@ -219,6 +261,20 @@ class AssetRenditionInline(admin.TabularInline):
         return obj.human_file_size
 
 
+class PostAssetInline(admin.TabularInline):
+    """Inline for per-post usage with editable alias / caption / alt-text overrides."""
+
+    model = PostAsset
+    fk_name = "asset"
+    extra = 0
+    fields = ("post", "alias", "custom_alt_text", "custom_caption", "order")
+    autocomplete_fields = ("post",)
+    verbose_name = "Post usage"
+    verbose_name_plural = "Post usage (per-post aliases / overrides)"
+    ordering = ("post__title",)
+    classes = ["collapse"]
+
+
 # --------------------------
 # Asset Admin
 # --------------------------
@@ -324,13 +380,14 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     list_select_related = ["uploaded_by"]
     list_per_page = 50
 
-    # Show facet counts in filters (unfold feature)
     show_facets = admin.ShowFacets.ALWAYS
 
     readonly_fields = [
         "preview_large",
         "key_preview",
         "metadata_status_detailed",
+        "processing_state",
+        "duplicate_warning",
         "markdown_reference_copyable",
         "markdown_usage_examples",
         "usage_count",
@@ -355,6 +412,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("asset_type",),
                     "file",
                     ("key", "key_preview"),
+                    "processing_state",
                 ],
                 "classes": [],
                 "description": "Core asset information and file upload. Leave 'Key' blank for auto-generation with smart prefixes.",
@@ -378,7 +436,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("credit", "license"),
                     "source_url",
                 ],
-                "classes": ["collapse", "unfold-column-2"],
+                "classes": ["collapse"],
             },
         ),
         (
@@ -390,8 +448,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("width", "height"),
                     ("duration", "bitrate", "frame_rate"),
                     ("original_filename", "file_hash"),
+                    "duplicate_warning",
                 ],
-                "classes": ["collapse", "unfold-column-3"],
+                "classes": ["collapse"],
                 "description": "Metadata is auto-populated on upload. Use 'Populate metadata' admin action to refresh.",
             },
         ),
@@ -401,7 +460,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 "fields": [
                     ("focal_point_x", "focal_point_y"),
                 ],
-                "classes": ["collapse", "unfold-column-2"],
+                "classes": ["collapse"],
                 "description": "Focal point coordinates (0.0-1.0) for smart cropping",
             },
         ),
@@ -435,7 +494,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     "last_accessed",
                     "usage_list",
                 ],
-                "classes": ["collapse", "unfold-column-3"],
+                "classes": ["collapse"],
             },
         ),
         (
@@ -445,14 +504,18 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("created_at", "updated_at"),
                     ("is_deleted", "deleted_at"),
                 ],
-                "classes": ["collapse", "unfold-column-2"],
+                "classes": ["collapse"],
             },
         ),
     ]
 
-    inlines = [AssetMetadataInline, AssetRenditionInline]
+    inlines = [AssetMetadataInline, AssetRenditionInline, PostAssetInline]
+
+    class Media:
+        css = {"all": ("css/admin-asset.css",)}
 
     actions = [
+        "bulk_edit_assets",
         "extract_extended_metadata",
         "extract_metadata_async_action",
         "generate_renditions",
@@ -471,7 +534,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Optimize queryset for list view."""
         qs = super().get_queryset(request)
         # Prefetch related objects to avoid N+1 queries
-        qs = qs.prefetch_related("asset_tags", "asset_folder")
+        qs = qs.prefetch_related("asset_tags", "collections").select_related("asset_folder")
         return qs
 
     def get_form(self, request, obj=None, **kwargs):
@@ -827,26 +890,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "archive": "📦",
             "other": "📎",
         }
-        colors = {
-            "image": "#e3f2fd",
-            "video": "#fce4ec",
-            "audio": "#f3e5f5",
-            "document": "#fff3e0",
-            "archive": "#e8f5e9",
-            "other": "#f5f5f5",
-        }
-        text_colors = {
-            "image": "#1976d2",
-            "video": "#c2185b",
-            "audio": "#7b1fa2",
-            "document": "#ef6c00",
-            "archive": "#388e3c",
-            "other": "#616161",
-        }
         return format_html(
-            '<span style="background: {}; color: {}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">{} {}</span>',
-            colors.get(obj.asset_type, "#f5f5f5"),
-            text_colors.get(obj.asset_type, "#616161"),
+            '<span class="asset-badge asset-type asset-type--{}">{} {}</span>',
+            obj.asset_type or "other",
             icons.get(obj.asset_type, ""),
             obj.get_asset_type_display(),
         )
@@ -855,16 +901,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def folder_badge(self, obj):
         """Display asset folder."""
         if not obj.asset_folder:
-            return mark_safe('<span style="color: #999;">—</span>')
+            return mark_safe('<span class="asset-muted">—</span>')
 
-        # Show folder icon and name
         depth = obj.asset_folder.path.count("/")
         icon = "📁" if depth > 0 else "📂"
 
         return format_html(
-            '<span style="background: #fff3e0; color: #e65100; padding: 4px 8px; border-radius: 4px; font-size: 11px;">'
-            "{} {}"
-            "</span>",
+            '<span class="asset-badge asset-badge--sm asset-folder">{} {}</span>',
             icon,
             obj.asset_folder.name,
         )
@@ -872,43 +915,30 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     @admin.display(description="Collections")
     def collection_badge(self, obj):
         """Display collections as badges."""
-        collections = obj.collections.all()[:3]  # Show up to 3 collections
+        from django.utils.html import escape
+
+        collections = list(obj.collections.all()[:4])
         if not collections:
-            return mark_safe('<span style="color: #999;">—</span>')
+            return mark_safe('<span class="asset-muted">—</span>')
 
-        badges = []
-        for collection in collections:
+        shown = collections[:3]
+        badges = [
+            f'<span class="asset-badge asset-badge--sm asset-collection">{escape(c.name)}</span>'
+            for c in shown
+        ]
+        if len(collections) > 3:
+            remaining = obj.collections.count() - 3
             badges.append(
-                f'<span style="background: #f3e5f5; color: #7b1fa2; padding: 4px 8px; border-radius: 4px; font-size: 11px; margin-right: 4px;">{collection.name}</span>'
+                f'<span class="asset-muted" style="font-size:11px;">+{remaining} more</span>'
             )
-
-        # Show count if more than 3
-        if obj.collections.count() > 3:
-            badges.append(
-                f'<span style="color: #999; font-size: 11px;">+{obj.collections.count() - 3} more</span>'
-            )
-
         return mark_safe("".join(badges))
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
         """Display status with appropriate color."""
-        colors = {
-            "draft": "#fff3cd",  # warning yellow
-            "ready": "#d4edda",  # success green
-            "archived": "#e2e3e5",  # gray
-        }
-        text_colors = {
-            "draft": "#856404",
-            "ready": "#155724",
-            "archived": "#383d41",
-        }
-        bg_color = colors.get(obj.status, "#e2e3e5")
-        text_color = text_colors.get(obj.status, "#383d41")
         return format_html(
-            '<span style="background: {}; color: {}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">{}</span>',
-            bg_color,
-            text_color,
+            '<span class="asset-badge asset-status asset-status--{}">{}</span>',
+            obj.status,
             obj.get_status_display(),
         )
 
@@ -916,17 +946,17 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def usage_indicator(self, obj):
         """Visual indicator of asset usage."""
         if obj.usage_count == 0:
-            return mark_safe('<span style="color: #999;">Unused</span>')
-        elif obj.usage_count <= 3:
-            color = "#0288d1"  # blue
+            return mark_safe('<span class="asset-usage--none">Unused</span>')
+        if obj.usage_count <= 3:
+            level = "low"
         elif obj.usage_count <= 10:
-            color = "#388e3c"  # green
+            level = "med"
         else:
-            color = "#7b1fa2"  # purple
+            level = "high"
 
         return format_html(
-            '<strong style="color: {};">{}</strong> <span style="color: #666;">post{}</span>',
-            color,
+            '<strong class="asset-usage--{}">{}</strong> <span class="asset-muted">post{}</span>',
+            level,
             obj.usage_count,
             "s" if obj.usage_count != 1 else "",
         )
@@ -990,6 +1020,116 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         return mark_safe(status_html)
 
+    @admin.display(description="Processing State")
+    def processing_state(self, obj):
+        """Summarize async processing state for this asset.
+
+        Reads current DB state (metadata record presence, rendition count,
+        asset.status) and recent TaskResult rows keyed by asset pk/key. No
+        task IDs are tracked on the model, so this is best-effort, not live.
+        """
+        rows = []
+
+        # Core asset status badge reuse
+        status_cls = f"asset-status--{obj.status}"
+        rows.append(
+            f'<li>Status: <span class="asset-badge {status_cls}">{obj.get_status_display()}</span></li>'
+        )
+
+        # Metadata extraction
+        has_metadata = (
+            obj.pk is not None
+            and AssetMetadata.objects.filter(asset=obj).exists()
+        )
+        if has_metadata:
+            rows.append(
+                '<li>📋 Extended metadata: <span class="asset-badge asset-status--ready">Extracted</span></li>'
+            )
+        elif obj.asset_type in ("image", "audio", "document"):
+            rows.append(
+                '<li>📋 Extended metadata: <span class="asset-badge asset-status--processing">'
+                "Not yet extracted</span> — run the <em>Extract metadata</em> action</li>"
+            )
+
+        # Renditions (images only)
+        if obj.asset_type == "image":
+            rendition_count = obj.renditions.count() if obj.pk else 0
+            if rendition_count == 0:
+                rows.append(
+                    '<li>🖼️ Renditions: <span class="asset-badge asset-status--processing">'
+                    "None yet</span> — run <em>Generate renditions</em></li>"
+                )
+            else:
+                rows.append(
+                    f'<li>🖼️ Renditions: <span class="asset-badge asset-status--ready">'
+                    f"{rendition_count} generated</span></li>"
+                )
+
+        # Recent TaskResults for this asset (best-effort lookup)
+        try:
+            from django_celery_results.models import TaskResult
+
+            key = obj.key or ""
+            recent = TaskResult.objects.filter(
+                task_kwargs__icontains=key
+            ).order_by("-date_done")[:3] if key else []
+            if recent:
+                rows.append("<li>Recent tasks:<ul>")
+                for tr in recent:
+                    short_name = (tr.task_name or "").rsplit(".", 1)[-1]
+                    rows.append(
+                        f'<li><code>{short_name}</code> — {tr.status} '
+                        f'<small class="asset-muted">({tr.date_done:%Y-%m-%d %H:%M})</small></li>'
+                    )
+                rows.append("</ul></li>")
+        except Exception:
+            pass
+
+        return mark_safe(
+            '<ul style="margin:0;padding-left:18px;line-height:1.8;">' + "".join(rows) + "</ul>"
+        )
+
+    @admin.display(description="Possible duplicates")
+    def duplicate_warning(self, obj):
+        """Warn if another non-deleted asset shares this file's SHA256 hash."""
+        if not obj.pk or not obj.file_hash:
+            return mark_safe('<span class="asset-muted">—</span>')
+
+        dupes = (
+            Asset.objects.filter(file_hash=obj.file_hash)
+            .exclude(pk=obj.pk)
+            .only("pk", "key", "title", "created_at")[:5]
+        )
+        if not dupes:
+            return mark_safe(
+                '<span class="asset-badge asset-status--ready">Unique</span>'
+            )
+
+        from django.urls import reverse
+
+        items = []
+        for dupe in dupes:
+            url = reverse("admin:engine_asset_change", args=[dupe.pk])
+            items.append(
+                format_html(
+                    '<li><a href="{}">{}</a> <code>{}</code> '
+                    '<small class="asset-muted">({:%Y-%m-%d})</small></li>',
+                    url,
+                    dupe.title or "(untitled)",
+                    dupe.key,
+                    dupe.created_at,
+                )
+            )
+        header = format_html(
+            '<span class="asset-badge asset-status--failed">'
+            "{} duplicate(s) by file hash"
+            "</span>",
+            len(dupes),
+        )
+        return mark_safe(
+            f'{header}<ul style="margin:6px 0 0 0;padding-left:18px;">{"".join(items)}</ul>'
+        )
+
     @admin.display(description="Auto-Generated Key Preview")
     def key_preview(self, obj):
         """Show preview of what the auto-generated key will be."""
@@ -1017,24 +1157,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "other": "asset",
         }
         type_prefix = type_prefixes.get(obj.asset_type, "asset")
-
-        if obj.collection:
-            collection_slug = slugify(obj.collection)
-            preview_key = f"{collection_slug}/{type_prefix}-{base_slug}"
-        else:
-            preview_key = f"{type_prefix}-{base_slug}"
-
-        parts = []
-        parts.append(f"{type_prefix} prefix")
-        if obj.collection:
-            parts.append(f"collection ({obj.collection})")
-        parts.append("title slug")
+        preview_key = f"{type_prefix}-{base_slug}"
 
         return format_html(
             "<p>🔮 Auto-generated key will be: <code>{}</code><br>"
-            "<small>Includes: {} (unique suffix added if needed)</small></p>",
+            "<small>Includes: {} + title slug (unique suffix added if needed)</small></p>",
             preview_key,
-            " + ".join(parts),
+            f"{type_prefix} prefix",
         )
 
     @admin.display(description="Markdown Reference")
@@ -1273,6 +1402,75 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 level=messages.ERROR,
             )
 
+    @admin.action(description="Bulk edit selected assets…")
+    def bulk_edit_assets(self, request, queryset):
+        """Intermediate-page bulk edit for common fields.
+
+        POST with `apply=1` applies the changes; otherwise renders the form.
+        """
+        selected_ids = list(queryset.values_list("pk", flat=True))
+        if not selected_ids:
+            self.message_user(
+                request, "No assets selected.", level=messages.WARNING
+            )
+            return None
+
+        if request.POST.get("apply"):
+            form = BulkEditAssetsForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                simple_updates = {}
+                for field in ("alt_text", "credit", "license"):
+                    if data[field]:
+                        simple_updates[field] = data[field]
+                if data["status"]:
+                    simple_updates["status"] = data["status"]
+                if data["is_public"] in ("0", "1"):
+                    simple_updates["is_public"] = data["is_public"] == "1"
+                if data["clear_folder"]:
+                    simple_updates["asset_folder"] = None
+                elif data["asset_folder"]:
+                    simple_updates["asset_folder"] = data["asset_folder"]
+
+                updated_count = 0
+                if simple_updates:
+                    updated_count = queryset.update(**simple_updates)
+
+                tag_mode = data["tag_mode"]
+                tags = list(data["asset_tags"])
+                tag_changes = 0
+                if tag_mode != "skip" and (tags or tag_mode == "replace"):
+                    for asset in queryset:
+                        if tag_mode == "add":
+                            asset.asset_tags.add(*tags)
+                        elif tag_mode == "replace":
+                            asset.asset_tags.set(tags)
+                        elif tag_mode == "remove":
+                            asset.asset_tags.remove(*tags)
+                        tag_changes += 1
+
+                self.message_user(
+                    request,
+                    f"Updated {updated_count or len(selected_ids)} asset(s)"
+                    + (f"; tag changes applied to {tag_changes}." if tag_changes else "."),
+                    level=messages.SUCCESS,
+                )
+                return None
+        else:
+            form = BulkEditAssetsForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": f"Bulk edit {len(selected_ids)} asset(s)",
+            "opts": self.model._meta,
+            "form": form,
+            "assets": queryset[:20],
+            "asset_count": len(selected_ids),
+            "selected_ids": selected_ids,
+            "action_checkbox_name": ACTION_CHECKBOX_NAME,
+        }
+        return render(request, "admin/engine/asset_bulk_edit.html", context)
+
     @admin.action(description="Mark as Ready")
     def mark_as_ready(self, request, queryset):
         """Mark selected assets as ready."""
@@ -1298,7 +1496,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 "Title",
                 "Type",
                 "Status",
-                "Collection",
+                "Collections",
                 "Folder",
                 "File Size",
                 "Width",
@@ -1326,8 +1524,8 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     asset.title,
                     asset.get_asset_type_display(),
                     asset.get_status_display(),
-                    asset.collection or "",
-                    asset.folder or "",
+                    ", ".join(c.name for c in asset.collections.all()),
+                    asset.asset_folder.path if asset.asset_folder else "",
                     asset.human_file_size,
                     asset.width or "",
                     asset.height or "",
@@ -1430,9 +1628,12 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 # --------------------------
 # AssetMetadata Admin
 # --------------------------
-@admin.register(AssetMetadata)
 class AssetMetadataAdmin(admin.ModelAdmin):
-    """Admin for extended asset metadata."""
+    """Admin for extended asset metadata.
+
+    Not registered with the sidebar: metadata is exposed inline on Asset.
+    Kept as a ModelAdmin subclass for potential future standalone use.
+    """
 
     list_display = (
         "asset_key_with_preview",
@@ -1710,9 +1911,12 @@ class AssetMetadataAdmin(admin.ModelAdmin):
 # --------------------------
 # AssetRendition Admin
 # --------------------------
-@admin.register(AssetRendition)
 class AssetRenditionAdmin(admin.ModelAdmin):
-    """Admin for asset renditions."""
+    """Admin for asset renditions.
+
+    Not registered with the sidebar: renditions are exposed inline on Asset.
+    Kept as a ModelAdmin subclass for potential future standalone use.
+    """
 
     list_display = (
         "rendition_display",
@@ -1772,7 +1976,7 @@ class AssetRenditionAdmin(admin.ModelAdmin):
                     ("bitrate", "codec"),
                     "is_webp",
                 ),
-                "classes": ["collapse", "unfold-column-2"],
+                "classes": ["collapse"],
             },
         ),
         (
@@ -1989,8 +2193,7 @@ class AssetCollectionAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_public", "user", "created_at")
     search_fields = ("name", "description")
-    autocomplete_fields = ["user", "cover_asset"]
-    filter_horizontal = ["assets"]
+    autocomplete_fields = ["user", "cover_asset", "assets"]
     readonly_fields = ("created_at", "updated_at", "asset_count_display")
 
     fieldsets = (

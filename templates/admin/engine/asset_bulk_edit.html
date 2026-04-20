@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='engine' %}">Engine</a>
+  &rsaquo; <a href="{% url 'admin:engine_asset_changelist' %}">Assets</a>
+  &rsaquo; Bulk edit
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="help">
+  Fields left blank are ignored. Choose a tag mode to add, replace, or remove tags;
+  leave it on <em>Leave tags unchanged</em> to skip tag updates entirely.
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="bulk_edit_assets">
+  <input type="hidden" name="apply" value="1">
+  {% for pk in selected_ids %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ pk }}">
+  {% endfor %}
+
+  <fieldset class="module aligned">
+    <h2>Fields to update</h2>
+    {% for field in form %}
+      <div class="form-row field-{{ field.name }}">
+        <div>
+          <div class="flex-container">
+            {{ field.label_tag }}
+            {{ field }}
+          </div>
+          {% if field.help_text %}<div class="help">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" class="default" value="Apply to {{ asset_count }} asset(s)">
+    <a href="{% url 'admin:engine_asset_changelist' %}" class="button cancel-link">Cancel</a>
+  </div>
+</form>
+
+<fieldset class="module aligned" style="margin-top:24px;">
+  <h2>Preview ({{ asset_count }} selected — showing first {{ assets|length }})</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:6px;">Key</th>
+        <th style="text-align:left;padding:6px;">Title</th>
+        <th style="text-align:left;padding:6px;">Type</th>
+        <th style="text-align:left;padding:6px;">Folder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in assets %}
+        <tr>
+          <td style="padding:6px;"><code>{{ a.key }}</code></td>
+          <td style="padding:6px;">{{ a.title }}</td>
+          <td style="padding:6px;">{{ a.get_asset_type_display }}</td>
+          <td style="padding:6px;">{{ a.asset_folder.path|default:"—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</fieldset>
+{% endblock %}

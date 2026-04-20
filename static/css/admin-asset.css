@@ -1,0 +1,70 @@
+/* Admin list-view badges for AssetAdmin (+ related asset admins).
+ * Uses Django admin CSS variables so light/dark mode both look right.
+ */
+
+.asset-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  background: var(--darkened-bg);
+  color: var(--body-fg);
+  line-height: 1.2;
+}
+
+.asset-badge--sm {
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+/* Asset type badges — border-accented, neutral background */
+.asset-type {
+  border-color: var(--border-color);
+}
+.asset-type--image    { border-left: 3px solid #1e88e5; }
+.asset-type--video    { border-left: 3px solid #d81b60; }
+.asset-type--audio    { border-left: 3px solid #8e24aa; }
+.asset-type--document { border-left: 3px solid #ef6c00; }
+.asset-type--archive  { border-left: 3px solid #43a047; }
+.asset-type--other    { border-left: 3px solid var(--body-quiet-color); }
+
+/* Folder badge */
+.asset-folder {
+  border-left: 3px solid #ef6c00;
+}
+
+/* Collection badge */
+.asset-collection {
+  border-left: 3px solid #8e24aa;
+  margin-right: 4px;
+}
+
+/* Status badges — use admin semantic colors where available */
+.asset-status--uploading,
+.asset-status--processing {
+  border-left: 3px solid var(--link-fg, #447e9b);
+}
+.asset-status--ready {
+  border-left: 3px solid #2e7d32;
+  color: var(--body-fg);
+}
+.asset-status--failed {
+  border-left: 3px solid #c62828;
+}
+.asset-status--archived {
+  border-left: 3px solid var(--body-quiet-color);
+  color: var(--body-quiet-color);
+}
+
+/* Usage indicator */
+.asset-usage--none   { color: var(--body-quiet-color); }
+.asset-usage--low    { color: var(--link-fg, #447e9b); font-weight: 600; }
+.asset-usage--med    { color: #2e7d32; font-weight: 600; }
+.asset-usage--high   { color: #6a1b9a; font-weight: 600; }
+
+/* Muted placeholder text (e.g. "—" for no value) */
+.asset-muted {
+  color: var(--body-quiet-color);
+}

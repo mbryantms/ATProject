@@ -2745,8 +2745,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         forces that work synchronously for the selected posts, which is
         useful after pipeline changes or a content/asset migration.
         """
-        from engine.markdown.renderer import render_markdown
         from engine.markdown.extensions.toc_extractor import extract_toc_from_html
+        from engine.markdown.renderer import render_markdown
 
         count = 0
         failed = 0

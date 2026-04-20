@@ -445,6 +445,21 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
+# ==============================================================================
+# ASSET PIPELINE
+# ==============================================================================
+# Widths generated for responsive images. Widths >= original are skipped.
+# Override via env as comma-separated list, e.g. "480,960,1440".
+_rendition_widths_env = env("ASSET_RENDITION_WIDTHS", default="")
+ASSET_RENDITION_WIDTHS = (
+    [int(w.strip()) for w in _rendition_widths_env.split(",") if w.strip()]
+    if _rendition_widths_env
+    else [400, 800, 1200, 1600]
+)
+# JPEG quality (1-95). Higher = larger files, better quality.
+ASSET_RENDITION_JPEG_QUALITY = env.int("ASSET_RENDITION_JPEG_QUALITY", default=85)
+
+
 # Recommended dev defaults
 CELERY_TASK_ALWAYS_EAGER = False  # set True in unit tests
 CELERY_TASK_EAGER_PROPAGATES = False

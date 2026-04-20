@@ -2,8 +2,10 @@
 Utility functions for the engine app, including asset rendition generation.
 """
 
+import logging
 from io import BytesIO
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -11,18 +13,23 @@ from PIL import Image
 
 from .storage_utils import ensure_local_file, open_field_file
 
+logger = logging.getLogger(__name__)
+
 
 def generate_asset_renditions(asset, widths=None, formats=None):
     """
     Generate responsive renditions for an image asset.
 
+    Each rendition's status moves PENDING → PROCESSING → COMPLETED (or FAILED).
+    Widths and JPEG quality are read from Django settings when not overridden.
+
     Args:
         asset: Asset instance (must be image type)
-        widths: List of widths to generate (default: [400, 800, 1200, 1600])
+        widths: List of widths (default: settings.ASSET_RENDITION_WIDTHS)
         formats: List of formats (default: ['auto'] - keeps original format)
 
     Returns:
-        List of created AssetRendition instances
+        List of AssetRendition instances that were touched (created or refreshed).
     """
     from .models import AssetRendition
 
@@ -30,12 +37,15 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         return []
 
     if widths is None:
-        widths = [400, 800, 1200, 1600]
-
+        widths = getattr(
+            settings, "ASSET_RENDITION_WIDTHS", [400, 800, 1200, 1600]
+        )
     if formats is None:
         formats = ["auto"]
 
-    renditions = []
+    jpeg_quality = getattr(settings, "ASSET_RENDITION_JPEG_QUALITY", 85)
+
+    touched = []
 
     try:
         file_obj = open_field_file(asset.file)
@@ -45,76 +55,92 @@ def generate_asset_renditions(asset, widths=None, formats=None):
             original_format = (img.format or "JPEG").upper()
 
             for width in widths:
-                # Skip if requested width is larger than original
                 if width >= original_width:
                     continue
 
                 for fmt in formats:
-                    # Calculate proportional height
                     height = int((width / original_width) * original_height)
-
-                    # Resize image
-                    resized_img = img.copy()
-                    resized_img.thumbnail((width, height), Image.Resampling.LANCZOS)
-
-                    # Determine output format
-                    if fmt == "auto":
-                        output_format = original_format
-                        ext = output_format.lower()
-                    else:
-                        output_format = fmt.upper()
-                        ext = fmt.lower()
-
-                    # Save to BytesIO
-                    output = BytesIO()
-                    if output_format == "JPEG":
-                        resized_img = resized_img.convert("RGB")
-                        resized_img.save(
-                            output,
-                            format=output_format,
-                            quality=85,
-                            optimize=True,
-                        )
-                    else:
-                        resized_img.save(output, format=output_format, optimize=True)
-
-                    output.seek(0)
-                    content = output.read()
-                    file_size = len(content)
-
-                    # Check if rendition already exists
-                    rendition, created = AssetRendition.objects.get_or_create(
+                    rendition, _ = AssetRendition.objects.get_or_create(
                         asset=asset,
                         width=width,
                         format=fmt,
+                        quality="high",
                         defaults={
                             "height": height,
-                            "file_size": file_size,
+                            "status": AssetRendition.Status.PENDING,
                         },
                     )
-
-                    if not created and rendition.file:
-                        # Rendition already exists with file, skip
+                    if rendition.file and rendition.status == AssetRendition.Status.COMPLETED:
                         continue
 
-                    # Save file to rendition
-                    filename = f"{asset.key}-{width}w.{ext}"
-                    rendition.file.save(filename, ContentFile(content), save=False)
-                    rendition.height = height
-                    rendition.file_size = file_size
-                    rendition.save()
+                    rendition.status = AssetRendition.Status.PROCESSING
+                    rendition.error_message = ""
+                    rendition.save(update_fields=["status", "error_message"])
 
-                    renditions.append(rendition)
+                    try:
+                        resized_img = img.copy()
+                        resized_img.thumbnail(
+                            (width, height), Image.Resampling.LANCZOS
+                        )
+
+                        if fmt == "auto":
+                            output_format = original_format
+                            ext = output_format.lower()
+                        else:
+                            output_format = fmt.upper()
+                            ext = fmt.lower()
+
+                        output = BytesIO()
+                        if output_format == "JPEG":
+                            resized_img = resized_img.convert("RGB")
+                            resized_img.save(
+                                output,
+                                format=output_format,
+                                quality=jpeg_quality,
+                                optimize=True,
+                            )
+                        else:
+                            resized_img.save(
+                                output, format=output_format, optimize=True
+                            )
+
+                        output.seek(0)
+                        content = output.read()
+
+                        filename = f"{asset.key}-{width}w.{ext}"
+                        rendition.file.save(
+                            filename, ContentFile(content), save=False
+                        )
+                        rendition.height = height
+                        rendition.file_size = len(content)
+                        rendition.status = AssetRendition.Status.COMPLETED
+                        rendition.save()
+                        touched.append(rendition)
+                    except Exception as render_exc:
+                        rendition.status = AssetRendition.Status.FAILED
+                        rendition.error_message = str(render_exc)[:500]
+                        rendition.save(
+                            update_fields=["status", "error_message"]
+                        )
+                        logger.warning(
+                            "Rendition %sw (%s) failed for asset %s: %s",
+                            width,
+                            fmt,
+                            asset.key,
+                            render_exc,
+                        )
 
         try:
             file_obj.seek(0)
         except Exception:
             pass
 
-    except Exception as e:
-        print(f"Error generating renditions for {asset.key}: {e}")
+    except Exception as exc:
+        logger.exception(
+            "Rendition pipeline aborted for asset %s: %s", asset.key, exc
+        )
 
-    return renditions
+    return touched
 
 
 @receiver(post_save, sender="engine.Asset")
