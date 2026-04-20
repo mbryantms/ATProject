@@ -506,7 +506,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     ("original_filename", "file_hash"),
                 ],
                 "classes": ["collapse"],
-                "description": "Auto-populated on upload. Use 'Populate metadata' admin action to refresh.",
+                "description": "Auto-populated on upload. Use the <em>Populate metadata (dimensions, MIME type, file size)</em> admin action on the changelist to refresh.",
             },
         ),
         (
@@ -555,6 +555,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     actions = [
         "bulk_edit_assets",
+        "populate_metadata",
         "extract_extended_metadata",
         "extract_metadata_async_action",
         "generate_renditions",
@@ -1044,7 +1045,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 f'<strong class="mk-meta-incomplete">⚠ Incomplete</strong> '
                 f"({present}/{total} fields)<br>"
                 f'<span class="mk-muted">Missing: {", ".join(missing)}</span><br>'
-                '<em class="mk-muted">Use "Populate metadata" action to auto-fill</em>'
+                '<em class="mk-muted">Run the &ldquo;Populate metadata&rdquo; admin action to auto-fill.</em>'
             )
 
         return mark_safe(status_html)
