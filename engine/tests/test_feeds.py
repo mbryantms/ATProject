@@ -80,12 +80,15 @@ class GlobalFeedTests(FeedSetupMixin, TestCase):
     def test_rss_returns_200(self):
         response = self.client.get("/feed/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("rss+xml", response["Content-Type"])
+        # Feeds are deliberately served as application/xml (not
+        # application/rss+xml) so browsers apply the XSLT stylesheet even
+        # with X-Content-Type-Options: nosniff. See engine/feeds.py.
+        self.assertIn("application/xml", response["Content-Type"])
 
     def test_atom_returns_200(self):
         response = self.client.get("/feed/atom/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("atom+xml", response["Content-Type"])
+        self.assertIn("application/xml", response["Content-Type"])
 
     def test_rss_contains_published_public_post(self):
         response = self.client.get("/feed/")
@@ -156,7 +159,7 @@ class TagFeedTests(FeedSetupMixin, TestCase):
     def test_atom_variant_returns_200(self):
         response = self.client.get(f"/feed/tag/{self.tag.slug}/atom/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("atom+xml", response["Content-Type"])
+        self.assertIn("application/xml", response["Content-Type"])
 
     def test_excludes_posts_without_the_tag(self):
         response = self.client.get(f"/feed/tag/{self.tag.slug}/")
@@ -225,7 +228,7 @@ class FeedTypeRegressionTests(FeedSetupMixin, TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
-                self.assertIn("rss+xml", response["Content-Type"])
+                self.assertIn("application/xml", response["Content-Type"])
 
     def test_every_atom_route_renders(self):
         urls = [
@@ -239,7 +242,7 @@ class FeedTypeRegressionTests(FeedSetupMixin, TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
-                self.assertIn("atom+xml", response["Content-Type"])
+                self.assertIn("application/xml", response["Content-Type"])
 
 
 class FeedStylesheetTests(FeedSetupMixin, TestCase):

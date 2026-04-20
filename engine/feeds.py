@@ -13,7 +13,7 @@ import mimetypes
 from django.contrib.syndication.views import Feed
 from django.http import Http404
 from django.templatetags.static import static
-from django.utils.feedgenerator import Atom1Feed, Stylesheet
+from django.utils.feedgenerator import Atom1Feed, Rss201rev2Feed, Stylesheet
 from django.utils.xmlutils import SimplerXMLGenerator
 
 from .models import Category, Post, Series, SiteSettings, Tag, TagAlias
@@ -33,6 +33,33 @@ _RSS_XSL_PATH = "feeds/rss.xsl"
 _ATOM_XSL_PATH = "feeds/atom.xsl"
 
 
+#
+# Why the feeds are served as ``application/xml`` and not the more specific
+# ``application/rss+xml`` / ``application/atom+xml`` that Django ships by
+# default:
+#
+# Our Django ``SecurityMiddleware`` sends ``X-Content-Type-Options: nosniff``
+# on every response, forcing browsers to honor the declared Content-Type
+# exactly. Safari (and some Chrome configurations) treat the two feed-specific
+# MIME types as "subscribe, don't render" — the browser downloads the XML
+# even when a ``<?xml-stylesheet?>`` PI is present. ``application/xml``
+# routes the response through the browser's normal XML + XSLT pipeline, so
+# the stylesheet is applied and the human-readable page renders.
+#
+# Every mainstream feed reader (Feedly, NetNewsWire, Inoreader, Miniflux,
+# Tiny Tiny RSS, Fraidycat, command-line ``feedparser``) sniffs the XML body
+# rather than keying off this header, so discovery and subscription are
+# unaffected. Browser autodiscovery still uses ``<link rel="alternate"
+# type="application/rss+xml" …>`` which we emit on every page head.
+_XML_CONTENT_TYPE = "application/xml; charset=utf-8"
+
+
+class StyledRssFeed(Rss201rev2Feed):
+    """RSS feed served as application/xml so browsers render the XSL."""
+
+    content_type = _XML_CONTENT_TYPE
+
+
 class StyledAtomFeed(Atom1Feed):
     """Atom feed that emits a ``<?xml-stylesheet?>`` PI like RssFeed does.
 
@@ -40,7 +67,12 @@ class StyledAtomFeed(Atom1Feed):
     that ``RssFeed.write()`` makes between ``startDocument()`` and the root
     element, so stylesheet PIs never appear on Atom output. We override both
     hooks minimally — everything else remains Django's implementation.
+
+    Also overrides ``content_type`` so browsers render the XSL (see the
+    comment above ``_XML_CONTENT_TYPE`` for why).
     """
+
+    content_type = _XML_CONTENT_TYPE
 
     def add_stylesheets(self, handler):
         for stylesheet in self.feed["stylesheets"] or []:
@@ -59,9 +91,11 @@ class StyledAtomFeed(Atom1Feed):
 class BasePostFeed(Feed):
     """Shared rendering for every site feed."""
 
-    # Inherit Feed.feed_type (Rss201rev2Feed) by default; Atom subclasses
-    # override to StyledAtomFeed. Do not assign None here — that would shadow
-    # the parent default and crash get_feed() with `'NoneType' object is not callable`.
+    # Every RSS feed goes through StyledRssFeed (application/xml + styled XSL);
+    # Atom subclasses swap to StyledAtomFeed. Do not assign None here — that
+    # would shadow the parent default and crash get_feed() with
+    # ``'NoneType' object is not callable``.
+    feed_type = StyledRssFeed
 
     # Every RSS feed ships with a browser-facing XSLT rendering. Atom variants
     # override ``_stylesheet_path`` to point at atom.xsl.
