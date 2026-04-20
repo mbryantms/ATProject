@@ -4873,10 +4873,12 @@ a[data-link-icon-color]:hover {
 
 /* Suppress the project-wide star bullet (ul > li::before) and the matching
  * left indent (li { padding-left: var(--list-left-padding) }) on this page —
- * the rows already have their own typographic structure. */
+ * the rows already have their own typographic structure.
+ *
+ * Do NOT set `display` here — .feed-index-row already sets display: flex on
+ * the same <li>, and this selector has higher specificity. */
 .feed-index-list > li {
   padding-left: 0;
-  display: block;
 }
 .feed-index-list > li::before {
   content: none;

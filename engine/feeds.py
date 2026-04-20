@@ -10,7 +10,6 @@ handles the rest.
 
 import mimetypes
 
-from django.conf import settings as django_settings
 from django.contrib.syndication.views import Feed
 from django.http import Http404
 from django.templatetags.static import static
@@ -84,8 +83,11 @@ class BasePostFeed(Feed):
     def description(self):
         return SiteSettings.load().site_description or "Latest posts"
 
-    def language(self):
-        return django_settings.LANGUAGE_CODE
+    # ``language`` is read directly off ``self`` by Django's Feed.get_feed()
+    # (see django/contrib/syndication/views.py — NOT via _get_dynamic_attr).
+    # If we defined a method here, Django would pass the bound-method object
+    # to the feed constructor and emit <language>&lt;bound method…&gt;</language>.
+    # Leaving it unset lets Django fall back to translation.get_language().
 
     # ---------- items ----------
 

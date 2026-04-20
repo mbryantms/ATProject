@@ -10,11 +10,19 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import mimetypes
 import os
 from pathlib import Path
 
 import environ
 from django.utils.csp import CSP
+
+# Register XSLT MIME types globally so WhiteNoise serves static/feeds/*.xsl
+# with a Content-Type browsers will actually process. The default Debian-slim
+# mimetypes DB on Railway answers "application/octet-stream" for .xsl, which
+# makes browsers refuse the stylesheet and fall back to downloading the feed.
+mimetypes.add_type("text/xsl", ".xsl")
+mimetypes.add_type("text/xsl", ".xslt")
 
 env = environ.Env(
     # set casting, default value
@@ -334,6 +342,16 @@ STATICFILES_DIRS = [
 ]
 # For Whitenoise
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# WhiteNoise uses its own hardcoded media_types.default_types() dict rather
+# than Python's mimetypes module, so the mimetypes.add_type() calls at the top
+# of this file don't reach it in production. Register .xsl here so browsers
+# actually process the XSLT stylesheet on feed pages. (Without this the file
+# is served as application/octet-stream, which browsers refuse to apply.)
+WHITENOISE_MIMETYPES = {
+    ".xsl": "text/xsl",
+    ".xslt": "text/xsl",
+}
 
 # Only in development
 if DEBUG:
