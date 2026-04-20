@@ -4871,11 +4871,23 @@ a[data-link-icon-color]:hover {
   margin: 0;
 }
 
+/* Suppress the project-wide star bullet (ul > li::before) and the matching
+ * left indent (li { padding-left: var(--list-left-padding) }) on this page —
+ * the rows already have their own typographic structure. */
+.feed-index-list > li {
+  padding-left: 0;
+  display: block;
+}
+.feed-index-list > li::before {
+  content: none;
+  display: none;
+}
+
 .feed-index-row {
   display: flex;
   gap: 1.5em;
   align-items: center;
-  padding: 0.9em 0;
+  padding: 0.9em 0 0.9em 0;
   border-bottom: 1px solid var(--AT-blockquote-border-color-level-one, #ccc);
 }
 

@@ -245,19 +245,24 @@ class FeedTypeRegressionTests(FeedSetupMixin, TestCase):
 class FeedStylesheetTests(FeedSetupMixin, TestCase):
     """Every RSS and Atom feed must carry the XSLT processing instruction so
     browsers render a human-readable page instead of downloading XML.
+
+    The URLs inside the PI must go through ``django.templatetags.static.static``
+    so that manifest-hashed filenames are honored in production. We assert the
+    URL contains the leaf name (rss.xsl / atom.xsl) but don't pin the exact
+    path because staticfiles storage may add a hash in some configurations.
     """
 
     def test_rss_feed_links_rss_stylesheet(self):
         response = self.client.get("/feed/")
         body = response.content.decode("utf-8")
         self.assertIn("<?xml-stylesheet", body)
-        self.assertIn("/static/feeds/rss.xsl", body)
+        self.assertRegex(body, r"/static/feeds/rss(\.[0-9a-f]+)?\.xsl")
 
     def test_atom_feed_links_atom_stylesheet(self):
         response = self.client.get("/feed/atom/")
         body = response.content.decode("utf-8")
         self.assertIn("<?xml-stylesheet", body)
-        self.assertIn("/static/feeds/atom.xsl", body)
+        self.assertRegex(body, r"/static/feeds/atom(\.[0-9a-f]+)?\.xsl")
 
     def test_stylesheet_is_before_root_element(self):
         """PI must come after <?xml ...?> and before the root element."""
@@ -270,16 +275,18 @@ class FeedStylesheetTests(FeedSetupMixin, TestCase):
         self.assertLess(pi_start, root_start)
 
     def test_scoped_feeds_carry_stylesheet(self):
-        for url, expected in [
-            (f"/feed/tag/{self.tag.slug}/", "/static/feeds/rss.xsl"),
-            (f"/feed/tag/{self.tag.slug}/atom/", "/static/feeds/atom.xsl"),
-            (f"/feed/category/{self.category.slug}/", "/static/feeds/rss.xsl"),
-            (f"/feed/series/{self.series.slug}/atom/", "/static/feeds/atom.xsl"),
-            ("/feed/featured/", "/static/feeds/rss.xsl"),
+        rss_pat = r"/static/feeds/rss(\.[0-9a-f]+)?\.xsl"
+        atom_pat = r"/static/feeds/atom(\.[0-9a-f]+)?\.xsl"
+        for url, pattern in [
+            (f"/feed/tag/{self.tag.slug}/", rss_pat),
+            (f"/feed/tag/{self.tag.slug}/atom/", atom_pat),
+            (f"/feed/category/{self.category.slug}/", rss_pat),
+            (f"/feed/series/{self.series.slug}/atom/", atom_pat),
+            ("/feed/featured/", rss_pat),
         ]:
             with self.subTest(url=url):
                 response = self.client.get(url)
-                self.assertIn(expected, response.content.decode("utf-8"))
+                self.assertRegex(response.content.decode("utf-8"), pattern)
 
 
 class FeedIndexViewTests(FeedSetupMixin, TestCase):

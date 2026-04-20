@@ -13,6 +13,7 @@ import mimetypes
 from django.conf import settings as django_settings
 from django.contrib.syndication.views import Feed
 from django.http import Http404
+from django.templatetags.static import static
 from django.utils.feedgenerator import Atom1Feed, Stylesheet
 from django.utils.xmlutils import SimplerXMLGenerator
 
@@ -20,11 +21,17 @@ from .models import Category, Post, Series, SiteSettings, Tag, TagAlias
 
 DEFAULT_ITEM_LIMIT = 20
 
-# XSLT stylesheets that give the raw RSS/Atom XML a human-readable rendering
-# in browsers. Feed readers ignore the <?xml-stylesheet?> processing
+# Paths to the XSLT stylesheets that give the raw RSS/Atom XML a human-readable
+# rendering in browsers. Feed readers ignore the <?xml-stylesheet?> processing
 # instruction and consume the XML as normal. See static/feeds/*.xsl.
-RSS_STYLESHEET = Stylesheet("/static/feeds/rss.xsl", media="screen")
-ATOM_STYLESHEET = Stylesheet("/static/feeds/atom.xsl", media="screen")
+#
+# IMPORTANT: we resolve the URL via django.templatetags.static.static() at
+# request time rather than hardcoding "/static/feeds/rss.xsl". Production uses
+# CompressedManifestStaticFilesStorage (whitenoise) which serves only hashed
+# filenames like feeds/rss.42666a0a.xsl, so the unhashed path would 404 and
+# the browser would fall back to downloading the XML.
+_RSS_XSL_PATH = "feeds/rss.xsl"
+_ATOM_XSL_PATH = "feeds/atom.xsl"
 
 
 class StyledAtomFeed(Atom1Feed):
@@ -58,8 +65,13 @@ class BasePostFeed(Feed):
     # the parent default and crash get_feed() with `'NoneType' object is not callable`.
 
     # Every RSS feed ships with a browser-facing XSLT rendering. Atom variants
-    # override this to point at atom.xsl.
-    stylesheets = [RSS_STYLESHEET]
+    # override ``_stylesheet_path`` to point at atom.xsl.
+    _stylesheet_path = _RSS_XSL_PATH
+
+    def stylesheets(self):
+        # Resolved through static() at request time so the hashed filename
+        # from CompressedManifestStaticFilesStorage is honored in production.
+        return [Stylesheet(static(self._stylesheet_path), media="screen")]
 
     # ---------- channel-level (override per subclass when scoped) ----------
 
@@ -158,7 +170,7 @@ class PostAtomFeed(PostFeed):
     """Atom 1.0 twin of :class:`PostFeed`."""
 
     feed_type = StyledAtomFeed
-    stylesheets = [ATOM_STYLESHEET]
+    _stylesheet_path = _ATOM_XSL_PATH
     subtitle = PostFeed.description
 
 
@@ -198,7 +210,7 @@ class TagFeed(BasePostFeed):
 
 class TagAtomFeed(TagFeed):
     feed_type = StyledAtomFeed
-    stylesheets = [ATOM_STYLESHEET]
+    _stylesheet_path = _ATOM_XSL_PATH
     subtitle = TagFeed.description
 
 
@@ -232,7 +244,7 @@ class CategoryFeed(BasePostFeed):
 
 class CategoryAtomFeed(CategoryFeed):
     feed_type = StyledAtomFeed
-    stylesheets = [ATOM_STYLESHEET]
+    _stylesheet_path = _ATOM_XSL_PATH
     subtitle = CategoryFeed.description
 
 
@@ -274,7 +286,7 @@ class SeriesFeed(BasePostFeed):
 
 class SeriesAtomFeed(SeriesFeed):
     feed_type = StyledAtomFeed
-    stylesheets = [ATOM_STYLESHEET]
+    _stylesheet_path = _ATOM_XSL_PATH
     subtitle = SeriesFeed.description
 
 
@@ -299,5 +311,5 @@ class FeaturedFeed(BasePostFeed):
 
 class FeaturedAtomFeed(FeaturedFeed):
     feed_type = StyledAtomFeed
-    stylesheets = [ATOM_STYLESHEET]
+    _stylesheet_path = _ATOM_XSL_PATH
     subtitle = FeaturedFeed.description
