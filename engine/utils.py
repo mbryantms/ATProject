@@ -246,15 +246,38 @@ def _extract_video_stream_metadata(instance, note, result):
     Reports actionable errors on ``result["errors"]`` rather than swallowing.
     """
     import json
+    import shutil
     import subprocess
     from datetime import timedelta
     from decimal import Decimal
 
+    ffprobe_bin = shutil.which("ffprobe")
+    if not ffprobe_bin:
+        result["errors"].append(
+            "ffprobe is not on the PATH of this process — cannot extract video metadata."
+        )
+        return
+
+    # Download the R2/S3 object to a local temp file for ffprobe to read.
     try:
-        with ensure_local_file(instance.file) as local_path:
+        cm = ensure_local_file(instance.file)
+        local_path = cm.__enter__()
+    except FileNotFoundError as exc:
+        result["errors"].append(
+            f"Could not open the source file from storage (FileNotFoundError: {exc}). "
+            "The underlying R2 object may be missing."
+        )
+        return
+    except Exception as exc:
+        logger.exception("ensure_local_file failed for %s", instance.key)
+        result["errors"].append(f"Could not download file from storage: {exc}")
+        return
+
+    try:
+        try:
             proc = subprocess.run(
                 [
-                    "ffprobe",
+                    ffprobe_bin,
                     "-v",
                     "quiet",
                     "-print_format",
@@ -266,18 +289,18 @@ def _extract_video_stream_metadata(instance, note, result):
                 text=True,
                 timeout=30,
             )
-    except FileNotFoundError:
-        result["errors"].append(
-            "ffprobe is not installed on this host — cannot extract video metadata."
-        )
-        return
-    except subprocess.TimeoutExpired:
-        result["errors"].append("ffprobe timed out after 30s.")
-        return
-    except Exception as exc:
-        logger.exception("ffprobe invocation failed for %s", instance.key)
-        result["errors"].append(f"ffprobe invocation failed: {exc}")
-        return
+        except subprocess.TimeoutExpired:
+            result["errors"].append("ffprobe timed out after 30s.")
+            return
+        except Exception as exc:
+            logger.exception("ffprobe invocation failed for %s", instance.key)
+            result["errors"].append(f"ffprobe invocation failed: {exc}")
+            return
+    finally:
+        try:
+            cm.__exit__(None, None, None)
+        except Exception:
+            pass
 
     if proc.returncode != 0:
         stderr = (proc.stderr or "").strip().splitlines()

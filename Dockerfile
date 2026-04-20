@@ -34,9 +34,13 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Install system dependencies
+# - gcc / libpq-dev: build-time for psycopg
+# - ffmpeg: provides `ffprobe`, used by the asset pipeline to extract video
+#   dimensions / duration / bitrate / frame-rate on upload.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Node.js runtime from builder stage (for citeproc-js subprocess only)
