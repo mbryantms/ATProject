@@ -143,135 +143,194 @@ def generate_asset_renditions(asset, widths=None, formats=None):
     return touched
 
 
-@receiver(post_save, sender="engine.Asset")
-def populate_asset_metadata(sender, instance, created, **kwargs):
-    """
-    Signal handler to populate metadata and generate renditions when asset is uploaded.
+def refresh_asset_metadata(instance) -> dict:
+    """Populate core file metadata on an Asset and return a structured result.
+
+    Returns a dict with:
+      - updated: list of field names whose value changed
+      - skipped: list of fields that were already populated
+      - errors:  list of human-readable error strings (surface to user)
+    The caller is responsible for saving ``instance`` if ``updated`` is non-empty.
     """
     import mimetypes
 
-    # Only process on creation or if file changed
+    result = {"updated": [], "skipped": [], "errors": []}
+
     if not instance.file:
-        return
-
-    # Skip for presigned uploads - file doesn't exist yet
+        result["errors"].append("Asset has no file attached.")
+        return result
     if instance.status == "uploading" and instance.upload_token:
-        return
+        result["errors"].append(
+            "Presigned upload is still in progress; skipping metadata refresh."
+        )
+        return result
 
-    needs_save = False
+    def _note(field, value):
+        setattr(instance, field, value)
+        result["updated"].append(field)
 
-    # Populate MIME type if missing
+    # MIME type
     if not instance.mime_type:
         mime_type, _ = mimetypes.guess_type(instance.file.name)
         if mime_type:
-            instance.mime_type = mime_type
-            needs_save = True
+            _note("mime_type", mime_type)
+        else:
+            result["errors"].append(
+                "Could not guess MIME type from file extension."
+            )
+    else:
+        result["skipped"].append("mime_type")
 
-    # Populate file size if missing
+    # File size
     if not instance.file_size:
         try:
-            instance.file_size = instance.file.size
-            needs_save = True
-        except Exception:
-            pass
+            _note("file_size", instance.file.size)
+        except Exception as exc:
+            result["errors"].append(f"file_size: {exc}")
+    else:
+        result["skipped"].append("file_size")
 
-    # Calculate file hash if missing (for deduplication)
+    # File hash
     if not instance.file_hash:
         try:
             import hashlib
 
             file_obj = open_field_file(instance.file)
             file_obj.seek(0)
-            file_hash = hashlib.sha256(file_obj.read()).hexdigest()
-            instance.file_hash = file_hash
+            _note("file_hash", hashlib.sha256(file_obj.read()).hexdigest())
             try:
                 file_obj.seek(0)
             except Exception:
                 pass
-            needs_save = True
-        except Exception:
-            pass
+        except Exception as exc:
+            result["errors"].append(f"file_hash: {exc}")
+    else:
+        result["skipped"].append("file_hash")
 
-    # Extract dimensions for images
-    if instance.asset_type == "image" and (not instance.width or not instance.height):
-        try:
-            file_obj = open_field_file(instance.file)
-            with Image.open(file_obj) as img:
-                img.load()
-                instance.width, instance.height = img.size
-                needs_save = True
+    # Image dimensions
+    if instance.asset_type == "image":
+        if not instance.width or not instance.height:
             try:
-                file_obj.seek(0)
-            except Exception:
-                pass
-        except Exception as e:
-            print(f"Error extracting image dimensions for {instance.key}: {e}")
+                file_obj = open_field_file(instance.file)
+                with Image.open(file_obj) as img:
+                    img.load()
+                    w, h = img.size
+                if not instance.width:
+                    _note("width", w)
+                if not instance.height:
+                    _note("height", h)
+                try:
+                    file_obj.seek(0)
+                except Exception:
+                    pass
+            except Exception as exc:
+                logger.exception("Image dimension extraction failed for %s", instance.key)
+                result["errors"].append(f"image dimensions: {exc}")
+        else:
+            result["skipped"].extend(["width", "height"])
 
-    # Extract dimensions for videos
-    if instance.asset_type == "video" and (
-        not instance.width
-        or not instance.height
-        or not instance.duration
-        or not instance.bitrate
-        or not instance.frame_rate
-    ):
-        try:
-            import json
-            import subprocess
-            from datetime import timedelta
-            from decimal import Decimal
+    # Video dimensions + duration + bitrate + frame rate via ffprobe
+    if instance.asset_type == "video":
+        video_fields = ("width", "height", "duration", "bitrate", "frame_rate")
+        if all(getattr(instance, f) for f in video_fields):
+            result["skipped"].extend(video_fields)
+        else:
+            _extract_video_stream_metadata(instance, _note, result)
 
-            with ensure_local_file(instance.file) as local_path:
-                result = subprocess.run(
-                    [
-                        "ffprobe",
-                        "-v",
-                        "quiet",
-                        "-print_format",
-                        "json",
-                        "-show_streams",
-                        local_path,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
+    return result
 
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                for stream in data.get("streams", []):
-                    if stream.get("codec_type") == "video":
-                        if not instance.width:
-                            instance.width = stream.get("width")
-                            needs_save = True
-                        if not instance.height:
-                            instance.height = stream.get("height")
-                            needs_save = True
-                        if not instance.duration and stream.get("duration"):
-                            duration_seconds = float(stream["duration"])
-                            instance.duration = timedelta(seconds=duration_seconds)
-                            needs_save = True
-                        if not instance.bitrate and stream.get("bit_rate"):
-                            bitrate_bps = int(stream["bit_rate"])
-                            instance.bitrate = bitrate_bps // 1000
-                            needs_save = True
-                        if not instance.frame_rate and stream.get("r_frame_rate"):
-                            frame_rate_str = stream["r_frame_rate"]
-                            if "/" in frame_rate_str:
-                                num, den = frame_rate_str.split("/")
-                                if den != "0":
-                                    frame_rate = float(num) / float(den)
-                                    instance.frame_rate = Decimal(
-                                        str(round(frame_rate, 2))
-                                    )
-                                    needs_save = True
-                        break
-        except FileNotFoundError:
-            print(
-                f"ffprobe not found - cannot extract video metadata for {instance.key}"
+
+def _extract_video_stream_metadata(instance, note, result):
+    """Run ffprobe and copy stream metadata onto ``instance``.
+
+    Reports actionable errors on ``result["errors"]`` rather than swallowing.
+    """
+    import json
+    import subprocess
+    from datetime import timedelta
+    from decimal import Decimal
+
+    try:
+        with ensure_local_file(instance.file) as local_path:
+            proc = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    local_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
-        except Exception as e:
-            print(f"Error extracting video metadata for {instance.key}: {e}")
+    except FileNotFoundError:
+        result["errors"].append(
+            "ffprobe is not installed on this host — cannot extract video metadata."
+        )
+        return
+    except subprocess.TimeoutExpired:
+        result["errors"].append("ffprobe timed out after 30s.")
+        return
+    except Exception as exc:
+        logger.exception("ffprobe invocation failed for %s", instance.key)
+        result["errors"].append(f"ffprobe invocation failed: {exc}")
+        return
+
+    if proc.returncode != 0:
+        stderr = (proc.stderr or "").strip().splitlines()
+        snippet = stderr[-1] if stderr else f"exit {proc.returncode}"
+        result["errors"].append(f"ffprobe failed: {snippet}")
+        return
+
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        result["errors"].append(f"ffprobe output was not valid JSON: {exc}")
+        return
+
+    video_streams = [s for s in data.get("streams", []) if s.get("codec_type") == "video"]
+    if not video_streams:
+        result["errors"].append("ffprobe reported no video streams in this file.")
+        return
+
+    stream = video_streams[0]
+    if not instance.width and stream.get("width"):
+        note("width", int(stream["width"]))
+    if not instance.height and stream.get("height"):
+        note("height", int(stream["height"]))
+    if not instance.duration and stream.get("duration"):
+        try:
+            note("duration", timedelta(seconds=float(stream["duration"])))
+        except (TypeError, ValueError) as exc:
+            result["errors"].append(f"duration parse failed: {exc}")
+    if not instance.bitrate and stream.get("bit_rate"):
+        try:
+            note("bitrate", int(stream["bit_rate"]) // 1000)
+        except (TypeError, ValueError) as exc:
+            result["errors"].append(f"bitrate parse failed: {exc}")
+    if not instance.frame_rate and stream.get("r_frame_rate"):
+        fr = stream["r_frame_rate"]
+        if "/" in fr:
+            try:
+                num, den = fr.split("/")
+                if float(den) != 0:
+                    note("frame_rate", Decimal(str(round(float(num) / float(den), 2))))
+            except (TypeError, ValueError) as exc:
+                result["errors"].append(f"frame_rate parse failed: {exc}")
+
+
+@receiver(post_save, sender="engine.Asset")
+def populate_asset_metadata(sender, instance, created, **kwargs):
+    """Signal handler that refreshes metadata and kicks off renditions on save.
+
+    The actual extraction logic lives in ``refresh_asset_metadata`` so the admin
+    action can call it directly and surface results.
+    """
+    result = refresh_asset_metadata(instance)
+    needs_save = bool(result["updated"])
 
     # Save if metadata was updated (avoid recursion by checking if we're already saving)
     if needs_save and not kwargs.get("update_fields"):

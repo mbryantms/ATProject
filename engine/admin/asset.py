@@ -1336,31 +1336,47 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     @admin.action(description="Populate metadata (dimensions, MIME type, file size)")
     def populate_metadata(self, request, queryset):
-        """Admin action to populate metadata for selected assets."""
-        from engine.utils import populate_asset_metadata
+        """Refresh core file metadata for selected assets.
 
-        count = 0
-        errors = 0
+        Surfaces per-asset errors so issues like missing ffprobe or bad video
+        streams aren't silently hidden behind a generic "Success" message.
+        """
+        from engine.utils import refresh_asset_metadata
+
+        total_updated = 0
+        per_asset_errors = []
+        no_op_assets = []
+
         for asset in queryset:
-            try:
-                populate_asset_metadata(Asset, asset, created=False)
-                count += 1
-            except Exception as e:
-                errors += 1
+            result = refresh_asset_metadata(asset)
+            if result["updated"]:
+                asset.save(update_fields=result["updated"])
+                total_updated += 1
                 self.message_user(
-                    request, f"Error processing {asset.key}: {str(e)}", level="error"
+                    request,
+                    f"{asset.key}: populated {', '.join(result['updated'])}.",
+                    level=messages.SUCCESS,
                 )
+            elif not result["errors"]:
+                no_op_assets.append(asset.key)
 
-        if count > 0:
-            self.message_user(
-                request, f"Successfully populated metadata for {count} asset(s)."
-            )
-        if errors > 0:
+            for err in result["errors"]:
+                per_asset_errors.append((asset.key, err))
+
+        if no_op_assets:
             self.message_user(
                 request,
-                f"Failed to process {errors} asset(s). Check error messages above.",
-                level="warning",
+                f"Nothing to populate on {len(no_op_assets)} asset(s) — all fields "
+                f"already present ({', '.join(no_op_assets[:5])}"
+                f"{'…' if len(no_op_assets) > 5 else ''}).",
+                level=messages.INFO,
             )
+        for key, err in per_asset_errors:
+            self.message_user(
+                request, f"{key}: {err}", level=messages.ERROR
+            )
+        if not per_asset_errors and total_updated == 0 and not no_op_assets:
+            self.message_user(request, "No assets selected.", level=messages.WARNING)
 
     @admin.action(description="Extract extended metadata (EXIF, audio tags, etc.)")
     def extract_extended_metadata(self, request, queryset):
