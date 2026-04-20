@@ -4236,6 +4236,17 @@ figure .image-wrapper {
   max-width: 100%;
 }
 
+/*  <picture> is the enhancer's wrapper for AVIF/WebP <source> fallbacks.
+ *  The default display:inline interferes with the fit-content sizing on
+ *  .image-wrapper (and figure-outer-wrapper), which can cause the inner
+ *  <img> to inherit the wrong containing block and render at the wrong
+ *  aspect ratio. display:contents removes <picture> from the box tree
+ *  entirely, so the <img> is laid out as if it were a direct child.
+ */
+figure picture {
+  display: contents;
+}
+
 figure .image-wrapper::before {
   --dark-mode-invert-filter: invert(1);
 
