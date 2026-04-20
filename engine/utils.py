@@ -16,23 +16,140 @@ from .storage_utils import ensure_local_file, open_field_file
 logger = logging.getLogger(__name__)
 
 
-def generate_asset_renditions(asset, widths=None, formats=None):
+# Ordered by descending "modern-ness": the image enhancer emits <source> tags
+# in this order so browsers pick the best format they understand. Each tuple
+# is (rendition tag stored in AssetRendition.format, PIL save format, file
+# extension, mime type). "auto" means "preserve the source's native format".
+_MODERN_FORMATS = (
+    ("avif", "AVIF", "avif", "image/avif"),
+    ("webp", "WEBP", "webp", "image/webp"),
+)
+_SOURCE_FORMAT_TAG = "auto"
+
+
+# Social-share crops. Each entry is (preset name, width, height). When the
+# source is large enough, these get cropped (using focal point when set,
+# else centered) and re-encoded at that exact aspect ratio — ideal for
+# og:image, Twitter card, and card thumbnails where the browser needs a
+# fixed-ratio image, not a down-scaled copy of the original.
+_SOCIAL_CROPS = (
+    ("social-wide", 1200, 630),   # 1.905:1 — Facebook / Twitter summary_large_image
+    ("social-square", 1200, 1200),  # 1:1 — Instagram-style cards, Mastodon
+)
+
+
+def _format_mime(fmt_tag: str, source_pil_format: str) -> str:
+    """Return the MIME type we should advertise for a rendition."""
+    if fmt_tag == "avif":
+        return "image/avif"
+    if fmt_tag == "webp":
+        return "image/webp"
+    # Source format
+    return {
+        "JPEG": "image/jpeg",
+        "PNG": "image/png",
+        "GIF": "image/gif",
+        "WEBP": "image/webp",
+    }.get((source_pil_format or "").upper(), "image/jpeg")
+
+
+def _save_to_bytes(img, pil_format: str, *, jpeg_quality: int) -> bytes:
+    """Encode ``img`` to ``pil_format`` bytes with format-appropriate options.
+
+    Keeps alpha for formats that support it; converts to RGB only for JPEG.
     """
-    Generate responsive renditions for an image asset.
+    buf = BytesIO()
+    pil_format = pil_format.upper()
+    if pil_format == "JPEG":
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        img.save(
+            buf,
+            format="JPEG",
+            quality=jpeg_quality,
+            optimize=True,
+            progressive=True,
+        )
+    elif pil_format == "WEBP":
+        img.save(buf, format="WEBP", quality=80, method=6)
+    elif pil_format == "AVIF":
+        # Pillow's AVIF plugin: quality 60 ≈ JPEG 85 visually; speed 6 is
+        # a reasonable encoding-time vs compression trade-off.
+        img.save(buf, format="AVIF", quality=60, speed=6)
+    elif pil_format == "PNG":
+        img.save(buf, format="PNG", optimize=True)
+    else:
+        img.save(buf, format=pil_format, optimize=True)
+    return buf.getvalue()
+
+
+def _compute_focal_crop_box(
+    src_w: int, src_h: int, target_w: int, target_h: int, focal_x: float, focal_y: float
+) -> tuple[int, int, int, int]:
+    """Compute the crop box that preserves the target aspect ratio while
+    keeping the focal point in view. Returns (left, upper, right, lower).
+    """
+    src_ratio = src_w / src_h
+    target_ratio = target_w / target_h
+
+    if abs(src_ratio - target_ratio) < 1e-3:
+        return (0, 0, src_w, src_h)
+
+    if src_ratio > target_ratio:
+        # Source is wider than target — crop horizontally.
+        crop_w = int(src_h * target_ratio)
+        crop_h = src_h
+        focal_px = focal_x * src_w
+        left = max(0, min(src_w - crop_w, int(focal_px - crop_w / 2)))
+        upper = 0
+    else:
+        # Source is taller than target — crop vertically.
+        crop_w = src_w
+        crop_h = int(src_w / target_ratio)
+        focal_py = focal_y * src_h
+        left = 0
+        upper = max(0, min(src_h - crop_h, int(focal_py - crop_h / 2)))
+    return (left, upper, left + crop_w, upper + crop_h)
+
+
+def _supported_modern_formats() -> tuple[tuple[str, str, str, str], ...]:
+    """Return the subset of _MODERN_FORMATS this Pillow install can emit.
+
+    If AVIF isn't compiled in (older Pillow / alternate base image), drop it
+    and carry on with WebP + source — better than crashing every rendition.
+    """
+    from PIL import features
+
+    return tuple(
+        entry for entry in _MODERN_FORMATS
+        if entry[0] != "avif" or features.check("avif")
+    )
+
+
+def generate_asset_renditions(asset, widths=None, formats=None):
+    """Generate responsive renditions for an image asset.
+
+    For each width, emits one rendition in each supported modern format
+    (AVIF + WebP) plus one in the source's native format. The image enhancer
+    serves them via a <picture> element so browsers pick the best one they
+    understand.
+
+    Also emits cropped "social" renditions (1200x630, 1200x1200) so OG /
+    Twitter / card previews never ship a full-res original.
 
     Each rendition's status moves PENDING → PROCESSING → COMPLETED (or FAILED).
-    Widths and JPEG quality are read from Django settings when not overridden.
+    Animated GIFs are skipped (thumbnail() doesn't preserve frames).
 
     Args:
         asset: Asset instance (must be image type)
         widths: List of widths (default: settings.ASSET_RENDITION_WIDTHS)
-        formats: List of formats (default: ['auto'] - keeps original format)
+        formats: Optional override; if omitted, the full modern+source set is
+            emitted. Pass a list of tags (e.g. ["auto"]) to force legacy
+            behavior in tests.
 
     Returns:
-        List of AssetRendition instances that were touched (created or refreshed).
+        List of AssetRendition instances that were touched.
     """
-    from .models import AssetRendition
-
     if asset.asset_type != "image":
         return []
 
@@ -40,9 +157,6 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         widths = getattr(
             settings, "ASSET_RENDITION_WIDTHS", [400, 800, 1200, 1600]
         )
-    if formats is None:
-        formats = ["auto"]
-
     jpeg_quality = getattr(settings, "ASSET_RENDITION_JPEG_QUALITY", 85)
 
     touched = []
@@ -51,84 +165,95 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         file_obj = open_field_file(asset.file)
         with Image.open(file_obj) as img:
             img.load()
-            original_width, original_height = img.size
-            original_format = (img.format or "JPEG").upper()
+            if getattr(img, "is_animated", False) and img.n_frames > 1:
+                logger.info(
+                    "Skipping renditions for animated image %s (%d frames)",
+                    asset.key,
+                    img.n_frames,
+                )
+                return []
 
+            original_width, original_height = img.size
+            original_pil_format = (img.format or "JPEG").upper()
+            original_ext = original_pil_format.lower()
+            if original_ext == "jpeg":
+                original_ext = "jpg"
+
+            modern_formats = _supported_modern_formats()
+            if formats is None:
+                # Default emitted set: AVIF + WebP + source.
+                target_formats = [
+                    *(
+                        (tag, pil, ext) for tag, pil, ext, _mime in modern_formats
+                    ),
+                    (_SOURCE_FORMAT_TAG, original_pil_format, original_ext),
+                ]
+            else:
+                target_formats = []
+                for fmt in formats:
+                    if fmt == _SOURCE_FORMAT_TAG:
+                        target_formats.append(
+                            (_SOURCE_FORMAT_TAG, original_pil_format, original_ext)
+                        )
+                    else:
+                        match = next(
+                            (m for m in _MODERN_FORMATS if m[0] == fmt), None
+                        )
+                        if match:
+                            target_formats.append((match[0], match[1], match[2]))
+
+            # Standard srcset widths.
             for width in widths:
                 if width >= original_width:
                     continue
+                height = int((width / original_width) * original_height)
 
-                for fmt in formats:
-                    height = int((width / original_width) * original_height)
-                    rendition, _ = AssetRendition.objects.get_or_create(
+                resized = img.copy()
+                resized.thumbnail((width, height), Image.Resampling.LANCZOS)
+
+                for fmt_tag, pil_format, ext in target_formats:
+                    r = _encode_and_save_rendition(
                         asset=asset,
+                        source_img=resized,
                         width=width,
-                        format=fmt,
-                        quality="high",
-                        defaults={
-                            "height": height,
-                            "status": AssetRendition.Status.PENDING,
-                        },
+                        height=height,
+                        fmt_tag=fmt_tag,
+                        pil_format=pil_format,
+                        ext=ext,
+                        preset="",
+                        jpeg_quality=jpeg_quality,
                     )
-                    if rendition.file and rendition.status == AssetRendition.Status.COMPLETED:
-                        continue
+                    if r is not None:
+                        touched.append(r)
 
-                    rendition.status = AssetRendition.Status.PROCESSING
-                    rendition.error_message = ""
-                    rendition.save(update_fields=["status", "error_message"])
+            # Social-share crops (focal-point aware).
+            focal_x = asset.focal_point_x if asset.focal_point_x is not None else 0.5
+            focal_y = asset.focal_point_y if asset.focal_point_y is not None else 0.5
 
-                    try:
-                        resized_img = img.copy()
-                        resized_img.thumbnail(
-                            (width, height), Image.Resampling.LANCZOS
-                        )
-
-                        if fmt == "auto":
-                            output_format = original_format
-                            ext = output_format.lower()
-                        else:
-                            output_format = fmt.upper()
-                            ext = fmt.lower()
-
-                        output = BytesIO()
-                        if output_format == "JPEG":
-                            resized_img = resized_img.convert("RGB")
-                            resized_img.save(
-                                output,
-                                format=output_format,
-                                quality=jpeg_quality,
-                                optimize=True,
-                            )
-                        else:
-                            resized_img.save(
-                                output, format=output_format, optimize=True
-                            )
-
-                        output.seek(0)
-                        content = output.read()
-
-                        filename = f"{asset.key}-{width}w.{ext}"
-                        rendition.file.save(
-                            filename, ContentFile(content), save=False
-                        )
-                        rendition.height = height
-                        rendition.file_size = len(content)
-                        rendition.status = AssetRendition.Status.COMPLETED
-                        rendition.save()
-                        touched.append(rendition)
-                    except Exception as render_exc:
-                        rendition.status = AssetRendition.Status.FAILED
-                        rendition.error_message = str(render_exc)[:500]
-                        rendition.save(
-                            update_fields=["status", "error_message"]
-                        )
-                        logger.warning(
-                            "Rendition %sw (%s) failed for asset %s: %s",
-                            width,
-                            fmt,
-                            asset.key,
-                            render_exc,
-                        )
+            for preset, crop_w, crop_h in _SOCIAL_CROPS:
+                if crop_w > original_width or crop_h > original_height:
+                    continue
+                box = _compute_focal_crop_box(
+                    original_width, original_height, crop_w, crop_h,
+                    focal_x, focal_y,
+                )
+                cropped = img.crop(box).resize(
+                    (crop_w, crop_h), Image.Resampling.LANCZOS
+                )
+                for fmt_tag, pil_format, ext in target_formats:
+                    r = _encode_and_save_rendition(
+                        asset=asset,
+                        source_img=cropped,
+                        width=crop_w,
+                        height=crop_h,
+                        fmt_tag=fmt_tag,
+                        pil_format=pil_format,
+                        ext=ext,
+                        preset=preset,
+                        jpeg_quality=jpeg_quality,
+                    )
+                    if r is not None:
+                        touched.append(r)
 
         try:
             file_obj.seek(0)
@@ -141,6 +266,70 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         )
 
     return touched
+
+
+def _encode_and_save_rendition(
+    *, asset, source_img, width, height, fmt_tag, pil_format, ext, preset,
+    jpeg_quality,
+):
+    """Encode ``source_img`` and attach it to the AssetRendition row.
+
+    Returns the rendition on success, or None if this variant was already
+    complete (idempotent re-runs). Failures are logged + surfaced on the
+    rendition's ``error_message``.
+    """
+    from .models import AssetRendition
+
+    rendition, _ = AssetRendition.objects.get_or_create(
+        asset=asset,
+        width=width,
+        format=fmt_tag,
+        quality=AssetRendition.Quality.HIGH,
+        defaults={
+            "height": height,
+            "preset": preset,
+            "status": AssetRendition.Status.PENDING,
+        },
+    )
+    if (
+        rendition.file
+        and rendition.status == AssetRendition.Status.COMPLETED
+        and rendition.preset == preset
+    ):
+        return None
+
+    rendition.status = AssetRendition.Status.PROCESSING
+    rendition.error_message = ""
+    rendition.preset = preset
+    rendition.save(update_fields=["status", "error_message", "preset"])
+
+    try:
+        content = _save_to_bytes(
+            source_img.copy(), pil_format, jpeg_quality=jpeg_quality
+        )
+    except Exception as render_exc:
+        rendition.status = AssetRendition.Status.FAILED
+        rendition.error_message = str(render_exc)[:500]
+        rendition.save(update_fields=["status", "error_message"])
+        logger.warning(
+            "Rendition %sw %s (%s) failed for asset %s: %s",
+            width,
+            fmt_tag,
+            preset or "base",
+            asset.key,
+            render_exc,
+        )
+        return None
+
+    preset_tag = f"-{preset}" if preset else ""
+    filename = f"{asset.key}{preset_tag}-{width}w.{ext}"
+    rendition.file.save(filename, ContentFile(content), save=False)
+    rendition.height = height
+    rendition.file_size = len(content)
+    rendition.is_webp = (fmt_tag == "webp")
+    rendition.status = AssetRendition.Status.COMPLETED
+    rendition.save()
+    return rendition
 
 
 def refresh_asset_metadata(instance) -> dict:

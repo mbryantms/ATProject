@@ -891,8 +891,13 @@ class AssetRendition(TimeStampedModel):
             models.Index(fields=["codec", "format"]),
         ]
         constraints = [
+            # ``preset`` is part of the key because the same (width, format)
+            # can exist multiple times — a plain 1200w srcset rendition AND a
+            # 1200x630 "social-wide" crop AND a 1200x1200 "social-square"
+            # crop, for example. Without preset in the constraint the second
+            # insert would collide with the first.
             models.UniqueConstraint(
-                fields=["asset", "width", "format", "quality"],
+                fields=["asset", "width", "format", "quality", "preset"],
                 name="unique_asset_rendition",
             ),
         ]

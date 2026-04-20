@@ -407,24 +407,51 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         return " — ".join(parts)
 
     def get_og_image_url(self) -> str:
-        """Return best available OG image: override → hero → first image asset rendition."""
+        """Return the best available OG image URL.
+
+        Priority:
+          1. Manual ``og_image_url`` override
+          2. Manual ``hero_image_url`` override
+          3. First post asset's ``social-wide`` rendition (1200x630, cropped
+             to focal point) — this is what was generated exactly for this
+             purpose.
+          4. First post asset's plain 1200w rendition (legacy / pre-focal-crop
+             assets).
+          5. The original asset file as a last resort.
+
+        Always prefer source-format ("auto") renditions for social URLs —
+        some crawlers / link-preview services don't accept AVIF/WebP.
+        """
         if self.og_image_url:
             return self.og_image_url
         if self.hero_image_url:
             return self.hero_image_url
+
         first_image = (
             self.post_assets.filter(asset__asset_type="image", asset__status="ready")
             .select_related("asset")
             .first()
         )
-        if first_image:
-            rendition = first_image.asset.renditions.filter(
-                width=1200, status="completed"
-            ).first()
-            if rendition:
-                return rendition.url
-            return first_image.asset.url
-        return ""
+        if not first_image:
+            return ""
+
+        renditions = first_image.asset.renditions
+
+        # 1200x630 social crop, source format (JPEG/PNG — most crawler-safe).
+        social = renditions.filter(
+            preset="social-wide", format="auto", status="completed"
+        ).first()
+        if social:
+            return social.url
+
+        # Plain 1200w base rendition, source format.
+        base = renditions.filter(
+            preset="", width=1200, format="auto", status="completed"
+        ).first()
+        if base:
+            return base.url
+
+        return first_image.asset.url
 
     def get_canonical_url(self, site_url: str = "") -> str:
         """Return canonical URL: override or site_url + absolute path."""

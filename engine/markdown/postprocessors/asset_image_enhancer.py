@@ -2,11 +2,14 @@
 Postprocessor that enhances image assets with responsive features.
 
 Adds:
-- srcset for responsive images (using AssetRenditions)
-- loading="lazy" for performance
-- Figure wrappers with captions
-- Proper sizing attributes
-- Enhanced structure matching reference design
+- <picture> element with AVIF + WebP + source-format <source> entries so
+  every browser gets the smallest format it understands
+- srcset on each <source> / <img> using AssetRenditions
+- loading="lazy" + decoding="async" on every image
+- fetchpriority="high" on the first image (LCP candidate)
+- Dominant/average-color placeholder via inline background-color (avoids the
+  white flash while the image loads)
+- Figure wrappers with captions and positioning classes
 """
 
 import urllib.parse
@@ -15,6 +18,48 @@ from math import gcd
 from bs4 import BeautifulSoup, NavigableString
 
 from .utils import get_shared_soup, soup_to_html
+
+# Display order for <picture> <source> entries: modern formats first so
+# browsers pick the smallest one they understand.
+_PICTURE_FORMATS = (
+    ("avif", "image/avif"),
+    ("webp", "image/webp"),
+)
+
+
+def _lookup_average_color(asset, AssetMetadata) -> str | None:
+    """Return a CSS-safe average color for the asset, or None.
+
+    We avoid per-image queries by caching on the asset instance: the image
+    enhancer is called once per post render and doesn't hold the asset
+    between rendering passes, so one extra metadata lookup per unique asset
+    is fine. ``dominant_colors[0]`` is preferred (it's the modal color;
+    average_color can be a muddy midtone on high-contrast photos).
+    """
+    # Try cache first to avoid repeat queries on the same asset.
+    cached = getattr(asset, "_cached_placeholder_color", None)
+    if cached is not None:
+        return cached or None
+
+    try:
+        metadata = AssetMetadata.objects.only(
+            "dominant_colors", "average_color"
+        ).get(asset=asset)
+    except AssetMetadata.DoesNotExist:
+        asset._cached_placeholder_color = ""
+        return None
+
+    chosen = None
+    if metadata.dominant_colors and isinstance(metadata.dominant_colors, list):
+        for candidate in metadata.dominant_colors:
+            if isinstance(candidate, str) and candidate.startswith("#"):
+                chosen = candidate
+                break
+    if not chosen and metadata.average_color:
+        chosen = metadata.average_color
+
+    asset._cached_placeholder_color = chosen or ""
+    return chosen or None
 
 
 def enhance_image_assets(html: str, context: dict) -> str:
@@ -25,8 +70,11 @@ def enhance_image_assets(html: str, context: dict) -> str:
     <figure class="float-right float block" style="--bsm: 10;">
       <span class="figure-outer-wrapper">
         <span class="image-wrapper img focusable">
-
-          <img ...>
+          <picture>
+            <source type="image/avif" srcset="… 400w, … 800w, …" sizes="…">
+            <source type="image/webp" srcset="… 400w, … 800w, …" sizes="…">
+            <img … (source-format fallback with srcset)>
+          </picture>
         </span>
         <span class="caption-wrapper">
           <figcaption>...</figcaption>
@@ -36,9 +84,10 @@ def enhance_image_assets(html: str, context: dict) -> str:
     """
     # Lazy import to avoid circular import
     from engine.markdown.renderer import render_markdown
-    from engine.models import Asset
+    from engine.models import Asset, AssetMetadata
 
     soup = get_shared_soup(html, context)
+    first_image_emitted = False  # first in-body <img> gets fetchpriority="high"
 
     # Find all images with asset metadata
     for img in list(soup.find_all("img")):
@@ -161,18 +210,33 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 "" if not existing_style else f"; {existing_style}"
             )
 
-        # Add responsive srcset from renditions
-        renditions = asset.renditions.filter(format="auto").order_by("width")
-        if renditions.exists():
-            srcset_parts = []
-            for rendition in renditions:
-                srcset_parts.append(f"{rendition.file.url} {rendition.width}w")
+        # Build the picture-element sources from the base srcset renditions
+        # (preset="") across all generated formats. Modern formats (AVIF/WebP)
+        # go into <source> tags; the source-native format stays on <img>.
+        sizes_attr = "(max-width: 649px) 100vw, 935px"
+        base_renditions = asset.renditions.filter(
+            preset="", status="completed"
+        ).order_by("width")
 
-            if srcset_parts:
-                img["srcset"] = ", ".join(srcset_parts)
+        picture_sources = []
+        for fmt_tag, mime in _PICTURE_FORMATS:
+            srcset = ", ".join(
+                f"{r.file.url} {r.width}w"
+                for r in base_renditions if r.format == fmt_tag
+            )
+            if srcset:
+                picture_sources.append((mime, srcset))
 
-                # Add sizes attribute (can be customized)
-                img["sizes"] = "(max-width: 649px) 100vw, 935px"
+        # <img> fallback uses the source-format ("auto") renditions, falling
+        # back to old format="auto" records if the pipeline hasn't regenerated
+        # the asset yet.
+        fallback_srcset = ", ".join(
+            f"{r.file.url} {r.width}w"
+            for r in base_renditions if r.format == "auto"
+        )
+        if fallback_srcset:
+            img["srcset"] = fallback_srcset
+            img["sizes"] = sizes_attr
 
         # Add lazy loading
         if not img.get("loading"):
@@ -182,9 +246,42 @@ def enhance_image_assets(html: str, context: dict) -> str:
         if not img.get("decoding"):
             img["decoding"] = "async"
 
+        # First image in the body is the LCP candidate — tell the browser to
+        # prioritize it and skip the lazy-load heuristic. Everything else keeps
+        # loading="lazy".
+        if not first_image_emitted:
+            img["fetchpriority"] = "high"
+            img["loading"] = "eager"
+            first_image_emitted = True
+
+        # Dominant-color placeholder: avoids the white flash while the image
+        # loads and nudges the browser toward a stable layout. We read from
+        # AssetMetadata.average_color when available.
+        placeholder_color = _lookup_average_color(asset, AssetMetadata)
+        if placeholder_color:
+            existing_style = img.get("style", "").rstrip(" ;")
+            prefix = f"{existing_style}; " if existing_style else ""
+            img["style"] = (
+                f"{prefix}background-color: {placeholder_color}"
+            )
+
         # Add alt text if missing (from metadata or asset)
         if not img.get("alt"):
             img["alt"] = metadata.get("alt_text", asset.alt_text or "")
+
+        # Wrap in <picture> with AVIF/WebP <source> entries when available.
+        # We'll swap ``picture_element`` into the image_wrapper below instead
+        # of ``img`` when picture_sources is non-empty.
+        picture_element = None
+        if picture_sources:
+            picture_element = soup.new_tag("picture")
+            for mime, srcset in picture_sources:
+                source_tag = soup.new_tag("source")
+                source_tag["type"] = mime
+                source_tag["srcset"] = srcset
+                source_tag["sizes"] = sizes_attr
+                picture_element.append(source_tag)
+            picture_element.append(img)
 
         # Extract existing classes from img (Pandoc puts attributes on img tag)
         existing_img_classes = []
@@ -274,10 +371,10 @@ def enhance_image_assets(html: str, context: dict) -> str:
             outer_wrapper = soup.new_tag("span")
             outer_wrapper["class"] = ["figure-outer-wrapper"]
 
-            # Image wrapper
+            # Image wrapper — use <picture> when we have AVIF/WebP sources.
             image_wrapper = soup.new_tag("span")
             image_wrapper["class"] = ["image-wrapper", "img", "focusable"]
-            image_wrapper.append(img)
+            image_wrapper.append(picture_element if picture_element else img)
             outer_wrapper.append(image_wrapper)
 
             # Caption wrapper (if caption exists)
@@ -370,10 +467,10 @@ def enhance_image_assets(html: str, context: dict) -> str:
             outer_wrapper = soup.new_tag("span")
             outer_wrapper["class"] = ["figure-outer-wrapper"]
 
-            # Image wrapper
+            # Image wrapper — use <picture> when we have AVIF/WebP sources.
             image_wrapper = soup.new_tag("span")
             image_wrapper["class"] = ["image-wrapper", "img", "focusable"]
-            image_wrapper.append(img)
+            image_wrapper.append(picture_element if picture_element else img)
             outer_wrapper.append(image_wrapper)
 
             # Caption wrapper (if caption exists)
