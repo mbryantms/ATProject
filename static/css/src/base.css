@@ -541,11 +541,12 @@ header h1 em {
 
 /*  Flex order.
  */
-/* date, author, status, categories */
+/* date, author, status, categories, feed link */
 #page-metadata .page-metadata-fields .page-author,
 #page-metadata .page-metadata-fields .page-date-range,
 #page-metadata .page-metadata-fields .page-status,
-#page-metadata .page-metadata-fields .page-categories {
+#page-metadata .page-metadata-fields .page-categories,
+#page-metadata .page-metadata-fields .page-feed-link {
   order: 1;
 }
 
