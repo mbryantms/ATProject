@@ -41,7 +41,16 @@ def close_db_connections_after_task(**kwargs):
     connections older than CONN_MAX_AGE.  With CONN_MAX_AGE=0 that should
     suffice, but this handler guarantees connections are closed even if the
     setting is overridden via env var — critical for letting Neon auto-suspend.
+
+    Skipped in eager mode (tests): the task ran synchronously in the caller's
+    thread, so the "task's" connection is the caller's connection — closing
+    it breaks the test mid-transaction.
     """
+    from django.conf import settings
+
+    if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+        return
+
     from django import db
 
     db.connections.close_all()

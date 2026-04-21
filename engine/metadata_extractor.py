@@ -259,6 +259,10 @@ def extract_image_metadata(asset) -> dict[str, Any]:
                     "Failed to extract color info for %s: %s", asset.key, exc
                 )
 
+            lqip = _extract_lqip(img)
+            if lqip:
+                metadata["lqip_data_url"] = lqip
+
         try:
             file_obj.seek(0)
         except Exception:
@@ -643,6 +647,51 @@ def _convert_gps_coordinate(coord, ref):
         logger.warning(
             f"GPS coordinate conversion failed: {e}, coord={coord}, ref={ref}"
         )
+        return None
+
+
+def _extract_lqip(img) -> str | None:
+    """Encode a tiny blurred preview of ``img`` as a CSS-ready data URL.
+
+    Returns something like ``data:image/webp;base64,UklGR…`` sized to sit
+    under ~2 KB. The image enhancer emits it as a background-image so the
+    reader sees the image's shape the instant HTML parses, before the real
+    pixels even start streaming.
+    """
+    import base64
+    from io import BytesIO
+
+    try:
+        preview = img.copy()
+        if preview.mode not in ("RGB", "RGBA"):
+            preview = preview.convert("RGB")
+        preview.thumbnail((24, 24))
+
+        buf = BytesIO()
+        try:
+            preview.convert("RGB").save(buf, format="WEBP", quality=30, method=6)
+            mime = "image/webp"
+        except Exception:
+            buf = BytesIO()
+            preview.convert("RGB").save(
+                buf, format="JPEG", quality=40, optimize=True
+            )
+            mime = "image/jpeg"
+
+        data = buf.getvalue()
+        if len(data) > 2048:
+            # Still too large; downsize further and retry once.
+            preview2 = img.copy().convert("RGB")
+            preview2.thumbnail((16, 16))
+            buf2 = BytesIO()
+            preview2.save(buf2, format="JPEG", quality=35, optimize=True)
+            data = buf2.getvalue()
+            mime = "image/jpeg"
+
+        encoded = base64.b64encode(data).decode("ascii")
+        return f"data:{mime};base64,{encoded}"
+    except Exception as exc:
+        logger.warning("Failed to build LQIP preview: %s", exc)
         return None
 
 

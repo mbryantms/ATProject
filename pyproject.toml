@@ -17,6 +17,7 @@ dependencies = [
     "django-storages>=1.14.0",
     "gunicorn>=23.0.0",
     "pillow>=10.4.0",
+    "pillow-heif>=0.18.0",
     "psycopg[binary]>=3.1.12",
     "pygments>=2.18.0",
     "pypandoc-binary>=1.14",

@@ -2,10 +2,15 @@
 # Credentials match the default DATABASE_URL in .env.example.
 #
 # Usage:
-#   docker compose up -d        # start
+#   docker compose up -d        # start Postgres + Redis
 #   docker compose stop         # pause (keeps data)
 #   docker compose start        # resume
-#   docker compose down -v      # remove container + volume (nukes data)
+#   docker compose down -v      # remove containers + volumes (nukes data)
+#
+# Redis is used by Celery (broker + result backend) and by Django's cache
+# framework. Tests don't need it — settings.py forces
+# CELERY_TASK_ALWAYS_EAGER when ``manage.py test`` is detected — but the
+# dev server does whenever a signal enqueues an async task.
 
 services:
   postgres:
@@ -24,5 +29,19 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata:
+  redisdata:

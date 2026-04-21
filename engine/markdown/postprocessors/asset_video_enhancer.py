@@ -149,6 +149,11 @@ def enhance_video_assets(html: str, context: dict) -> str:
             video["data-aspect-ratio"] = aspect_ratio
             style_parts.append(f"aspect-ratio: {aspect_w} / {aspect_h}")
 
+            # --img-ar lets the shared ``figure img/video/svg`` CSS clamp
+            # preserve aspect ratio under short viewports (see base.css).
+            ar_decimal = intrinsic_width / intrinsic_height
+            style_parts.append(f"--img-ar: {ar_decimal:.4f}")
+
         # Add display width to style (responsive)
         final_width = display_width if display_width else intrinsic_width
         if final_width:

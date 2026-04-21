@@ -472,15 +472,42 @@ _rendition_widths_env = env("ASSET_RENDITION_WIDTHS", default="")
 ASSET_RENDITION_WIDTHS = (
     [int(w.strip()) for w in _rendition_widths_env.split(",") if w.strip()]
     if _rendition_widths_env
-    else [400, 800, 1200, 1600]
+    else [400, 800, 1200, 1600, 2400]
 )
 # JPEG quality (1-95). Higher = larger files, better quality.
 ASSET_RENDITION_JPEG_QUALITY = env.int("ASSET_RENDITION_JPEG_QUALITY", default=85)
 
 
-# Recommended dev defaults
-CELERY_TASK_ALWAYS_EAGER = False  # set True in unit tests
-CELERY_TASK_EAGER_PROPAGATES = False
+# Running under ``manage.py test``? Force Celery to execute tasks inline so
+# signal handlers that call ``.delay()`` don't block waiting on a broker
+# connection in CI or bare-metal dev environments where Redis may not be up.
+# Also swap the default file storage for an in-memory backend — real uploads
+# would otherwise hang trying to reach R2 with empty credentials.
+import sys  # noqa: E402
+
+TESTING = (
+    "test" in sys.argv
+    or "pytest" in sys.argv[0]
+    or os.environ.get("PYTEST_CURRENT_TEST") is not None
+)
+
+CELERY_TASK_ALWAYS_EAGER = TESTING
+CELERY_TASK_EAGER_PROPAGATES = TESTING
+
+if TESTING:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.InMemoryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    # Keep Celery fully in-process: no Redis broker, no Redis result backend.
+    # Otherwise ``apply()`` can stall trying to publish the eager result.
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
+    CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_TIME_LIMIT = 60 * 5  # hard limit, seconds
 CELERY_TASK_SOFT_TIME_LIMIT = 60 * 4
 CELERY_TASK_SERIALIZER = "json"

@@ -5,11 +5,15 @@ Adds:
 - <picture> element with AVIF + WebP + source-format <source> entries so
   every browser gets the smallest format it understands
 - srcset on each <source> / <img> using AssetRenditions
+- Per-figure-class ``sizes`` so floated and width-full images fetch an
+  appropriately sized variant
 - loading="lazy" + decoding="async" on every image
-- fetchpriority="high" on the first image (LCP candidate)
-- Dominant/average-color placeholder via inline background-color (avoids the
-  white flash while the image loads)
+- fetchpriority="high" on the first large image (LCP candidate), with
+  optional ``{.lcp}`` author override
+- LQIP (tiny base64 preview) + dominant/average-color placeholder to
+  avoid the white flash while the image loads
 - Figure wrappers with captions and positioning classes
+- SVG bypass (leaves vector source untouched — no srcset / picture)
 """
 
 import urllib.parse
@@ -19,47 +23,112 @@ from bs4 import BeautifulSoup, NavigableString
 
 from .utils import get_shared_soup, soup_to_html
 
-# Display order for <picture> <source> entries: modern formats first so
-# browsers pick the smallest one they understand.
 _PICTURE_FORMATS = (
     ("avif", "image/avif"),
     ("webp", "image/webp"),
 )
 
+# Positioning classes that flow from the author's markdown onto the
+# generated <figure>. Used for both CSS styling and ``sizes`` computation.
+_POSITIONING_CLASSES = (
+    "float-right",
+    "float-left",
+    "float-center",
+    "width-full",
+    "inline",
+)
 
-def _lookup_average_color(asset, AssetMetadata) -> str | None:
-    """Return a CSS-safe average color for the asset, or None.
+# An image needs to be this wide (intrinsic) to count as an LCP candidate.
+# Small inline images (avatars, inline icons) that happen to appear first
+# in the DOM shouldn't steal fetchpriority from the real hero below.
+_LCP_MIN_INTRINSIC_WIDTH = 600
 
-    We avoid per-image queries by caching on the asset instance: the image
-    enhancer is called once per post render and doesn't hold the asset
-    between rendering passes, so one extra metadata lookup per unique asset
-    is fine. ``dominant_colors[0]`` is preferred (it's the modal color;
-    average_color can be a muddy midtone on high-contrast photos).
+
+def _collect_figure_classes(img) -> list[str]:
+    """Return positioning classes inherited from the img + parent figure.
+
+    Mirrors what's computed later for the final <figure> class attribute,
+    but runs early so ``sizes`` can use it.
     """
-    # Try cache first to avoid repeat queries on the same asset.
-    cached = getattr(asset, "_cached_placeholder_color", None)
+    classes: list[str] = []
+
+    img_classes = img.get("class") or []
+    if isinstance(img_classes, str):
+        img_classes = img_classes.split()
+    classes.extend(c for c in img_classes if c in _POSITIONING_CLASSES)
+
+    parent = img.parent
+    if parent is not None and parent.name == "figure":
+        fig_classes = parent.get("class") or []
+        if isinstance(fig_classes, str):
+            fig_classes = fig_classes.split()
+        classes.extend(c for c in fig_classes if c in _POSITIONING_CLASSES)
+
+    return list(dict.fromkeys(classes))
+
+
+def _sizes_for_figure(
+    figure_classes: list[str], display_width: int | None
+) -> str:
+    """Compute a ``sizes`` attribute tuned to how wide the figure actually renders.
+
+    Author-requested ``display_width`` always wins — if they pinned the image
+    to 400px, the browser should never fetch a 1600w rendition.
+
+    Otherwise:
+    - ``.width-full`` figures break the 935px column and span the viewport.
+    - ``.float-left`` / ``.float-right`` figures render at 50% of the column
+      on wide viewports, full-width on mobile.
+    - Everything else maxes out at the 935px body column.
+    """
+    if display_width:
+        return f"(max-width: 649px) 100vw, {display_width}px"
+
+    if "width-full" in figure_classes:
+        return "100vw"
+
+    if "float-left" in figure_classes or "float-right" in figure_classes:
+        # 50vw above the 650px breakpoint until the column itself caps at
+        # 935px, then locked at ~467px (half of 935 minus the gap).
+        return "(max-width: 649px) 100vw, (max-width: 935px) 50vw, 467px"
+
+    return "(max-width: 649px) 100vw, 935px"
+
+
+def _lookup_placeholder(asset, AssetMetadata) -> tuple[str | None, str | None]:
+    """Return (lqip_data_url, placeholder_color) for an asset, or (None, None).
+
+    ``lqip_data_url`` renders a tiny blurred preview as a CSS background on
+    the <img> so readers see the image's shape (not just a flat color) while
+    the real pixels stream in. ``placeholder_color`` is the fallback when no
+    LQIP has been generated yet.
+    """
+    cached = getattr(asset, "_cached_placeholder", None)
     if cached is not None:
-        return cached or None
+        return cached
 
     try:
         metadata = AssetMetadata.objects.only(
-            "dominant_colors", "average_color"
+            "dominant_colors", "average_color", "lqip_data_url"
         ).get(asset=asset)
     except AssetMetadata.DoesNotExist:
-        asset._cached_placeholder_color = ""
-        return None
+        asset._cached_placeholder = (None, None)
+        return (None, None)
 
-    chosen = None
+    color = None
     if metadata.dominant_colors and isinstance(metadata.dominant_colors, list):
         for candidate in metadata.dominant_colors:
             if isinstance(candidate, str) and candidate.startswith("#"):
-                chosen = candidate
+                color = candidate
                 break
-    if not chosen and metadata.average_color:
-        chosen = metadata.average_color
+    if not color and metadata.average_color:
+        color = metadata.average_color
 
-    asset._cached_placeholder_color = chosen or ""
-    return chosen or None
+    lqip = getattr(metadata, "lqip_data_url", None) or None
+
+    result = (lqip, color)
+    asset._cached_placeholder = result
+    return result
 
 
 def enhance_image_assets(html: str, context: dict) -> str:
@@ -82,22 +151,18 @@ def enhance_image_assets(html: str, context: dict) -> str:
       </span>
     </figure>
     """
-    # Lazy import to avoid circular import
     from engine.markdown.renderer import render_markdown
     from engine.models import Asset, AssetMetadata
 
     soup = get_shared_soup(html, context)
-    first_image_emitted = False  # first in-body <img> gets fetchpriority="high"
+    lcp_emitted = False  # first eligible image gets fetchpriority="high"
 
-    # Find all images with asset metadata
     for img in list(soup.find_all("img")):
         src = img.get("src", "")
 
-        # Check for asset metadata in URL fragment
         if "#asset-data:" not in src:
             continue
 
-        # Parse metadata
         url_parts = src.split("#asset-data:")
         base_url = url_parts[0]
         metadata_str = url_parts[1]
@@ -112,29 +177,30 @@ def enhance_image_assets(html: str, context: dict) -> str:
         if asset_type != "image":
             continue
 
-        # Parse additional metadata
         metadata = {}
         for part in metadata_parts[2:]:
             if "=" in part:
                 k, v = part.split("=", 1)
                 metadata[k] = urllib.parse.unquote(v)
             else:
-                # Positional: width, height (intrinsic dimensions from asset)
                 if "width" not in metadata and part.isdigit():
                     metadata["width"] = part
                 elif "height" not in metadata and part.isdigit():
                     metadata["height"] = part
 
-        # Get asset for renditions
         try:
             asset = Asset.objects.get(key=asset_key)
         except Asset.DoesNotExist:
             continue
 
-        # Clean up src (remove metadata)
         img["src"] = base_url
 
-        # Determine intrinsic dimensions (actual image size)
+        # SVG bypass: vectors scale natively, so a srcset + <picture> tree
+        # only wastes bytes. Emit a plain <img> and let the browser handle
+        # resizing. We still apply alt text, figure wrapping, and the
+        # positioning classes below.
+        is_svg = (asset.file_extension or "").lower() == "svg"
+
         intrinsic_width = (
             int(metadata.get("width")) if metadata.get("width") else asset.width
         )
@@ -142,7 +208,6 @@ def enhance_image_assets(html: str, context: dict) -> str:
             int(metadata.get("height")) if metadata.get("height") else asset.height
         )
 
-        # Check for display size overrides (from query params like ?width=800)
         display_width = (
             int(metadata.get("display_width"))
             if metadata.get("display_width")
@@ -154,7 +219,6 @@ def enhance_image_assets(html: str, context: dict) -> str:
             else None
         )
 
-        # If only display_width is specified, calculate proportional display_height
         if (
             display_width
             and not display_height
@@ -162,7 +226,6 @@ def enhance_image_assets(html: str, context: dict) -> str:
             and intrinsic_height
         ):
             display_height = int((display_width / intrinsic_width) * intrinsic_height)
-        # If only display_height is specified, calculate proportional display_width
         elif (
             display_height
             and not display_width
@@ -171,60 +234,37 @@ def enhance_image_assets(html: str, context: dict) -> str:
         ):
             display_width = int((display_height / intrinsic_height) * intrinsic_width)
 
-        # Add intrinsic dimensions to img attributes (what the browser knows about the actual image)
         if intrinsic_width:
             img["width"] = intrinsic_width
         if intrinsic_height:
             img["height"] = intrinsic_height
 
-        # Calculate aspect ratio and add style
-        aspect_ratio = None
+        # Gather positioning classes early so the sizes attribute and the
+        # final figure wrapper agree on geometry.
+        figure_classes = _collect_figure_classes(img)
+        sizes_attr = _sizes_for_figure(figure_classes, display_width)
+
         style_parts = []
 
         if intrinsic_width and intrinsic_height:
-            # Simplify aspect ratio based on intrinsic dimensions
             divisor = gcd(intrinsic_width, intrinsic_height)
             aspect_w = intrinsic_width // divisor
             aspect_h = intrinsic_height // divisor
-            aspect_ratio = f"{aspect_w} / {aspect_h}"
-
-            img["data-aspect-ratio"] = aspect_ratio
+            img["data-aspect-ratio"] = f"{aspect_w} / {aspect_h}"
             style_parts.append(f"aspect-ratio: {aspect_w} / {aspect_h}")
 
-            # Expose the aspect ratio as a unit-less decimal via a custom
-            # property so the stylesheet can tie max-width to max-height.
-            # This is how we preserve aspect ratio under a short viewport:
-            # see the corresponding rule in base.css (figure img rules).
+            # See base.css figure img rule: --img-ar lets max-width track the
+            # vertical headroom so aspect ratio survives short viewports.
             ar_decimal = intrinsic_width / intrinsic_height
             style_parts.append(f"--img-ar: {ar_decimal:.4f}")
 
-        # Emit inline ``width`` ONLY when the author explicitly requested a
-        # display size. Setting ``width: <intrinsic>px`` makes the width
-        # fixed, which breaks aspect ratio whenever the figure CSS's
-        # ``max-height`` clamps the computed height (common on short laptop
-        # viewports): width stays pinned while height shrinks, distorting
-        # the image.
-        #
-        # When the author didn't ask for a specific size, the <img>'s
-        # ``width="W" height="H"`` attributes plus the inline ``aspect-ratio``
-        # already tell the browser the intrinsic aspect ratio, and the
-        # stylesheet's ``max-width: 100%`` / ``max-height: …`` / ``width: auto``
-        # / ``height: auto`` cooperate to shrink both dimensions together,
-        # preserving aspect ratio under every clamp.
         if display_width:
             style_parts.append(f"width: {display_width}px")
             if display_height:
-                # Only add explicit height when both display dimensions were
-                # specified — otherwise the browser derives it from the
-                # aspect ratio, which is what we want.
                 style_parts.append(f"height: {display_height}px")
         elif intrinsic_width:
-            # Cap the natural size with max-width rather than pinning it.
-            # Browsers still shrink the image when the container narrows,
-            # but the image will never upscale past its intrinsic size.
             style_parts.append(f"max-width: {intrinsic_width}px")
 
-        # Combine with any existing style
         if style_parts:
             existing_style = img.get("style", "").strip()
             if existing_style and not existing_style.endswith(";"):
@@ -233,68 +273,72 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 "" if not existing_style else f"; {existing_style}"
             )
 
-        # Build the picture-element sources from the base srcset renditions
-        # (preset="") across all generated formats. Modern formats (AVIF/WebP)
-        # go into <source> tags; the source-native format stays on <img>.
-        sizes_attr = "(max-width: 649px) 100vw, 935px"
-        base_renditions = asset.renditions.filter(
-            preset="", status="completed"
-        ).order_by("width")
-
+        # Responsive srcset / <picture> — skipped for SVG.
         picture_sources = []
-        for fmt_tag, mime in _PICTURE_FORMATS:
-            srcset = ", ".join(
+        picture_element = None
+        if not is_svg:
+            base_renditions = asset.renditions.filter(
+                preset="", status="completed"
+            ).order_by("width")
+
+            for fmt_tag, mime in _PICTURE_FORMATS:
+                srcset = ", ".join(
+                    f"{r.file.url} {r.width}w"
+                    for r in base_renditions if r.format == fmt_tag
+                )
+                if srcset:
+                    picture_sources.append((mime, srcset))
+
+            fallback_srcset = ", ".join(
                 f"{r.file.url} {r.width}w"
-                for r in base_renditions if r.format == fmt_tag
+                for r in base_renditions if r.format == "auto"
             )
-            if srcset:
-                picture_sources.append((mime, srcset))
+            if fallback_srcset:
+                img["srcset"] = fallback_srcset
+                img["sizes"] = sizes_attr
 
-        # <img> fallback uses the source-format ("auto") renditions, falling
-        # back to old format="auto" records if the pipeline hasn't regenerated
-        # the asset yet.
-        fallback_srcset = ", ".join(
-            f"{r.file.url} {r.width}w"
-            for r in base_renditions if r.format == "auto"
-        )
-        if fallback_srcset:
-            img["srcset"] = fallback_srcset
-            img["sizes"] = sizes_attr
-
-        # Add lazy loading
         if not img.get("loading"):
             img["loading"] = "lazy"
-
-        # Add decoding hint
         if not img.get("decoding"):
             img["decoding"] = "async"
 
-        # First image in the body is the LCP candidate — tell the browser to
-        # prioritize it and skip the lazy-load heuristic. Everything else keeps
-        # loading="lazy".
-        if not first_image_emitted:
+        # LCP candidate selection: the first in-body image that's either
+        # (a) explicitly marked via {.lcp} or (b) big enough to plausibly be
+        # the hero gets fetchpriority="high" + eager loading. Small leading
+        # inline images pass through without burning the slot.
+        img_classes_raw = img.get("class") or []
+        if isinstance(img_classes_raw, str):
+            img_classes_raw = img_classes_raw.split()
+
+        is_author_lcp = "lcp" in img_classes_raw
+        is_large_enough = (intrinsic_width or 0) >= _LCP_MIN_INTRINSIC_WIDTH
+
+        if not lcp_emitted and (is_author_lcp or is_large_enough):
             img["fetchpriority"] = "high"
             img["loading"] = "eager"
-            first_image_emitted = True
+            lcp_emitted = True
 
-        # Dominant-color placeholder: avoids the white flash while the image
-        # loads and nudges the browser toward a stable layout. We read from
-        # AssetMetadata.average_color when available.
-        placeholder_color = _lookup_average_color(asset, AssetMetadata)
+        lqip_data_url, placeholder_color = _lookup_placeholder(asset, AssetMetadata)
+        bg_parts = []
+        if lqip_data_url:
+            bg_parts.append(f"background-image: url({lqip_data_url})")
+            bg_parts.append("background-size: cover")
+            bg_parts.append("background-position: center")
         if placeholder_color:
+            bg_parts.append(f"background-color: {placeholder_color}")
+        if bg_parts:
             existing_style = img.get("style", "").rstrip(" ;")
             prefix = f"{existing_style}; " if existing_style else ""
-            img["style"] = (
-                f"{prefix}background-color: {placeholder_color}"
-            )
+            img["style"] = f"{prefix}{'; '.join(bg_parts)}"
 
-        # Add alt text if missing (from metadata or asset)
         if not img.get("alt"):
             img["alt"] = metadata.get("alt_text", asset.alt_text or "")
 
-        # Wrap in <picture> with AVIF/WebP <source> entries when available.
-        # We'll swap ``picture_element`` into the image_wrapper below instead
-        # of ``img`` when picture_sources is non-empty.
+        # Build <picture> with <source> tags, but don't append img yet —
+        # parent-tracking below reads img.parent to decide where the final
+        # figure goes, and moving img into picture_element first makes
+        # img.parent point into a detached tree (breaking extraction and
+        # creating an insert-cycle if figure later gets put back into it).
         picture_element = None
         if picture_sources:
             picture_element = soup.new_tag("picture")
@@ -304,47 +348,23 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 source_tag["srcset"] = srcset
                 source_tag["sizes"] = sizes_attr
                 picture_element.append(source_tag)
-            picture_element.append(img)
 
-        # Extract existing classes from img (Pandoc puts attributes on img tag)
-        existing_img_classes = []
-        if img.get("class"):
-            if isinstance(img["class"], list):
-                existing_img_classes = img["class"]
-            else:
-                existing_img_classes = img["class"].split()
+        existing_img_classes = img_classes_raw  # already materialized above
 
-        # Separate positioning classes from image styling classes
-        positioning_classes = [
-            "float-right",
-            "float-left",
-            "float-center",
-            "width-full",
-            "inline",
-        ]
-        figure_classes = [
-            cls for cls in existing_img_classes if cls in positioning_classes
-        ]
         img_only_classes = [
-            cls for cls in existing_img_classes if cls not in positioning_classes
+            cls for cls in existing_img_classes if cls not in _POSITIONING_CLASSES
         ]
-
-        # Add standard image classes
         img_classes = ["focusable", "gallery-image"] + img_only_classes
 
-        # Check for invert class in alt text or metadata
         if "invert" in img.get("alt", "").lower():
             if "invert" not in img_classes:
                 img_classes.append("invert")
 
-        # Update img classes (without positioning classes)
         img["class"] = img_classes
 
-        # Check if already wrapped in a markdown-generated figure
         existing_figure = None
-        if img.parent.name == "figure":
+        if img.parent is not None and img.parent.name == "figure":
             existing_figure = img.parent
-            # Also extract classes from figure if present
             if existing_figure.get("class"):
                 existing_classes = existing_figure.get("class")
                 if isinstance(existing_classes, list):
@@ -352,10 +372,8 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 else:
                     figure_classes.extend(existing_classes.split())
 
-        # Remove duplicates
         figure_classes = list(dict.fromkeys(figure_classes))
 
-        # Add parent 'float' class if any float direction is specified
         if any(
             cls in figure_classes
             for cls in ["float-right", "float-left", "float-center"]
@@ -363,70 +381,56 @@ def enhance_image_assets(html: str, context: dict) -> str:
             if "float" not in figure_classes:
                 figure_classes.append("float")
 
-        # Always create enhanced figure structure
         if existing_figure:
-            # Replace the existing markdown-generated figure with our enhanced structure
-            # Get caption from metadata or existing figcaption
             caption = metadata.get("caption", "")
             if not caption:
-                # Check for existing figcaption
                 existing_caption = existing_figure.find("figcaption")
                 if existing_caption:
                     caption = "".join(str(c) for c in existing_caption.children)
 
-            # Extract the img element
             img.extract()
 
-            # Remember where the figure is
             figure_parent = existing_figure.parent
             figure_index = figure_parent.contents.index(existing_figure)
 
-            # Remove the old figure
             existing_figure.decompose()
 
-            # Create new enhanced figure
             figure = soup.new_tag("figure")
-            # Combine extracted classes with 'block'
             all_classes = list(set(figure_classes + ["block"]))
             figure["class"] = all_classes
 
-            # Create wrapper structure
             outer_wrapper = soup.new_tag("span")
             outer_wrapper["class"] = ["figure-outer-wrapper"]
 
-            # Image wrapper — use <picture> when we have AVIF/WebP sources.
             image_wrapper = soup.new_tag("span")
             image_wrapper["class"] = ["image-wrapper", "img", "focusable"]
-            image_wrapper.append(picture_element if picture_element else img)
+            if picture_element is not None:
+                picture_element.append(img)
+                image_wrapper.append(picture_element)
+            else:
+                image_wrapper.append(img)
             outer_wrapper.append(image_wrapper)
 
-            # Caption wrapper (if caption exists)
             if caption:
                 caption_wrapper = soup.new_tag("span")
                 caption_wrapper["class"] = ["caption-wrapper"]
 
                 figcaption = soup.new_tag("figcaption")
 
-                # Render caption as markdown if it's from metadata
                 if metadata.get("caption"):
                     caption_html = render_markdown(caption, context=context)
                     caption_soup = BeautifulSoup(caption_html, "html.parser")
 
-                    # Extract content from caption (remove wrapper <p> if it exists)
                     caption_content = caption_soup.find("p")
                     if caption_content:
-                        # Move all children of <p> to figcaption
                         for child in list(caption_content.children):
                             figcaption.append(child)
                     else:
-                        # Use the entire rendered content
                         for child in list(
                             caption_soup.body.children if caption_soup.body else []
                         ):
                             figcaption.append(child)
                 else:
-                    # Use existing caption HTML (already parsed from existing_caption)
-                    # Caption is already HTML string from line 215
                     caption_parsed = BeautifulSoup(caption, "html.parser")
                     for child in list(caption_parsed.children):
                         figcaption.append(child)
@@ -435,25 +439,18 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 outer_wrapper.append(caption_wrapper)
 
             figure.append(outer_wrapper)
-
-            # Insert the new figure where the old one was
             figure_parent.insert(figure_index, figure)
 
         else:
-            # Get caption
             caption = metadata.get("caption", "")
 
-            # Check if img is inside a <p> with <img> as only child (markdown default)
             img_parent = img.parent
-            replace_parent = (
-                False  # Flag to track if we're replacing the parent element
-            )
+            replace_parent = False
             img_parent_parent = None
             img_parent_index = None
             img_index = None
 
             if img_parent.name == "p":
-                # Check if this is a standalone image paragraph
                 text_content = "".join(
                     [
                         str(c)
@@ -466,55 +463,48 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 ]
 
                 if not text_content and not other_elements:
-                    # This is a standalone image, replace the <p> with <figure>
                     img_parent_parent = img_parent.parent
                     img_parent_index = img_parent_parent.contents.index(img_parent)
                     img_parent.extract()
                     img.extract()
                     replace_parent = True
                 else:
-                    # Mixed content, just extract img
                     img_index = img_parent.contents.index(img)
                     img.extract()
             else:
                 img_index = img_parent.contents.index(img)
                 img.extract()
 
-            # Create figure structure
             figure = soup.new_tag("figure")
-            # Combine extracted classes with 'block'
             all_classes = list(set(figure_classes + ["block"]))
             figure["class"] = all_classes
 
-            # Create wrapper structure
             outer_wrapper = soup.new_tag("span")
             outer_wrapper["class"] = ["figure-outer-wrapper"]
 
-            # Image wrapper — use <picture> when we have AVIF/WebP sources.
             image_wrapper = soup.new_tag("span")
             image_wrapper["class"] = ["image-wrapper", "img", "focusable"]
-            image_wrapper.append(picture_element if picture_element else img)
+            if picture_element is not None:
+                picture_element.append(img)
+                image_wrapper.append(picture_element)
+            else:
+                image_wrapper.append(img)
             outer_wrapper.append(image_wrapper)
 
-            # Caption wrapper (if caption exists)
             if caption:
                 caption_wrapper = soup.new_tag("span")
                 caption_wrapper["class"] = ["caption-wrapper"]
 
                 figcaption = soup.new_tag("figcaption")
 
-                # Render caption as markdown
                 caption_html = render_markdown(caption, context=context)
                 caption_soup = BeautifulSoup(caption_html, "html.parser")
 
-                # Extract content from caption (remove wrapper <p> if it exists)
                 caption_content = caption_soup.find("p")
                 if caption_content:
-                    # Move all children of <p> to figcaption
                     for child in list(caption_content.children):
                         figcaption.append(child)
                 else:
-                    # Use the entire rendered content
                     for child in list(
                         caption_soup.body.children if caption_soup.body else []
                     ):
@@ -525,12 +515,9 @@ def enhance_image_assets(html: str, context: dict) -> str:
 
             figure.append(outer_wrapper)
 
-            # Insert figure in place of original element
             if replace_parent and img_parent_parent is not None:
-                # We replaced the <p>, insert at parent level
                 img_parent_parent.insert(img_parent_index, figure)
             else:
-                # Insert where img was
                 img_parent.insert(img_index, figure)
 
     return soup_to_html(context, soup)

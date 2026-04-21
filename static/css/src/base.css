@@ -4636,7 +4636,14 @@ figure svg {
    *  The fallback of 10 is large enough that any asset without --img-ar
    *  set falls back to the 100% cap (same as the old behavior).
    */
+  /*  100vh is the "largest possible" viewport on mobile browsers with
+   *  retractable chrome — using it alone makes images briefly overflow
+   *  when the address bar comes back. 100dvh tracks the *dynamic*
+   *  viewport; we declare vh first as a fallback for older engines
+   *  (Safari <15.4, Edge <108) that ignore the dvh declaration.
+   */
   max-width: min(100%, calc((100vh - 8rem) * var(--img-ar, 10)));
+  max-width: min(100%, calc((100dvh - 8rem) * var(--img-ar, 10)));
   height: auto;
   width: auto;
   margin: 0 auto;
@@ -4645,6 +4652,7 @@ figure svg {
    *  inserted via plain HTML) so tall images still don't dwarf the viewport.
    */
   max-height: calc(100vh - 8rem);
+  max-height: calc(100dvh - 8rem);
 
   /*  This is to prevent overflow of image alt-text in Chrome.
    */

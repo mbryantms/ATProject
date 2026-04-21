@@ -5,7 +5,7 @@ Personal publishing platform built with Django 6.0, PostgreSQL, and modern front
 ## First-time local setup
 
 ```bash
-docker compose up -d                              # start local Postgres (see compose.yaml)
+docker compose up -d                              # start Postgres + Redis (see compose.yaml)
 cp .env.example .env                              # then edit secrets as needed
 uv sync                                           # install Python deps
 npm install                                       # install JS deps
@@ -14,7 +14,9 @@ uv run python manage.py collectstatic --noinput   # populate Whitenoise manifest
 uv run python manage.py createsuperuser           # optional, for admin access
 ```
 
-Local Postgres lives in a Docker volume (`pgdata`) and persists across `docker compose stop`/`start`. Use `docker compose down -v` to nuke it. Production Postgres is Neon (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+`compose.yaml` brings up Postgres (`pgdata` volume) and Redis (`redisdata` volume) — both persist across `docker compose stop`/`start`. Use `docker compose down -v` to nuke them. Production Postgres is Neon and production Redis is Railway-managed (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+
+If Docker isn't available on your host (broken daemon, restricted sandbox), run native Postgres + Redis instead — the app only cares that the `DATABASE_URL` and `REDIS_URL` env vars resolve to reachable services.
 
 There is **no CI** — the GitHub Actions workflow was removed. Run tests locally before pushing.
 
@@ -22,16 +24,19 @@ There is **no CI** — the GitHub Actions workflow was removed. Run tests locall
 
 ```bash
 # Run the app
-docker compose up -d                 # ensure Postgres is up
+docker compose up -d                 # ensure Postgres + Redis are up
 uv run python manage.py runserver    # Django dev server
 npm run dev                          # Watch CSS/JS (run in parallel terminal)
-uv run celery -A ATProject worker    # Task worker (optional)
+uv run celery -A ATProject worker    # Task worker (optional — signals use .delay() but fall back to sync)
 
 # Database
 uv run python manage.py migrate      # Apply new migrations
 uv run python manage.py makemigrations
 
 # Tests (require Postgres running + collectstatic having been run at least once)
+# Redis is NOT required — settings.py flips CELERY_TASK_ALWAYS_EAGER=True when
+# ``manage.py test`` is detected, so signal handlers that call ``.delay()``
+# run inline instead of blocking on a broker connection.
 uv run python manage.py test
 uv run python manage.py test engine.tests.test_feeds   # single module
 

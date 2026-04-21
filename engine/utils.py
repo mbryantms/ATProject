@@ -126,6 +126,123 @@ def _supported_modern_formats() -> tuple[tuple[str, str, str, str], ...]:
     )
 
 
+def _animated_frames(img):
+    """Yield (frame_image, duration_ms) tuples from an animated PIL Image.
+
+    Each frame is copied to an RGBA image so downstream encoders don't see
+    palette mutations from PIL's frame iteration.
+    """
+    from PIL import ImageSequence
+
+    for frame in ImageSequence.Iterator(img):
+        duration = frame.info.get("duration", 100)
+        yield frame.convert("RGBA"), duration
+
+
+def _generate_animated_renditions(*, asset, img, widths, jpeg_quality):
+    """Build animated WebP (and AVIF when supported) renditions for a GIF.
+
+    An animated GIF is often the largest single asset on a page; converting
+    to animated WebP typically cuts its weight by 4-10×. We keep the
+    original source format (`"auto"`) untouched so ancient clients still
+    have a fallback.
+    """
+    from PIL import features
+
+    from .models import AssetRendition
+
+    touched = []
+    frames = list(_animated_frames(img))
+    if not frames:
+        return touched
+
+    original_width, original_height = img.size
+    loop = img.info.get("loop", 0)
+
+    modern_targets = [("webp", "WEBP", "webp")]
+    if features.check("avif"):
+        modern_targets.append(("avif", "AVIF", "avif"))
+    modern_targets.append((_SOURCE_FORMAT_TAG, "GIF", "gif"))
+
+    for width in widths:
+        if width >= original_width:
+            continue
+        height = int((width / original_width) * original_height)
+
+        resized_frames = [
+            (frame.copy().resize((width, height), Image.Resampling.LANCZOS), dur)
+            for frame, dur in frames
+        ]
+
+        for fmt_tag, pil_format, ext in modern_targets:
+            rendition, _ = AssetRendition.objects.get_or_create(
+                asset=asset,
+                width=width,
+                format=fmt_tag,
+                quality=AssetRendition.Quality.HIGH,
+                defaults={
+                    "height": height,
+                    "preset": "",
+                    "status": AssetRendition.Status.PENDING,
+                    "file_size": 0,
+                },
+            )
+            if (
+                rendition.file
+                and rendition.status == AssetRendition.Status.COMPLETED
+                and rendition.preset == ""
+            ):
+                continue
+
+            rendition.status = AssetRendition.Status.PROCESSING
+            rendition.error_message = ""
+            rendition.preset = ""
+            rendition.save(update_fields=["status", "error_message", "preset"])
+
+            try:
+                buf = BytesIO()
+                first, *rest = [f for f, _ in resized_frames]
+                durations = [d for _, d in resized_frames]
+                save_kwargs = {
+                    "format": pil_format,
+                    "save_all": True,
+                    "append_images": rest,
+                    "duration": durations,
+                    "loop": loop,
+                }
+                if pil_format == "WEBP":
+                    save_kwargs["quality"] = 80
+                    save_kwargs["method"] = 6
+                elif pil_format == "AVIF":
+                    save_kwargs["quality"] = 60
+                    save_kwargs["speed"] = 6
+                elif pil_format == "GIF":
+                    save_kwargs["optimize"] = True
+                    save_kwargs["disposal"] = 2
+                first.save(buf, **save_kwargs)
+                content = buf.getvalue()
+            except Exception as exc:
+                rendition.status = AssetRendition.Status.FAILED
+                rendition.error_message = str(exc)[:500]
+                rendition.save(update_fields=["status", "error_message"])
+                logger.warning(
+                    "Animated rendition %sw %s failed for asset %s: %s",
+                    width, fmt_tag, asset.key, exc,
+                )
+                continue
+
+            filename = f"{asset.key}-{width}w.{ext}"
+            rendition.file.save(filename, ContentFile(content), save=False)
+            rendition.height = height
+            rendition.file_size = len(content)
+            rendition.is_webp = (fmt_tag == "webp")
+            rendition.status = AssetRendition.Status.COMPLETED
+            rendition.save()
+            touched.append(rendition)
+
+    return touched
+
+
 def generate_asset_renditions(asset, widths=None, formats=None):
     """Generate responsive renditions for an image asset.
 
@@ -153,9 +270,15 @@ def generate_asset_renditions(asset, widths=None, formats=None):
     if asset.asset_type != "image":
         return []
 
+    # SVG: vectors are resolution-independent. Rasterizing to PNG/WebP/AVIF
+    # at fixed widths just loses information. Leave the source file alone
+    # and let the enhancer emit a bare <img> pointing at the SVG.
+    if (asset.file_extension or "").lower() == "svg":
+        return []
+
     if widths is None:
         widths = getattr(
-            settings, "ASSET_RENDITION_WIDTHS", [400, 800, 1200, 1600]
+            settings, "ASSET_RENDITION_WIDTHS", [400, 800, 1200, 1600, 2400]
         )
     jpeg_quality = getattr(settings, "ASSET_RENDITION_JPEG_QUALITY", 85)
 
@@ -165,13 +288,22 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         file_obj = open_field_file(asset.file)
         with Image.open(file_obj) as img:
             img.load()
-            if getattr(img, "is_animated", False) and img.n_frames > 1:
-                logger.info(
-                    "Skipping renditions for animated image %s (%d frames)",
-                    asset.key,
-                    img.n_frames,
+            is_animated = (
+                getattr(img, "is_animated", False) and img.n_frames > 1
+            )
+            if is_animated:
+                animated_touched = _generate_animated_renditions(
+                    asset=asset,
+                    img=img,
+                    widths=widths,
+                    jpeg_quality=jpeg_quality,
                 )
-                return []
+                touched.extend(animated_touched)
+                try:
+                    file_obj.seek(0)
+                except Exception:
+                    pass
+                return touched
 
             original_width, original_height = img.size
             original_pil_format = (img.format or "JPEG").upper()
@@ -289,6 +421,10 @@ def _encode_and_save_rendition(
             "height": height,
             "preset": preset,
             "status": AssetRendition.Status.PENDING,
+            # file_size is NOT NULL at the schema level. We don't know the
+            # real size until encoding finishes below, so seed a 0 that gets
+            # overwritten before the final save.
+            "file_size": 0,
         },
     )
     if (
@@ -541,6 +677,16 @@ def populate_asset_metadata(sender, instance, created, **kwargs):
     The actual extraction logic lives in ``refresh_asset_metadata`` so the admin
     action can call it directly and surface results.
     """
+    from django.conf import settings
+
+    # Under ``manage.py test`` we skip the async task chain entirely: both
+    # extract_metadata_async and generate_renditions_async would otherwise
+    # run eagerly and block in Celery internals. Tests that need those
+    # behaviors call the underlying functions (``extract_all_metadata``,
+    # ``generate_asset_renditions``) directly.
+    if getattr(settings, "TESTING", False):
+        return
+
     result = refresh_asset_metadata(instance)
     needs_save = bool(result["updated"])
 

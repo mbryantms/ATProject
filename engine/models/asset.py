@@ -118,9 +118,12 @@ class Asset(TimeStampedModel, SoftDeleteModel):
                     "png",
                     "gif",
                     "webp",
+                    "avif",
                     "svg",
                     "bmp",
-                    "ico",  # images
+                    "ico",
+                    "heic",
+                    "heif",  # images
                     "mp4",
                     "webm",
                     "mov",
@@ -541,7 +544,10 @@ class Asset(TimeStampedModel, SoftDeleteModel):
 
         ext = os.path.splitext(self.file.name)[1].lower()
 
-        image_exts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico"]
+        image_exts = [
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif",
+            ".svg", ".bmp", ".ico", ".heic", ".heif",
+        ]
         video_exts = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v"]
         audio_exts = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"]
         document_exts = [".pdf", ".epub", ".doc", ".docx", ".txt", ".md"]
@@ -728,6 +734,15 @@ class AssetMetadata(TimeStampedModel):
         max_length=7,
         blank=True,
         help_text="Average color as hex code (e.g., '#FF5733')",
+    )
+
+    lqip_data_url = models.TextField(
+        blank=True,
+        help_text=(
+            "Low-quality image placeholder as an inline data URL. Rendered as "
+            "a CSS background while the full image streams in so the reader "
+            "sees the image's shape (not just a flat color)."
+        ),
     )
 
     color_space = models.CharField(
