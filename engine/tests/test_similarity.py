@@ -255,6 +255,36 @@ class SignalTriggerTests(TestCase):
         )
 
 
+class AdminInlineRendersTests(TestCase):
+    """
+    Regression guard: the PostSimilarityInline must not slice its queryset,
+    since Django's BaseInlineFormSet.__init__ re-filters the queryset and
+    errors on a sliced one with "Cannot filter a query once a slice has
+    been taken." Hitting the admin change page exercises that code path.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_superuser(
+            username="adminuser", email="admin@example.com", password="x"
+        )
+        cls.post = _make_post(cls.user, "admin-post-1")
+        cls.target = _make_post(cls.user, "admin-post-2")
+
+    def test_post_change_page_renders_with_similarity_rows(self):
+        for i in range(12):
+            extra = _make_post(self.user, f"admin-extra-{i}")
+            PostSimilarity.objects.create(
+                source_post=self.post,
+                target_post=extra,
+                score=0.5 - i * 0.01,
+                components={"tag": 0.5},
+            )
+        self.client.force_login(self.user)
+        response = self.client.get(f"/manage/engine/post/{self.post.pk}/change/")
+        self.assertEqual(response.status_code, 200)
+
+
 class ViewUsesPrecomputeTests(TestCase):
     """The detail view must read from PostSimilarity, never compute inline."""
 

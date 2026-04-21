@@ -1184,7 +1184,7 @@ class PostSimilarityInline(admin.TabularInline):
     model = PostSimilarity
     fk_name = "source_post"
     extra = 0
-    max_num = 0
+    max_num = 10
     can_delete = False
     verbose_name = "Similar Post"
     verbose_name_plural = "Similar Posts (auto-computed)"
@@ -1204,8 +1204,10 @@ class PostSimilarityInline(admin.TabularInline):
         return False
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request).select_related("target_post")
-        return qs.order_by("-score")[:10]
+        # Can't slice here — BaseInlineFormSet.__init__ applies .filter() on
+        # the queryset afterward, which errors on sliced querysets. max_num
+        # (set on the class) caps the rendered form count instead.
+        return super().get_queryset(request).select_related("target_post")
 
     @admin.display(description="Target Post")
     def target_post_link(self, obj):
