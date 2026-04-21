@@ -1,6 +1,5 @@
 from collections import OrderedDict
 
-from django.core.cache import cache
 from django.db.models import Count, F, Max, Min, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -8,7 +7,16 @@ from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
 
 from .mixins import SEOContextMixin
-from .models import Category, Page, Post, Series, SiteSettings, Tag, TagAlias
+from .models import (
+    Category,
+    Page,
+    Post,
+    PostSimilarity,
+    Series,
+    SiteSettings,
+    Tag,
+    TagAlias,
+)
 
 
 class IndexView(SEOContextMixin, TemplateView):
@@ -641,7 +649,6 @@ class PostDetailView(SEOContextMixin, DetailView):
             "categories",
             "tags",
             "co_authors",
-            "related_posts",
             "post_assets__asset",  # Prefetch for asset resolution in markdown
         )
         user = self.request.user
@@ -681,12 +688,26 @@ class PostDetailView(SEOContextMixin, DetailView):
         context["backlinks"] = backlinks
         context["backlinks_count"] = backlinks.count()
 
-        # Cache similar posts for 1 hour (expensive computation)
-        cache_key = f"similar_posts:{post.pk}"
-        similar_posts = cache.get(cache_key)
-        if similar_posts is None:
-            similar_posts = list(post.get_similar_posts(limit=6))
-            cache.set(cache_key, similar_posts, 3600)  # 1 hour
+        similar_sims = (
+            PostSimilarity.objects.filter(
+                source_post=post,
+                target_post__status=Post.Status.PUBLISHED,
+                target_post__is_deleted=False,
+                target_post__visibility__in=[
+                    Post.Visibility.PUBLIC,
+                    Post.Visibility.UNLISTED,
+                ],
+            )
+            .select_related("target_post", "target_post__series")
+            .prefetch_related("target_post__tags", "target_post__categories")
+            .order_by("-score", "-target_post__published_at")[:6]
+        )
+        similar_posts = []
+        for sim in similar_sims:
+            target = sim.target_post
+            target.similarity_score = sim.score
+            target.similarity_components = sim.components
+            similar_posts.append(target)
         context["similar_posts"] = similar_posts
         context["similar_posts_count"] = len(similar_posts)
 

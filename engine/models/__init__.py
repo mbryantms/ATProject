@@ -46,6 +46,7 @@ from .post import (
     PostManager,
     PostQuerySet,
     PostRevision,
+    PostSimilarity,
 )
 
 # Settings
@@ -89,6 +90,7 @@ __all__ = [
     "PostManager",
     "InternalLink",
     "PostRevision",
+    "PostSimilarity",
     # Page
     "Page",
     "PageFeaturedTag",

@@ -229,9 +229,6 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         "engine.Category", blank=True, related_name="posts"
     )
     tags = models.ManyToManyField("engine.Tag", blank=True, related_name="posts")
-    related_posts = models.ManyToManyField(
-        "self", blank=True, symmetrical=False, related_name="related_to"
-    )
 
     # --- Media ---
     hero_image_url = models.URLField(
@@ -598,21 +595,26 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         include_private: bool = False,
     ):
         """
-        Return posts automatically ranked for similarity.
-
-        Manual curation via ``related_posts`` is intentionally avoided here;
-        instead we rely on shared taxonomy data and lightweight content
-        analysis for ranking. ``include_private`` can be used for staff tools.
+        Return posts ranked for similarity, reading from the precomputed
+        ``PostSimilarity`` table. ``include_private`` can be used for staff
+        tools.
         """
-        from engine.similarity import MIN_SCORE_DEFAULT, compute_similar_posts
-
-        threshold = MIN_SCORE_DEFAULT if min_score is None else min_score
-        return compute_similar_posts(
-            self,
-            limit=limit,
-            min_score=threshold,
-            allow_private=include_private,
+        qs = (
+            PostSimilarity.objects.filter(source_post=self)
+            .select_related("target_post")
+            .order_by("-score", "-target_post__published_at")
         )
+        if min_score is not None:
+            qs = qs.filter(score__gte=min_score)
+        visibilities = [Post.Visibility.PUBLIC, Post.Visibility.UNLISTED]
+        if include_private:
+            visibilities.append(Post.Visibility.PRIVATE)
+        qs = qs.filter(
+            target_post__status=Post.Status.PUBLISHED,
+            target_post__is_deleted=False,
+            target_post__visibility__in=visibilities,
+        )
+        return [sim.target_post for sim in qs[:limit]]
 
     @staticmethod
     def _compute_word_count(text: str) -> int:
@@ -697,3 +699,46 @@ class InternalLink(TimeStampedModel, SoftDeleteModel):
 
     def __str__(self) -> str:
         return f"{self.source_post.title} → {self.target_post.title}"
+
+
+class PostSimilarity(models.Model):
+    """
+    Precomputed similarity rows per (source_post, target_post) pair.
+
+    Refreshed by the ``recompute_similarity_for_post`` Celery task on
+    post/tag/category/InternalLink/PostCitation changes. Asymmetric: a row
+    from A→B does not imply B→A, since anchor-post context affects scoring.
+    """
+
+    source_post = models.ForeignKey(
+        "Post",
+        on_delete=models.CASCADE,
+        related_name="similar_outgoing",
+    )
+    target_post = models.ForeignKey(
+        "Post",
+        on_delete=models.CASCADE,
+        related_name="similar_incoming",
+    )
+    score = models.FloatField()
+    components = models.JSONField(default=dict, blank=True)
+    computed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["source_post", "-score"],
+                name="postsim_source_score_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_post", "target_post"],
+                name="unique_post_similarity",
+            ),
+        ]
+        verbose_name = "Post Similarity"
+        verbose_name_plural = "Post Similarities"
+
+    def __str__(self) -> str:
+        return f"{self.source_post_id} ≈ {self.target_post_id} ({self.score:.3f})"

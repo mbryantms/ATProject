@@ -328,6 +328,78 @@ def update_post_derived_content(self, post_id: int):
         lock.release()
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=5,
+    retry_kwargs={"max_retries": 3},
+)
+def recompute_similarity_for_post(self, post_id: int):
+    """
+    Recompute PostSimilarity rows anchored at ``post_id``.
+
+    Runs the similarity algorithm for the post against the candidate pool
+    and replaces its outgoing rows atomically. Skipped if the post is
+    soft-deleted or not published. Uses a short-lived cache lock to
+    debounce burst saves.
+    """
+    from django.core.cache import cache
+    from django.db import transaction
+
+    from .models import Post, PostSimilarity
+    from .similarity import MIN_SCORE_DEFAULT, compute_similar_posts
+
+    lock = cache.lock(f"task:similarity:{post_id}", timeout=180)
+    if not lock.acquire(blocking=False):
+        return {
+            "success": False,
+            "error": f"Post {post_id} similarity recompute already in flight.",
+        }
+
+    try:
+        try:
+            post = Post.objects.get(pk=post_id)
+        except Post.DoesNotExist:
+            return {"success": False, "error": f"Post {post_id} not found."}
+
+        if post.is_deleted or post.status != Post.Status.PUBLISHED:
+            # Still clear outgoing rows so stale suggestions disappear.
+            with transaction.atomic():
+                PostSimilarity.objects.filter(source_post_id=post_id).delete()
+            return {
+                "success": True,
+                "post_id": post_id,
+                "rows": 0,
+                "message": "Post is unpublished or deleted; cleared rows.",
+            }
+
+        scored = compute_similar_posts(
+            post, limit=50, min_score=MIN_SCORE_DEFAULT
+        )
+        rows = [
+            PostSimilarity(
+                source_post_id=post_id,
+                target_post_id=c.pk,
+                score=c.similarity_score,
+                components=c.similarity_components.as_dict(),
+            )
+            for c in scored
+        ]
+
+        with transaction.atomic():
+            PostSimilarity.objects.filter(source_post_id=post_id).delete()
+            if rows:
+                PostSimilarity.objects.bulk_create(rows)
+
+        return {
+            "success": True,
+            "post_id": post_id,
+            "rows": len(rows),
+        }
+    finally:
+        lock.release()
+
+
 @shared_task
 def rebuild_search_vectors():
     """

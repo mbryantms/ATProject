@@ -144,9 +144,14 @@ CATEGORY_WEIGHT = 0.2
 SERIES_WEIGHT = 0.35
 CONTENT_WEIGHT = 0.4
 RECENCY_WEIGHT = 0.1
-MIN_SCORE_DEFAULT = 0.18
+BACKLINK_WEIGHT = 0.25
+CITATION_WEIGHT = 0.15
+MIN_SCORE_DEFAULT = 0.20
 MAX_CANDIDATE_BATCH = 200
 CONTENT_VECTOR_ATTR = "_similarity_content_vector"
+
+BACKLINK_DIRECT_FACTOR = 0.6
+BACKLINK_NEIGHBOR_FACTOR = 0.4
 
 
 @dataclass
@@ -156,6 +161,8 @@ class SimilarityComponents:
     series_score: float
     content_score: float
     recency_score: float
+    backlink_score: float = 0.0
+    citation_score: float = 0.0
 
     def total(self) -> float:
         total = (
@@ -164,8 +171,21 @@ class SimilarityComponents:
             + SERIES_WEIGHT * self.series_score
             + CONTENT_WEIGHT * self.content_score
             + RECENCY_WEIGHT * self.recency_score
+            + BACKLINK_WEIGHT * self.backlink_score
+            + CITATION_WEIGHT * self.citation_score
         )
         return total
+
+    def as_dict(self) -> dict:
+        return {
+            "tag": round(self.tag_score, 4),
+            "category": round(self.category_score, 4),
+            "series": round(self.series_score, 4),
+            "content": round(self.content_score, 4),
+            "recency": round(self.recency_score, 4),
+            "backlink": round(self.backlink_score, 4),
+            "citation": round(self.citation_score, 4),
+        }
 
 
 def compute_similar_posts(
@@ -240,6 +260,12 @@ def compute_similar_posts(
     post_tokens = _content_vector(post)
     post_series_id = post.series_id
 
+    candidate_ids = [c.pk for c in candidates]
+    neighbor_map = _build_neighbor_map(post.pk, candidate_ids)
+    citation_map = _build_citation_map(post.pk, candidate_ids)
+    post_neighbors = neighbor_map.get(post.pk, set())
+    post_sources = citation_map.get(post.pk, set())
+
     scored = []
     for candidate in candidates:
         candidate_tokens = _content_vector(candidate)
@@ -257,6 +283,16 @@ def compute_similar_posts(
             else 0.0,
             content_score=_cosine_similarity(post_tokens, candidate_tokens),
             recency_score=_recency_boost(post.published_at, candidate.published_at),
+            backlink_score=_backlink_score(
+                post.pk,
+                candidate.pk,
+                post_neighbors,
+                neighbor_map.get(candidate.pk, set()),
+            ),
+            citation_score=_jaccard(
+                post_sources,
+                citation_map.get(candidate.pk, set()),
+            ),
         )
 
         score = components.total()
@@ -309,6 +345,70 @@ def _tokenize(text: str) -> Sequence[str]:
     if len(tokens) > MAX_TOKEN_COUNT:
         return tokens[:MAX_TOKEN_COUNT]
     return tokens
+
+
+def _build_neighbor_map(post_id: int, candidate_ids: Sequence[int]) -> dict:
+    """
+    Return {post_id: set(neighbor_post_ids)} covering post + candidates,
+    built from non-soft-deleted InternalLink rows in a single query.
+    Neighbor set for a given post is its outgoing targets ∪ incoming sources.
+    """
+    from engine.models import InternalLink
+
+    ids = {post_id, *candidate_ids}
+    if not ids:
+        return {}
+    rows = InternalLink.objects.filter(
+        Q(source_post_id__in=ids) | Q(target_post_id__in=ids)
+    ).values_list("source_post_id", "target_post_id")
+    neighbors: dict[int, set[int]] = {pid: set() for pid in ids}
+    for source_id, target_id in rows:
+        if source_id in neighbors:
+            neighbors[source_id].add(target_id)
+        if target_id in neighbors:
+            neighbors[target_id].add(source_id)
+    return neighbors
+
+
+def _build_citation_map(post_id: int, candidate_ids: Sequence[int]) -> dict:
+    """
+    Return {post_id: set(source_id)} covering post + candidates, built
+    from PostCitation rows in a single query.
+    """
+    from engine.models import PostCitation
+
+    ids = {post_id, *candidate_ids}
+    if not ids:
+        return {}
+    rows = PostCitation.objects.filter(post_id__in=ids).values_list(
+        "post_id", "source_id"
+    )
+    sources: dict[int, set[int]] = {pid: set() for pid in ids}
+    for pid, source_id in rows:
+        sources[pid].add(source_id)
+    return sources
+
+
+def _backlink_score(
+    post_id: int,
+    candidate_id: int,
+    post_neighbors: set[int],
+    candidate_neighbors: set[int],
+) -> float:
+    """
+    Combined signal: direct link presence + neighbor-set Jaccard.
+
+    Direct bonus is 1.0 if the post and candidate link to each other in
+    either direction. Neighbor Jaccard measures overlap of their wider
+    link neighborhoods (friends-of-friends). Weighted 60/40 in favor of
+    direct edges — human-authored links are the stronger intent signal.
+    """
+    direct = 1.0 if candidate_id in post_neighbors or post_id in candidate_neighbors else 0.0
+    # Self-references in either set shouldn't pump the Jaccard.
+    neighbor_a = post_neighbors - {post_id, candidate_id}
+    neighbor_b = candidate_neighbors - {post_id, candidate_id}
+    neighbor = _jaccard(neighbor_a, neighbor_b)
+    return BACKLINK_DIRECT_FACTOR * direct + BACKLINK_NEIGHBOR_FACTOR * neighbor
 
 
 def _jaccard(a_ids: Iterable[int], b_ids: Iterable[int]) -> float:

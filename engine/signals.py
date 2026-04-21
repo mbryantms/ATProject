@@ -8,11 +8,11 @@ and cache invalidation for citation formatting.
 import logging
 
 from django.core.cache import cache
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
 from django.dispatch import receiver
 
 from engine.links.extractor import update_post_links
-from engine.models import Post, Source
+from engine.models import InternalLink, Post, PostCitation, Source
 
 logger = logging.getLogger(__name__)
 
@@ -122,3 +122,50 @@ def invalidate_citeproc_cache_on_source_save(sender, instance, **kwargs):
 # post_save (after the row was already written), so the "old vs new" comparison
 # always saw identical values and never triggered.  Link building for published
 # posts is already handled by update_internal_links_on_save above.
+
+
+def _enqueue_similarity(post_id: int) -> None:
+    if not post_id:
+        return
+    from engine.tasks import recompute_similarity_for_post
+
+    try:
+        recompute_similarity_for_post.delay(post_id)
+    except Exception as exc:  # broker unreachable, etc.
+        logger.warning(
+            "Could not enqueue similarity recompute for post %s: %s", post_id, exc
+        )
+
+
+@receiver(post_save, sender=Post)
+def recompute_similarity_on_post_save(sender, instance, **kwargs):
+    """
+    Registered AFTER update_internal_links_on_save so InternalLink state
+    is fresh when the recompute task runs.
+    """
+    if instance.is_deleted or instance.status != Post.Status.PUBLISHED:
+        return
+    _enqueue_similarity(instance.pk)
+
+
+@receiver(m2m_changed, sender=Post.tags.through)
+@receiver(m2m_changed, sender=Post.categories.through)
+def recompute_similarity_on_taxonomy_change(sender, instance, action, **kwargs):
+    if action not in {"post_add", "post_remove", "post_clear"}:
+        return
+    if not isinstance(instance, Post):
+        return
+    _enqueue_similarity(instance.pk)
+
+
+@receiver(post_save, sender=InternalLink)
+@receiver(post_delete, sender=InternalLink)
+def recompute_similarity_on_link_change(sender, instance, **kwargs):
+    _enqueue_similarity(instance.source_post_id)
+    _enqueue_similarity(instance.target_post_id)
+
+
+@receiver(post_save, sender=PostCitation)
+@receiver(post_delete, sender=PostCitation)
+def recompute_similarity_on_citation_change(sender, instance, **kwargs):
+    _enqueue_similarity(instance.post_id)

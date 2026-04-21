@@ -16,7 +16,14 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from engine.models import InternalLink, Post, PostAsset, PostCitation, PostRevision
+from engine.models import (
+    InternalLink,
+    Post,
+    PostAsset,
+    PostCitation,
+    PostRevision,
+    PostSimilarity,
+)
 
 from .mixins import SoftDeleteAdminMixin
 
@@ -1171,6 +1178,53 @@ class IncomingLinksInline(admin.TabularInline):
         )
 
 
+class PostSimilarityInline(admin.TabularInline):
+    """Read-only inline showing computed similar posts with component breakdown."""
+
+    model = PostSimilarity
+    fk_name = "source_post"
+    extra = 0
+    max_num = 0
+    can_delete = False
+    verbose_name = "Similar Post"
+    verbose_name_plural = "Similar Posts (auto-computed)"
+    fields = ("target_post_link", "score", "components_display", "computed_at")
+    readonly_fields = (
+        "target_post_link",
+        "score",
+        "components_display",
+        "computed_at",
+    )
+    ordering = ["-score"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related("target_post")
+        return qs.order_by("-score")[:10]
+
+    @admin.display(description="Target Post")
+    def target_post_link(self, obj):
+        if not obj or not obj.target_post_id:
+            return "—"
+        return format_html(
+            '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
+            obj.target_post.pk,
+            obj.target_post.title,
+        )
+
+    @admin.display(description="Components")
+    def components_display(self, obj):
+        if not obj or not obj.components:
+            return "—"
+        parts = [f"{k}={v}" for k, v in obj.components.items()]
+        return format_html("<code>{}</code>", ", ".join(parts))
+
+
 class PostRevisionInline(admin.TabularInline):
     model = PostRevision
     extra = 0
@@ -1239,6 +1293,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         PostAssetInline,
         PostCitationInline,
         IncomingLinksInline,
+        PostSimilarityInline,
         PostRevisionInline,
     ]
     save_on_top = True
@@ -1287,12 +1342,11 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         "series",
         "categories",
         "tags",
-        "related_posts",
         "published_by",
         "last_edited_by",
     )
 
-    filter_horizontal = ("co_authors", "categories", "tags", "related_posts")
+    filter_horizontal = ("co_authors", "categories", "tags")
 
     # Fields excluded from the form entirely — internal caches and
     # derived columns that the Celery pipeline / DB triggers manage.
@@ -2054,10 +2108,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 "fields": (
                     ("series", "series_order"),
                     ("categories", "tags"),
-                    ("related_posts",),
                 ),
                 "classes": ["collapse"],
-                "description": "Categorize and cross-link this post.",
+                "description": "Categorize this post. Similar posts are computed automatically — see the PostSimilarity inline below.",
             },
         ),
         (
@@ -3055,3 +3108,35 @@ class PostRevisionAdmin(admin.ModelAdmin):
         if size < 1024:
             return f"{size} B"
         return f"{size / 1024:.1f} KB"
+
+
+# --------------------------
+# Post Similarity (auto-computed)
+# --------------------------
+@admin.register(PostSimilarity)
+class PostSimilarityAdmin(admin.ModelAdmin):
+    """Read-only browser over the precomputed similarity table."""
+
+    list_display = ("source_post", "target_post", "score", "computed_at")
+    list_filter = ("computed_at",)
+    search_fields = (
+        "source_post__title",
+        "source_post__slug",
+        "target_post__title",
+        "target_post__slug",
+    )
+    list_select_related = ("source_post", "target_post")
+    readonly_fields = (
+        "source_post",
+        "target_post",
+        "score",
+        "components",
+        "computed_at",
+    )
+    list_per_page = 100
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
