@@ -113,9 +113,9 @@ Flower is already in `pyproject.toml`; use it for a persistent, full-featured Ce
 2. In service settings:
    - Rename to `flower`
    - Go to **Settings** → **Deploy**
-   - Set **Start Command** to:
+   - Set **Start Command** to (the outer `sh -c '…'` is required — Railway runs start commands without a shell, so `$PORT` and `$FLOWER_BASIC_AUTH` would otherwise be passed to Flower literally and crash on `int('$PORT')`):
      ```
-     celery -A ATProject flower --address=0.0.0.0 --port=$PORT --basic_auth=$FLOWER_BASIC_AUTH --url_prefix=flower --persistent=true --db=/tmp/flower.db --max_tasks=10000
+     sh -c 'celery -A ATProject flower --address=0.0.0.0 --port=$PORT --basic_auth=$FLOWER_BASIC_AUTH --url_prefix=flower --persistent=true --db=/tmp/flower.db --max_tasks=10000'
      ```
    - Go to **Settings** → **Networking** → **Generate Domain** (or attach a custom domain)
 3. Set service-level environment variables (or inherit from the project):

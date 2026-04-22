@@ -131,10 +131,40 @@ uv run python manage.py rebuild_backlinks
 ## Management Commands
 
 ```bash
-uv run python manage.py rebuild_backlinks    # Rebuild InternalLink records
-uv run python manage.py generate_renditions  # Generate image variants
-uv run python manage.py cleanup_assets       # Remove orphaned assets (DB only)
+uv run python manage.py rebuild_backlinks          # Rebuild InternalLink records
+uv run python manage.py generate_renditions        # Generate image variants
+uv run python manage.py generate_video_renditions  # Transcode videos + extract posters
+uv run python manage.py regenerate_html_cache      # Re-render cached post HTML
+uv run python manage.py cleanup_assets             # Remove orphaned assets (DB only)
 ```
+
+### Video Rendition Generation
+
+**Via management command:**
+```bash
+# Preview which videos would be processed
+uv run python manage.py generate_video_renditions --dry-run
+
+# Process a single asset by key
+uv run python manage.py generate_video_renditions --asset-key vid-nyt-analysis
+
+# Custom resolution set (default: 720,1080; heights in px, never upscales)
+uv run python manage.py generate_video_renditions --resolutions 720
+
+# Only (re-)grab posters; skip MP4/WebM transcoding
+uv run python manage.py generate_video_renditions --skip-renditions
+
+# Only transcode; skip poster extraction
+uv run python manage.py generate_video_renditions --skip-poster
+```
+
+The command runs synchronously (per-asset output) — useful for backfills and debugging. For production/async, call `engine.tasks.generate_video_renditions_async.delay(asset.pk)` which has a 30-minute time limit and runs on the Celery worker.
+
+**What it emits per asset:**
+- Poster: `preset="poster"`, two AssetRendition rows (format `webp` + `auto`/JPEG fallback). Also populates `AssetMetadata.lqip_data_url` + `average_color` + `dominant_colors` from the poster frame.
+- Video: for each requested resolution ≤ source height, two AssetRendition rows (H.264 MP4 via libx264/AAC, VP9 WebM via libvpx-vp9/Opus), with `preset="video-720p"` etc. and `codec` populated.
+
+**After running**: execute `regenerate_html_cache` for posts embedding the video so `asset_video_enhancer` picks up the new renditions in `content_html_cached` and emits the multi-`<source>` tags.
 
 ### Asset Cleanup
 
