@@ -571,6 +571,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         "populate_metadata",
         "extract_metadata",
         "generate_renditions",
+        "generate_video_renditions",
         "update_usage_count",
         "mark_as_ready",
         "mark_as_archived",
@@ -1404,6 +1405,53 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             touched += 1
         self.message_user(
             request, f"Generated renditions for {touched} image(s).",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Generate renditions for selected videos (poster + MP4/WebM)")
+    def generate_video_renditions(self, request, queryset):
+        """Queue poster extraction + MP4/WebM transcoding for the video
+        assets in the selection.
+
+        Async by default. There is no synchronous fallback because VP9
+        1080p can take tens of minutes per asset — running those inside
+        an admin request would time out. If Celery is unreachable, the
+        action surfaces an error and does nothing.
+        """
+        video_ids = list(
+            queryset.filter(asset_type="video").values_list("pk", flat=True)
+        )
+        if not video_ids:
+            self.message_user(
+                request,
+                "No videos in the selection — this action only runs on video assets.",
+                level=messages.WARNING,
+            )
+            return
+
+        try:
+            from engine.tasks import (
+                extract_video_poster_async,
+                generate_video_renditions_async,
+            )
+
+            for asset_id in video_ids:
+                extract_video_poster_async.delay(asset_id)
+                generate_video_renditions_async.delay(asset_id)
+        except Exception as exc:
+            self.message_user(
+                request,
+                f"Celery broker unreachable ({exc}); video transcoding is "
+                f"async-only and was not started.",
+                level=messages.ERROR,
+            )
+            return
+
+        self.message_user(
+            request,
+            f"Queued poster extraction + MP4/WebM transcoding for "
+            f"{len(video_ids)} video(s). Watch progress at "
+            f"Task Results → Live Celery status.",
             level=messages.SUCCESS,
         )
 
