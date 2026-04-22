@@ -266,8 +266,14 @@ def enhance_image_assets(html: str, context: dict) -> str:
             # dimensions independently and break the aspect ratio. With only
             # ``width`` set, the browser derives height from the inline
             # ``aspect-ratio`` and the clamps stay proportional.
-        elif intrinsic_width:
-            style_parts.append(f"max-width: {intrinsic_width}px")
+        # No inline ``max-width`` in the intrinsic-size branch: it would
+        # override the stylesheet's ``max-width: min(100%, (100dvh - 8rem) *
+        # var(--img-ar))`` cap (inline beats class selectors), letting tall
+        # images break out of the column on viewports where the viewport-
+        # height branch of the min() would otherwise win. With ``width:
+        # auto`` on ``figure img``, the browser already renders the image at
+        # its intrinsic size by default; ``max-width`` only clamps down, so
+        # the image never upscales past its natural pixels.
 
         if style_parts:
             existing_style = img.get("style", "").strip()
