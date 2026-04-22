@@ -123,6 +123,100 @@ def generate_renditions_async(asset_id, widths=None, formats=None):
         }
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=5,
+    retry_kwargs={"max_retries": 3},
+)
+def extract_video_poster_async(self, asset_id):
+    """
+    Extract a poster frame for a video asset and populate LQIP/colour
+    metadata from it.
+
+    Fast-ish (single ffmpeg frame grab + PIL re-encode) so it's safe to
+    queue alongside the slower transcoding task.
+    """
+    from .models import Asset
+    from .video_pipeline import extract_poster
+
+    try:
+        asset = Asset.objects.get(pk=asset_id)
+    except Asset.DoesNotExist:
+        return {"success": False, "error": f"Asset {asset_id} not found"}
+
+    if asset.asset_type != "video":
+        return {
+            "success": False,
+            "asset_key": asset.key,
+            "error": "Asset is not a video",
+        }
+
+    try:
+        rendition = extract_poster(asset)
+    except Exception as exc:
+        return {
+            "success": False,
+            "asset_key": asset.key,
+            "error": str(exc),
+        }
+
+    return {
+        "success": rendition is not None,
+        "asset_key": asset.key,
+        "rendition_id": str(rendition.id) if rendition else None,
+    }
+
+
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=30,
+    retry_kwargs={"max_retries": 2},
+    soft_time_limit=1800,
+    time_limit=1900,
+)
+def generate_video_renditions_async(self, asset_id, resolutions=None):
+    """
+    Transcode a video asset into MP4 + WebM renditions at the requested
+    resolutions. Long-running: VP9 1080p on a multi-minute clip can take
+    tens of minutes, hence the wide ``time_limit``.
+    """
+    from .models import Asset
+    from .video_pipeline import generate_video_renditions
+
+    try:
+        asset = Asset.objects.get(pk=asset_id)
+    except Asset.DoesNotExist:
+        return {"success": False, "error": f"Asset {asset_id} not found"}
+
+    if asset.asset_type != "video":
+        return {
+            "success": False,
+            "asset_key": asset.key,
+            "error": "Asset is not a video",
+        }
+
+    kwargs = {}
+    if resolutions:
+        kwargs["resolutions"] = tuple(int(r) for r in resolutions)
+
+    try:
+        renditions = generate_video_renditions(asset, **kwargs)
+    except Exception as exc:
+        return {
+            "success": False,
+            "asset_key": asset.key,
+            "error": str(exc),
+        }
+
+    return {
+        "success": True,
+        "asset_key": asset.key,
+        "renditions_generated": len(renditions),
+    }
+
+
 @shared_task
 def bulk_extract_metadata(asset_ids):
     """
@@ -549,6 +643,25 @@ def finalize_presigned_upload(self, asset_id):
 
                 logging.getLogger(__name__).warning(
                     f"Failed to queue renditions for {asset.key}: {e}"
+                )
+        elif asset.asset_type == "video":
+            # Poster first — it's fast and the enhancer can start using it
+            # immediately, even while transcoding is still running.
+            try:
+                extract_video_poster_async.delay(asset.pk)
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"Failed to queue poster extraction for {asset.key}: {e}"
+                )
+            try:
+                generate_video_renditions_async.delay(asset.pk)
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    f"Failed to queue video renditions for {asset.key}: {e}"
                 )
 
         return {

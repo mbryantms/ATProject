@@ -852,8 +852,9 @@ class AssetRendition(TimeStampedModel):
         help_text="Preset/size name (e.g., 'thumbnail', 'hero', 'card', 'small', 'medium', 'large')",
     )
 
-    file = models.ImageField(
-        upload_to="assets/renditions/%Y/%m/", help_text="Rendition file"
+    file = models.FileField(
+        upload_to="assets/renditions/%Y/%m/",
+        help_text="Rendition file (image, video, or poster frame)",
     )
 
     file_size = models.PositiveIntegerField(help_text="File size in bytes")

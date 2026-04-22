@@ -26,6 +26,79 @@ from bs4 import BeautifulSoup, NavigableString
 from .utils import get_shared_soup, soup_to_html
 
 
+_BOOLEAN_TRUE = ("true", "1", "yes", "on")
+
+
+def _lookup_video_placeholder(asset, AssetMetadata) -> tuple[str | None, str | None]:
+    """Return (lqip_data_url, placeholder_color) for a video's poster-derived
+    metadata, or (None, None). Mirrors the image enhancer's helper so the
+    same bytes are reused across repeat lookups within a render pass.
+    """
+    cached = getattr(asset, "_cached_video_placeholder", None)
+    if cached is not None:
+        return cached
+
+    try:
+        metadata = AssetMetadata.objects.only(
+            "dominant_colors", "average_color", "lqip_data_url"
+        ).get(asset=asset)
+    except AssetMetadata.DoesNotExist:
+        asset._cached_video_placeholder = (None, None)
+        return (None, None)
+
+    color = None
+    if metadata.dominant_colors and isinstance(metadata.dominant_colors, list):
+        for candidate in metadata.dominant_colors:
+            if isinstance(candidate, str) and candidate.startswith("#"):
+                color = candidate
+                break
+    if not color and metadata.average_color:
+        color = metadata.average_color
+
+    lqip = getattr(metadata, "lqip_data_url", None) or None
+    result = (lqip, color)
+    asset._cached_video_placeholder = result
+    return result
+
+
+def _poster_rendition_url(asset) -> str | None:
+    """Prefer the WebP poster; fall back to the JPEG if only that is
+    completed. Returns ``None`` if neither is ready yet.
+    """
+    poster_renditions = asset.renditions.filter(
+        preset="poster", status="completed"
+    )
+    webp = next((r for r in poster_renditions if r.format == "webp"), None)
+    if webp and webp.file:
+        return webp.url
+    other = next((r for r in poster_renditions if r.file), None)
+    return other.url if other else None
+
+
+def _select_video_sources(asset):
+    """Pick the highest-resolution WebM and MP4 renditions for ``asset``.
+
+    Returns a list of (url, mime_type) tuples ordered from modern-first
+    (WebM/VP9) to legacy (MP4/H.264) to ``None``-return when renditions
+    aren't ready yet. The caller still appends the original source as a
+    final fallback when appropriate.
+    """
+    completed = list(
+        asset.renditions.filter(
+            preset__startswith="video-", status="completed"
+        ).order_by("-height")
+    )
+    best_webm = next((r for r in completed if r.format == "webm" and r.file), None)
+    best_mp4 = next((r for r in completed if r.format == "mp4" and r.file), None)
+
+    sources = []
+    if best_webm:
+        sources.append((best_webm.url, "video/webm"))
+    if best_mp4:
+        sources.append((best_mp4.url, "video/mp4"))
+    return sources, best_mp4 is not None
+
+
 def enhance_video_assets(html: str, context: dict) -> str:
     """
     Enhance video assets with HTML5 video player and responsive features.
@@ -35,7 +108,7 @@ def enhance_video_assets(html: str, context: dict) -> str:
     """
     # Lazy import to avoid circular import
     from engine.markdown.renderer import render_markdown
-    from engine.models import Asset
+    from engine.models import Asset, AssetMetadata
 
     soup = get_shared_soup(html, context)
 
@@ -123,14 +196,56 @@ def enhance_video_assets(html: str, context: dict) -> str:
         ):
             display_width = int((display_height / intrinsic_height) * intrinsic_width)
 
+        # Existing classes on the source element feed into positioning
+        # decisions (float-right / inline / etc.). Collect early so the
+        # preload heuristic below can see them.
+        early_classes_raw = element.get("class") or []
+        if isinstance(early_classes_raw, str):
+            early_classes_raw = early_classes_raw.split()
+        has_inline_class = "inline" in early_classes_raw
+
         # Create video element
         video = soup.new_tag("video")
         video["controls"] = "controls"
-        video["preload"] = "metadata"  # Load first frame to avoid black screen
 
         # Check for loop attribute from metadata
-        if metadata.get("loop") in ["true", "1", "yes"]:
+        if metadata.get("loop", "").lower() in _BOOLEAN_TRUE:
             video["loop"] = ""
+
+        # autoplay implies muted+playsinline on mobile Safari — without the
+        # full trio, iOS refuses to start playback.
+        autoplay = metadata.get("autoplay", "").lower() in _BOOLEAN_TRUE
+        if autoplay:
+            video["autoplay"] = ""
+            video["muted"] = ""
+            video["playsinline"] = ""
+
+        # Look up the poster BEFORE deciding on preload so the heuristic can
+        # see whether we have something visible to show before the pixels land.
+        poster_url = None
+        if metadata.get("poster"):
+            if metadata["poster"].startswith("@asset:"):
+                poster_key = metadata["poster"].replace("@asset:", "")
+                try:
+                    poster_asset = Asset.objects.get(key=poster_key)
+                    poster_url = poster_asset.file.url
+                except Asset.DoesNotExist:
+                    pass
+            else:
+                poster_url = metadata["poster"]
+        if not poster_url:
+            poster_url = _poster_rendition_url(asset)
+
+        # preload heuristic. autoplay → auto (player needs bytes now).
+        # inline or has-poster → none (poster covers the gap until the
+        # user interacts). Otherwise metadata (current default; reveals
+        # the first frame without pulling the full stream).
+        if autoplay:
+            video["preload"] = "auto"
+        elif has_inline_class or poster_url:
+            video["preload"] = "none"
+        else:
+            video["preload"] = "metadata"
 
         # Add intrinsic dimensions as attributes for aspect ratio calculation
         # Don't set height attribute - let CSS aspect-ratio handle it
@@ -164,32 +279,46 @@ def enhance_video_assets(html: str, context: dict) -> str:
         if display_height and display_width:
             style_parts.append(f"height: {display_height}px")
 
+        # Background-fill treatment — same visual as <img>. The LQIP is a
+        # tiny blurred data-URL of the poster frame; placeholder_color is a
+        # dominant/average colour. Both come from AssetMetadata populated
+        # during poster extraction in video_pipeline.extract_poster.
+        lqip_data_url, placeholder_color = _lookup_video_placeholder(
+            asset, AssetMetadata
+        )
+        if lqip_data_url:
+            style_parts.append(f"background-image: url({lqip_data_url})")
+            style_parts.append("background-size: cover")
+            style_parts.append("background-position: center")
+        if placeholder_color:
+            style_parts.append(f"background-color: {placeholder_color}")
+
         if style_parts:
             video["style"] = "; ".join(style_parts)
-
-        # Add poster image if available
-        poster_url = None
-        if metadata.get("poster"):
-            # Check if it's an asset key or direct URL
-            if metadata["poster"].startswith("@asset:"):
-                poster_key = metadata["poster"].replace("@asset:", "")
-                try:
-                    poster_asset = Asset.objects.get(key=poster_key)
-                    poster_url = poster_asset.file.url
-                except Asset.DoesNotExist:
-                    pass
-            else:
-                poster_url = metadata["poster"]
 
         if poster_url:
             video["data-video-poster"] = poster_url
             video["poster"] = poster_url
 
-        # Add source element
-        source = soup.new_tag("source")
-        source["src"] = base_url
-        source["type"] = asset.mime_type or "video/mp4"
-        video.append(source)
+        # Multi-source emission ordered modern → legacy → original fallback.
+        # The browser picks the first <source> whose codec it can decode.
+        rendition_sources, has_mp4_rendition = _select_video_sources(asset)
+        for src_url, mime_type in rendition_sources:
+            source = soup.new_tag("source")
+            source["src"] = src_url
+            source["type"] = mime_type
+            video.append(source)
+
+        # Append the original file as a final fallback — but only if it's
+        # not identical to a rendition we just emitted. When we already have
+        # an MP4 rendition and the original is also MP4, the rendition is
+        # strictly better (smaller, faststart'd), so skip the duplicate.
+        source_mime = asset.mime_type or "video/mp4"
+        if not (has_mp4_rendition and source_mime == "video/mp4"):
+            fallback = soup.new_tag("source")
+            fallback["src"] = base_url
+            fallback["type"] = source_mime
+            video.append(fallback)
 
         # Extract existing classes from element (Pandoc puts attributes on element)
         existing_element_classes = []
