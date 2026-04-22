@@ -56,7 +56,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"Invalid --resolutions: {exc}"))
             return
 
-        qs = Asset.objects.videos()
+        qs = Asset.objects.filter(asset_type="video")
         if asset_key:
             qs = qs.filter(key=asset_key)
 
