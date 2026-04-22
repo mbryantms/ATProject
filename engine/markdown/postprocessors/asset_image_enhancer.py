@@ -260,8 +260,12 @@ def enhance_image_assets(html: str, context: dict) -> str:
 
         if display_width:
             style_parts.append(f"width: {display_width}px")
-            if display_height:
-                style_parts.append(f"height: {display_height}px")
+            # Don't emit inline ``height``: when both width and height are
+            # explicit on an <img>, ``aspect-ratio`` is ignored, so on short
+            # viewports ``max-width`` and ``max-height`` would clamp the two
+            # dimensions independently and break the aspect ratio. With only
+            # ``width`` set, the browser derives height from the inline
+            # ``aspect-ratio`` and the clamps stay proportional.
         elif intrinsic_width:
             style_parts.append(f"max-width: {intrinsic_width}px")
 

@@ -4728,7 +4728,17 @@ figcaption p:first-of-type {
   display: block;
   outline: 1px solid var(--AT-figure-caption-outline-color);
   margin: 1px auto 0 auto;
-  width: 100%;
+  /*  width:0 + min-width:100% makes the caption stretch to the parent's
+   *  resolved width without contributing its intrinsic (max-content) width
+   *  to the parent's fit-content. Otherwise the figcaption's unwrapped
+   *  text dominates .figure-outer-wrapper's fit-content and the caption
+   *  box ends up wider than the image whenever the image is clamped by
+   *  max-height (e.g. a tall asset on a short viewport). With this the
+   *  caption always matches the image's rendered width.
+   */
+  width: 0;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 figure.outline-not .caption-wrapper {
