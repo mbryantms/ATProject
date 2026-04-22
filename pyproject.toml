@@ -8,6 +8,7 @@ dependencies = [
     "nh3>=0.2.18",
     "boto3>=1.35.0",
     "celery>=5.4.0",
+    "flower>=2.0.1",
     "django>=6.0.0,<7.0",
     "django-celery-beat>=2.9.0",
     "django-celery-results>=2.5.0",
@@ -34,7 +35,6 @@ dev = [
     "django-debug-toolbar>=5.0.0",
     "djlint>=1.36.0",
     "ffprobe>=0.5",
-    "flower>=2.0.1",
     "pre-commit>=4.0.0",
     "ruff>=0.8.0",
 ]
