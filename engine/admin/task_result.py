@@ -40,6 +40,8 @@ class TaskResultAdmin(BaseTaskResultAdmin):
     Enhanced TaskResult admin with human-readable task names.
     """
 
+    change_list_template = "admin/engine/taskresult_changelist.html"
+
     list_display = (
         "short_task_id",
         "task_display_name",

@@ -30,6 +30,7 @@ from .asset import (
     AssetRenditionAdmin,
     AssetTagAdmin,
 )
+from .celery_status import celery_status_view  # registers admin:celery_status URL
 from .mixins import SoftDeleteAdminMixin
 from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin, PostRevisionAdmin

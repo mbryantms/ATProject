@@ -105,6 +105,44 @@ This guide walks through deploying ATProject to **Neon** (serverless PostgreSQL)
    - Set **Start Command** to: `celery -A ATProject beat --loglevel=info`
    - **Note**: The default scheduler is file-based (`celery.beat:PersistentScheduler`), which avoids constant DB polling. Only use `--scheduler django_celery_beat.schedulers:DatabaseScheduler` if you need to edit schedules dynamically via the Django admin (this polls the DB every 5 seconds, adding ~17K queries/day).
 
+### Step 2.6 (Optional): Deploy Flower Dashboard
+
+Flower is already in `pyproject.toml`; use it for a persistent, full-featured Celery dashboard beyond the in-admin **Live Celery status** page. Skip this step if the admin page is enough — Flower costs a small amount per month for a dedicated service.
+
+1. Click **"+ New"** → **"GitHub Repo"** (same repo)
+2. In service settings:
+   - Rename to `flower`
+   - Go to **Settings** → **Deploy**
+   - Set **Start Command** to:
+     ```
+     celery -A ATProject flower --address=0.0.0.0 --port=$PORT --basic_auth=$FLOWER_BASIC_AUTH --url_prefix=flower --persistent=true --db=/tmp/flower.db --max_tasks=10000
+     ```
+   - Go to **Settings** → **Networking** → **Generate Domain** (or attach a custom domain)
+3. Set service-level environment variables (or inherit from the project):
+   - `CELERY_BROKER_URL` — same Redis URL the web/worker services use (Railway's shared-variables pattern handles this automatically)
+   - `FLOWER_BASIC_AUTH` — `admin:SOME_STRONG_PASSWORD`, required to gate the dashboard behind HTTP basic auth. **Do not skip this** — Flower exposes task payloads including asset IDs and markdown content.
+   - `FLOWER_UNAUTHENTICATED_API=false` — blocks the JSON API endpoints to anonymous callers
+4. Visit `https://<flower-service>.up.railway.app/flower/` (note the `/flower/` prefix matches `--url_prefix`); log in with the credentials from `FLOWER_BASIC_AUTH`.
+
+**What Flower gives you beyond the in-admin status page**:
+
+- Persistent task history (the `--persistent=true --db=/tmp/flower.db` flags store up to `--max_tasks` task records, survives restarts of the Flower service but not the container's ephemeral disk)
+- Graphs of success/failure rate over time
+- Per-task click-through with full args, result, traceback, runtime breakdown
+- Broadcast commands: revoke running tasks, rate-limit a queue, shut down a worker remotely
+
+**What Flower does *not* give you**:
+
+- Durable history across container restarts (use Sentry or the lightweight task-event log pattern for that)
+- Per-asset filtering (the admin `processing_state` widget is better for that — it scopes by the asset you're viewing)
+
+**Running Flower locally** (without a dedicated Railway service):
+
+```bash
+uv run celery -A ATProject flower --address=127.0.0.1 --port=5555 --basic_auth=admin:devpass
+```
+Visit `http://127.0.0.1:5555/` (no URL prefix locally).
+
 ---
 
 ## Part 3: Configure Environment Variables

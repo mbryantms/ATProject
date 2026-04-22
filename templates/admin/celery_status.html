@@ -1,0 +1,208 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/admin-common.css' %}">
+  <style>
+    .mk-dashboard-grid {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    .mk-card {
+      border: 1px solid var(--hairline-color, #eee);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      background: var(--body-bg, #fff);
+    }
+    .mk-card h2 {
+      font-size: 1rem;
+      margin: 0 0 0.75rem 0;
+      font-weight: 600;
+      border-bottom: 1px solid var(--hairline-color, #eee);
+      padding-bottom: 0.5rem;
+    }
+    .mk-card table {
+      width: 100%;
+      font-size: 0.85rem;
+    }
+    .mk-card th {
+      text-align: left;
+      font-weight: 500;
+      opacity: 0.7;
+      padding: 0.25rem 0.5rem;
+      border-bottom: 1px solid var(--hairline-color, #eee);
+    }
+    .mk-card td {
+      padding: 0.25rem 0.5rem;
+      vertical-align: top;
+    }
+    .mk-card td.mk-col-args {
+      font-family: var(--font-family-monospace, monospace);
+      font-size: 0.8rem;
+      max-width: 25rem;
+      overflow-wrap: anywhere;
+    }
+    .mk-card .mk-muted {
+      opacity: 0.55;
+    }
+    .mk-empty {
+      padding: 0.75rem 0;
+      opacity: 0.55;
+      font-style: italic;
+    }
+    .mk-runtime-long {
+      color: var(--error-fg, #b33a3a);
+      font-weight: 600;
+    }
+    .mk-banner-error {
+      background: #fdecea;
+      border: 1px solid #f5c6cb;
+      color: #611a15;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+  </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; Celery status
+</div>
+{% endblock %}
+
+{% block content_title %}<h1>Celery status</h1>{% endblock %}
+
+{% block content %}
+<p class="help">
+  Live read of <code>celery.control.inspect()</code>. Data comes from the
+  broker (Redis), not from <code>TaskResult</code>. Cached for a few
+  seconds per process.
+  <a href="?refresh=1" class="mk-object-tool">↻ Refresh now</a>
+  <span class="mk-muted">&nbsp;Last read: {{ now|date:"H:i:s T" }}</span>
+</p>
+
+{% if broker_error %}
+  <div class="mk-banner-error">
+    <strong>Broker unreachable.</strong> <code>{{ broker_error }}</code><br>
+    The worker may be down, or <code>REDIS_URL</code> may be misconfigured.
+  </div>
+{% endif %}
+
+<div class="mk-dashboard-grid">
+
+  <section class="mk-card">
+    <h2>Workers ({{ workers|length }})</h2>
+    {% if workers %}
+      <table>
+        <thead>
+          <tr>
+            <th>Worker</th>
+            <th>Pool</th>
+            <th>Concurrency</th>
+            <th>Load</th>
+            <th>Total tasks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in workers %}
+          <tr>
+            <td><code>{{ w.worker }}</code></td>
+            <td>{{ w.pool_impl|default:"—" }}</td>
+            <td>{{ w.pool_size|default:"—" }}</td>
+            <td>
+              {% if w.load_avg %}
+                {{ w.load_avg.0|floatformat:2 }}
+                / {{ w.load_avg.1|floatformat:2 }}
+                / {{ w.load_avg.2|floatformat:2 }}
+              {% else %}<span class="mk-muted">—</span>{% endif %}
+            </td>
+            <td>{{ w.total_tasks }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="mk-empty">No workers reported in. The worker service may be down.</div>
+    {% endif %}
+  </section>
+
+  <section class="mk-card">
+    <h2>Active tasks ({{ active_tasks|length }})</h2>
+    {% if active_tasks %}
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Worker</th>
+            <th>Runtime</th>
+            <th>Args</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in active_tasks %}
+          <tr>
+            <td>
+              <code>{{ t.task_short_name }}</code>
+              <div class="mk-muted" title="{{ t.task_id }}">
+                {{ t.task_id|slice:":12" }}…
+              </div>
+            </td>
+            <td><code>{{ t.worker }}</code></td>
+            <td>
+              {% if t.runtime_seconds and t.runtime_seconds > 60 %}
+                <span class="mk-runtime-long">{{ t.runtime_human }}</span>
+              {% else %}
+                {{ t.runtime_human }}
+              {% endif %}
+            </td>
+            <td class="mk-col-args">
+              {{ t.args }}{% if t.kwargs and t.kwargs != "{}" and t.kwargs != "null" %}&nbsp;{{ t.kwargs }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="mk-empty">No tasks running.</div>
+    {% endif %}
+  </section>
+
+  <section class="mk-card">
+    <h2>Reserved / queued ({{ reserved_tasks|length }})</h2>
+    {% if reserved_tasks %}
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Worker</th>
+            <th>Args</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in reserved_tasks %}
+          <tr>
+            <td>
+              <code>{{ t.task_short_name }}</code>
+              <div class="mk-muted" title="{{ t.task_id }}">
+                {{ t.task_id|slice:":12" }}…
+              </div>
+            </td>
+            <td><code>{{ t.worker }}</code></td>
+            <td class="mk-col-args">
+              {{ t.args }}{% if t.kwargs and t.kwargs != "{}" and t.kwargs != "null" %}&nbsp;{{ t.kwargs }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="mk-empty">Queue is empty.</div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

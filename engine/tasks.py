@@ -78,7 +78,12 @@ def extract_metadata_async(asset_id):
         }
 
 
-@shared_task
+@shared_task(
+    # AVIF encoding at 5 widths + 2 social crops is CPU-heavy; the global
+    # 5-min default can clip on multi-megapixel originals.
+    soft_time_limit=900,
+    time_limit=960,
+)
 def generate_renditions_async(asset_id, widths=None, formats=None):
     """
     Generate responsive image renditions asynchronously.
@@ -217,7 +222,7 @@ def generate_video_renditions_async(self, asset_id, resolutions=None):
     }
 
 
-@shared_task
+@shared_task(soft_time_limit=1800, time_limit=1860)
 def bulk_extract_metadata(asset_ids):
     """
     Extract metadata for multiple assets in bulk.
@@ -261,7 +266,7 @@ def bulk_extract_metadata(asset_ids):
     return results
 
 
-@shared_task
+@shared_task(soft_time_limit=3600, time_limit=3660)
 def bulk_generate_renditions(asset_ids, widths=None, formats=None):
     """
     Generate renditions for multiple assets in bulk.
@@ -427,6 +432,8 @@ def update_post_derived_content(self, post_id: int):
     autoretry_for=(Exception,),
     retry_backoff=5,
     retry_kwargs={"max_retries": 3},
+    soft_time_limit=900,
+    time_limit=960,
 )
 def recompute_similarity_for_post(self, post_id: int):
     """
@@ -494,7 +501,7 @@ def recompute_similarity_for_post(self, post_id: int):
         lock.release()
 
 
-@shared_task
+@shared_task(soft_time_limit=1800, time_limit=1860)
 def rebuild_search_vectors():
     """
     Rebuild search vectors for all posts.
@@ -533,6 +540,10 @@ def rebuild_search_vectors():
     autoretry_for=(Exception,),
     retry_backoff=5,
     retry_kwargs={"max_retries": 3},
+    # Hashing a multi-hundred-MB video file + ffprobe on it can run past the
+    # 5-min global default; bump so large uploads don't silently fail.
+    soft_time_limit=900,
+    time_limit=960,
 )
 def finalize_presigned_upload(self, asset_id):
     """
@@ -948,6 +959,8 @@ def cleanup_expired_uploads():
     autoretry_for=(Exception,),
     retry_backoff=60,
     retry_kwargs={"max_retries": 2},
+    soft_time_limit=3600,
+    time_limit=3660,
 )
 def cleanup_orphaned_assets(
     self,

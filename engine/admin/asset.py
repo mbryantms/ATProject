@@ -45,6 +45,16 @@ def _status_pill_class(status: str) -> str:
     }.get(status, "")
 
 
+def _rendition_pill_class(status: str) -> str:
+    """Map AssetRendition.Status values to shared .mk-pill tone classes."""
+    return {
+        "pending": "mk-pill--muted",
+        "processing": "mk-pill--warn",
+        "completed": "mk-pill--success",
+        "failed": "mk-pill--danger",
+    }.get(status, "")
+
+
 class BulkEditAssetsForm(forms.Form):
     """Intermediate form for bulk-editing selected assets.
 
@@ -1099,7 +1109,75 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     f"{rendition_count} generated</span></li>"
                 )
 
-        # Recent TaskResults for this asset (best-effort lookup)
+        # Video rendition matrix — one row per (preset, format) so it's
+        # obvious which codec/resolution is done vs. in-flight vs. failed.
+        if obj.asset_type == "video" and obj.pk:
+            video_renditions = list(
+                obj.renditions.filter(preset__startswith="video-").order_by(
+                    "preset", "format"
+                )
+            )
+            poster_renditions = list(
+                obj.renditions.filter(preset="poster").order_by("format")
+            )
+            if poster_renditions:
+                poster_pills = []
+                for r in poster_renditions:
+                    poster_pills.append(
+                        f'<span class="mk-pill {_rendition_pill_class(r.status)}">'
+                        f"poster/{r.format}: {r.status}</span>"
+                    )
+                rows.append(
+                    "<li>🎞️ Poster: " + " ".join(poster_pills) + "</li>"
+                )
+            else:
+                rows.append(
+                    '<li>🎞️ Poster: <span class="mk-pill mk-pill--info">'
+                    "Not yet generated</span></li>"
+                )
+
+            if video_renditions:
+                vid_pills = []
+                for r in video_renditions:
+                    label = f"{r.preset.replace('video-', '')}/{r.format}"
+                    pill = f'<span class="mk-pill {_rendition_pill_class(r.status)}">{label}: {r.status}</span>'
+                    if r.status == "failed" and r.error_message:
+                        pill = (
+                            f'<span title="{r.error_message[:200]}">{pill}</span>'
+                        )
+                    vid_pills.append(pill)
+                rows.append(
+                    "<li>📼 Video renditions: " + " ".join(vid_pills) + "</li>"
+                )
+            else:
+                rows.append(
+                    '<li>📼 Video renditions: <span class="mk-pill mk-pill--info">'
+                    "None yet</span> — run <em>generate_video_renditions</em></li>"
+                )
+
+        # Live Celery status for this asset — reads control.inspect() from
+        # the broker, not the database. Surfaces tasks that are currently
+        # running against this asset so admins can tell "is the worker
+        # actually chewing on this, or is it genuinely stuck?".
+        try:
+            from .celery_status import active_tasks_for_asset
+
+            live_tasks = active_tasks_for_asset(obj)
+        except Exception:
+            live_tasks = []
+        if live_tasks:
+            rows.append("<li>🔄 Running now:<ul>")
+            for t in live_tasks:
+                rows.append(
+                    f'<li><code class="mk-code">{t["task_short_name"]}</code> '
+                    f'on <code>{t["worker"]}</code> '
+                    f'<small class="mk-muted">(running {t["runtime_human"]})</small></li>'
+                )
+            rows.append("</ul></li>")
+
+        # Recent TaskResults for this asset (best-effort lookup — result
+        # backend is Redis so this is usually empty, but left in for
+        # environments that flip CELERY_RESULT_BACKEND to django-db).
         try:
             from django_celery_results.models import TaskResult
 
