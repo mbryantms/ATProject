@@ -173,7 +173,7 @@ class TagTests(TestCase):
 
     def test_tag_alias_redirect(self):
         tag = Tag.objects.create(name="Machine Learning", slug="machine-learning")
-        alias = TagAlias.objects.create(name="ML", slug="ml", tag=tag)
+        alias = TagAlias.objects.create(alias="ML", slug="ml", tag=tag)
         self.assertEqual(alias.tag, tag)
 
     def test_hierarchical_tags(self):
