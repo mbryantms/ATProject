@@ -10,19 +10,6 @@
 /* CLIPBOARD */
 /*************/
 
-/*******************************************/
-/*  Copy the provided text to the clipboard.
- */
-function copyTextToClipboard(text) {
-  let scratchpad = document.querySelector('#scratchpad');
-
-  //  Perform copy operation.
-  scratchpad.innerText = text;
-  selectElementContents(scratchpad);
-  document.execCommand('copy');
-  scratchpad.innerText = '';
-}
-
 /****************************************************/
 /*  Select the full contents of a given DOM element.
  */

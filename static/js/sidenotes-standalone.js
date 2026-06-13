@@ -152,7 +152,7 @@
     /* Layout utilities.
      */
 
-    isWithinCollapsedBlock: (element) => {
+    isWithinCollapsedBlock: () => {
       // Simplified - no collapse block support in standalone
       return false;
     },
@@ -588,7 +588,6 @@
 
       if (!sidenoteOuterWrapper) return;
 
-      const sidenoteContentHeight = sidenoteOuterWrapper.scrollHeight;
       const sidenoteTop = sidenoteRect.top;
       const sidenoteBottom = sidenoteRect.bottom;
 

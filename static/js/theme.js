@@ -15,7 +15,7 @@ const Theme = {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       return this.VALID_THEMES.includes(stored) ? stored : 'auto';
-    } catch (e) {
+    } catch {
       return 'auto';
     }
   },
@@ -31,7 +31,7 @@ const Theme = {
     document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem(this.STORAGE_KEY, theme);
-    } catch (e) {
+    } catch {
       // localStorage not available
     }
 
