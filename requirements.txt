@@ -75,7 +75,7 @@ feedparser==6.0.12
     # via pyzotero
 flower==2.0.1
     # via atproject
-gunicorn==23.0.0
+gunicorn==26.0.0
     # via atproject
 h11==0.16.0
     # via httpcore
@@ -151,11 +151,7 @@ sqlparse==0.5.5
 tornado==6.5.7
     # via flower
 typing-extensions==4.15.0
-    # via
-    #   anyio
-    #   beautifulsoup4
-    #   django-redis
-    #   psycopg
+    # via beautifulsoup4
 tzdata==2026.2
     # via
     #   django
