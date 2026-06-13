@@ -65,7 +65,7 @@ django-environ==0.13.0
     # via atproject
 django-ratelimit==4.1.0
     # via atproject
-django-redis==6.0.0
+django-redis==7.0.0
     # via atproject
 django-storages==1.14.6
     # via atproject
@@ -132,7 +132,7 @@ pytz==2026.2
     # via flower
 pyzotero==1.13.1
     # via atproject
-redis==7.4.1
+redis==8.0.0
     # via
     #   atproject
     #   django-redis
@@ -154,6 +154,7 @@ typing-extensions==4.15.0
     # via
     #   anyio
     #   beautifulsoup4
+    #   django-redis
     #   psycopg
 tzdata==2026.2
     # via
