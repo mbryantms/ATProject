@@ -14,7 +14,7 @@
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -22,7 +22,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # postgres:18 moved PGDATA to /var/lib/postgresql/18/docker and now
+      # declares /var/lib/postgresql as its VOLUME (it was .../data on v17).
+      # Mount the named volume at the parent so data persists. Existing local
+      # volumes from a pg17 layout must be recreated once: docker compose down -v.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d atproject"]
       interval: 10s
@@ -30,7 +34,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
