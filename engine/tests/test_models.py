@@ -79,10 +79,15 @@ class PostQuerySetTests(TestSetupMixin, TestCase):
         self.assertIn(self.private, qs)
         self.assertNotIn(self.draft, qs)
 
-    def test_public_returns_public_and_unlisted(self):
+    def test_public_returns_only_public(self):
         qs = Post.objects.published().public()
         self.assertIn(self.published_public, qs)
-        self.assertIn(self.published_unlisted, qs)
+        # public() is the discovery filter used by feeds, the sitemap and
+        # search. UNLISTED posts are reachable by direct URL (see the detail
+        # view's visibility__in=[PUBLIC, UNLISTED] check) but must never
+        # surface in listings, so public() excludes them -- consistent with
+        # Post.should_noindex() treating UNLISTED like PRIVATE.
+        self.assertNotIn(self.published_unlisted, qs)
         self.assertNotIn(self.private, qs)
 
     def test_drafts_returns_only_drafts(self):
