@@ -590,9 +590,7 @@ class FeedIndexView(SEOContextMixin, TemplateView):
 
     template_name = "posts/feed_index.html"
     seo_title = "Feeds"
-    seo_description = (
-        "RSS and Atom feeds for every section of the site — subscribe in any feed reader."
-    )
+    seo_description = "RSS and Atom feeds for every section of the site — subscribe in any feed reader."
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

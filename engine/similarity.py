@@ -403,7 +403,9 @@ def _backlink_score(
     link neighborhoods (friends-of-friends). Weighted 60/40 in favor of
     direct edges — human-authored links are the stronger intent signal.
     """
-    direct = 1.0 if candidate_id in post_neighbors or post_id in candidate_neighbors else 0.0
+    direct = (
+        1.0 if candidate_id in post_neighbors or post_id in candidate_neighbors else 0.0
+    )
     # Self-references in either set shouldn't pump the Jaccard.
     neighbor_a = post_neighbors - {post_id, candidate_id}
     neighbor_b = candidate_neighbors - {post_id, candidate_id}

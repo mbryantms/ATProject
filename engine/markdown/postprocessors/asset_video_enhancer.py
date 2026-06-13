@@ -25,7 +25,6 @@ from bs4 import BeautifulSoup, NavigableString
 
 from .utils import get_shared_soup, soup_to_html
 
-
 _BOOLEAN_TRUE = ("true", "1", "yes", "on")
 
 
@@ -65,9 +64,7 @@ def _poster_rendition_url(asset) -> str | None:
     """Prefer the WebP poster; fall back to the JPEG if only that is
     completed. Returns ``None`` if neither is ready yet.
     """
-    poster_renditions = asset.renditions.filter(
-        preset="poster", status="completed"
-    )
+    poster_renditions = asset.renditions.filter(preset="poster", status="completed")
     webp = next((r for r in poster_renditions if r.format == "webp"), None)
     if webp and webp.file:
         return webp.url

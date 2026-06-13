@@ -385,7 +385,11 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 icon = type_icons.get(getattr(obj, "asset_type", ""), "📎")
                 title = (getattr(obj, "title", "") or "").strip()
                 key = getattr(obj, "key", "") or ""
-                type_label = obj.get_asset_type_display() if hasattr(obj, "get_asset_type_display") else ""
+                type_label = (
+                    obj.get_asset_type_display()
+                    if hasattr(obj, "get_asset_type_display")
+                    else ""
+                )
                 bits = [f"{icon} {title}" if title else f"{icon} (no title)"]
                 suffix = []
                 if type_label:
@@ -589,7 +593,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Optimize queryset for list view."""
         qs = super().get_queryset(request)
         # Prefetch related objects to avoid N+1 queries
-        qs = qs.prefetch_related("asset_tags", "collections").select_related("asset_folder")
+        qs = qs.prefetch_related("asset_tags", "collections").select_related(
+            "asset_folder"
+        )
         return qs
 
     def get_form(self, request, obj=None, **kwargs):
@@ -972,9 +978,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         ]
         if len(collections) > 3:
             remaining = obj.collections.count() - 3
-            badges.append(
-                f'<span class="mk-muted">+{remaining} more</span>'
-            )
+            badges.append(f'<span class="mk-muted">+{remaining} more</span>')
         return mark_safe(" ".join(badges))
 
     @admin.display(description="Status", ordering="status")
@@ -1083,8 +1087,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         # Metadata extraction
         has_metadata = (
-            obj.pk is not None
-            and AssetMetadata.objects.filter(asset=obj).exists()
+            obj.pk is not None and AssetMetadata.objects.filter(asset=obj).exists()
         )
         if has_metadata:
             rows.append(
@@ -1128,9 +1131,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                         f'<span class="mk-pill {_rendition_pill_class(r.status)}">'
                         f"poster/{r.format}: {r.status}</span>"
                     )
-                rows.append(
-                    "<li>🎞️ Poster: " + " ".join(poster_pills) + "</li>"
-                )
+                rows.append("<li>🎞️ Poster: " + " ".join(poster_pills) + "</li>")
             else:
                 rows.append(
                     '<li>🎞️ Poster: <span class="mk-pill mk-pill--info">'
@@ -1143,13 +1144,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     label = f"{r.preset.replace('video-', '')}/{r.format}"
                     pill = f'<span class="mk-pill {_rendition_pill_class(r.status)}">{label}: {r.status}</span>'
                     if r.status == "failed" and r.error_message:
-                        pill = (
-                            f'<span title="{r.error_message[:200]}">{pill}</span>'
-                        )
+                        pill = f'<span title="{r.error_message[:200]}">{pill}</span>'
                     vid_pills.append(pill)
-                rows.append(
-                    "<li>📼 Video renditions: " + " ".join(vid_pills) + "</li>"
-                )
+                rows.append("<li>📼 Video renditions: " + " ".join(vid_pills) + "</li>")
             else:
                 rows.append(
                     '<li>📼 Video renditions: <span class="mk-pill mk-pill--info">'
@@ -1171,7 +1168,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             for t in live_tasks:
                 rows.append(
                     f'<li><code class="mk-code">{t["task_short_name"]}</code> '
-                    f'on <code>{t["worker"]}</code> '
+                    f"on <code>{t['worker']}</code> "
                     f'<small class="mk-muted">(running {t["runtime_human"]})</small></li>'
                 )
             rows.append("</ul></li>")
@@ -1183,9 +1180,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             from django_celery_results.models import TaskResult
 
             key = obj.key or ""
-            recent = TaskResult.objects.filter(
-                task_kwargs__icontains=key
-            ).order_by("-date_done")[:3] if key else []
+            recent = (
+                TaskResult.objects.filter(task_kwargs__icontains=key).order_by(
+                    "-date_done"
+                )[:3]
+                if key
+                else []
+            )
             if recent:
                 rows.append("<li>Recent tasks:<ul>")
                 for tr in recent:
@@ -1198,9 +1199,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         except Exception:
             pass
 
-        return mark_safe(
-            '<ul class="mk-inline-list">' + "".join(rows) + "</ul>"
-        )
+        return mark_safe('<ul class="mk-inline-list">' + "".join(rows) + "</ul>")
 
     @admin.display(description="Possible duplicates")
     def duplicate_warning(self, obj):
@@ -1214,9 +1213,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             .only("pk", "key", "title", "created_at")[:5]
         )
         if not dupes:
-            return mark_safe(
-                '<span class="mk-pill mk-pill--success">Unique</span>'
-            )
+            return mark_safe('<span class="mk-pill mk-pill--success">Unique</span>')
 
         from django.urls import reverse
 
@@ -1234,9 +1231,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 )
             )
         header = format_html(
-            '<span class="mk-pill mk-pill--warn">'
-            "{} duplicate(s) by file hash"
-            "</span>",
+            '<span class="mk-pill mk-pill--warn">{} duplicate(s) by file hash</span>',
             len(dupes),
         )
         return mark_safe(
@@ -1338,7 +1333,8 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             post_url = reverse("admin:engine_post_change", args=[usage.post.pk])
             alias = (
                 f' <code class="mk-code">@{escape(usage.alias)}</code>'
-                if usage.alias else ""
+                if usage.alias
+                else ""
             )
             items.append(
                 f'<li><a href="{post_url}" target="_blank">{escape(usage.post.title)}</a>{alias}</li>'
@@ -1349,9 +1345,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         if total > 10:
             more = f'<p class="mk-muted" style="margin:8px 0 0 0;"><em>…and {total - 10} more</em></p>'
 
-        return mark_safe(
-            f'<ul class="mk-inline-list">{"".join(items)}</ul>{more}'
-        )
+        return mark_safe(f'<ul class="mk-inline-list">{"".join(items)}</ul>{more}')
 
     @admin.action(description="Generate renditions for selected images")
     def generate_renditions(self, request, queryset):
@@ -1404,11 +1398,14 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             generate_asset_renditions(asset)
             touched += 1
         self.message_user(
-            request, f"Generated renditions for {touched} image(s).",
+            request,
+            f"Generated renditions for {touched} image(s).",
             level=messages.SUCCESS,
         )
 
-    @admin.action(description="Generate renditions for selected videos (poster + MP4/WebM)")
+    @admin.action(
+        description="Generate renditions for selected videos (poster + MP4/WebM)"
+    )
     def generate_video_renditions(self, request, queryset):
         """Queue poster extraction + MP4/WebM transcoding for the video
         assets in the selection.
@@ -1514,9 +1511,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 level=messages.INFO,
             )
         for key, err in per_asset_errors:
-            self.message_user(
-                request, f"{key}: {err}", level=messages.ERROR
-            )
+            self.message_user(request, f"{key}: {err}", level=messages.ERROR)
         if not per_asset_errors and total_updated == 0 and not no_op_assets:
             self.message_user(request, "No assets selected.", level=messages.WARNING)
 
@@ -1528,9 +1523,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """
         asset_ids = list(queryset.values_list("pk", flat=True))
         if not asset_ids:
-            self.message_user(
-                request, "No assets selected.", level=messages.WARNING
-            )
+            self.message_user(request, "No assets selected.", level=messages.WARNING)
             return
 
         # Try async path first — safe for any batch size.
@@ -1603,9 +1596,7 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """
         selected_ids = list(queryset.values_list("pk", flat=True))
         if not selected_ids:
-            self.message_user(
-                request, "No assets selected.", level=messages.WARNING
-            )
+            self.message_user(request, "No assets selected.", level=messages.WARNING)
             return None
 
         if request.POST.get("apply"):
@@ -1645,7 +1636,11 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 self.message_user(
                     request,
                     f"Updated {updated_count or len(selected_ids)} asset(s)"
-                    + (f"; tag changes applied to {tag_changes}." if tag_changes else "."),
+                    + (
+                        f"; tag changes applied to {tag_changes}."
+                        if tag_changes
+                        else "."
+                    ),
                     level=messages.SUCCESS,
                 )
                 return None
@@ -1950,9 +1945,7 @@ class AssetMetadataAdmin(admin.ModelAdmin):
         if not info_parts:
             return mark_safe('<em class="mk-muted">No metadata</em>')
 
-        return mark_safe(
-            f'<div style="font-size:11px;">{" • ".join(info_parts)}</div>'
-        )
+        return mark_safe(f'<div style="font-size:11px;">{" • ".join(info_parts)}</div>')
 
     @admin.display(description="Camera", boolean=True)
     def has_camera_info_display(self, obj):
@@ -2338,9 +2331,7 @@ class AssetCollectionAdmin(admin.ModelAdmin):
         """Display number of assets in collection."""
         count = obj.asset_count()
         if count == 0:
-            return mark_safe(
-                '<em class="mk-muted">No assets yet</em>'
-            )
+            return mark_safe('<em class="mk-muted">No assets yet</em>')
         return format_html(
             '<span class="mk-pill mk-pill--info">{} asset{}</span>',
             count,

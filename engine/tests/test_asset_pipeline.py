@@ -204,7 +204,7 @@ class ImageEnhancerOutputTests(TestCase):
     def test_emits_picture_with_webp_source(self):
         html = (
             f'<p><img alt="x" src="/orig.jpg#asset-data:{self.asset.key}'
-            f":image:1800:1200\"></p>"
+            f':image:1800:1200"></p>'
         )
         out = self._run(html)
         self.assertIn("<picture>", out)
@@ -212,9 +212,7 @@ class ImageEnhancerOutputTests(TestCase):
         self.assertIn("400w", out)
 
     def test_default_sizes_without_positioning_class(self):
-        html = (
-            f'<p><img alt="x" src="/orig.jpg#asset-data:{self.asset.key}:image"></p>'
-        )
+        html = f'<p><img alt="x" src="/orig.jpg#asset-data:{self.asset.key}:image"></p>'
         out = self._run(html)
         self.assertIn('sizes="(max-width: 649px) 100vw, 935px"', out)
 
@@ -222,7 +220,7 @@ class ImageEnhancerOutputTests(TestCase):
         html = (
             f'<figure class="float-right">'
             f'<img alt="x" src="/orig.jpg#asset-data:{self.asset.key}:image">'
-            f'</figure>'
+            f"</figure>"
         )
         out = self._run(html)
         self.assertIn("50vw", out)
@@ -254,9 +252,7 @@ class ImageEnhancerOutputTests(TestCase):
             width=120,
             height=120,
         )
-        html = (
-            f'<p><img alt="logo" src="/logo.svg#asset-data:{svg.key}:image"></p>'
-        )
+        html = f'<p><img alt="logo" src="/logo.svg#asset-data:{svg.key}:image"></p>'
         out = self._run(html)
         self.assertNotIn("<picture>", out)
         self.assertNotIn("srcset=", out)
@@ -271,9 +267,7 @@ class ImageEnhancerOutputTests(TestCase):
         # without metadata.
         if hasattr(self.asset, "_cached_placeholder"):
             delattr(self.asset, "_cached_placeholder")
-        html = (
-            f'<p><img alt="x" src="/orig.jpg#asset-data:{self.asset.key}:image"></p>'
-        )
+        html = f'<p><img alt="x" src="/orig.jpg#asset-data:{self.asset.key}:image"></p>'
         out = self._run(html)
         self.assertIn("background-image: url(data:image/webp;base64,", out)
         self.assertIn("background-color: #112233", out)
@@ -351,12 +345,14 @@ def _mock_ffmpeg(output_bytes_by_ext):
         try:
             y_idx = argv.index("-y")
             out_path = argv[y_idx + 1]
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             out_path = None
 
         if out_path:
             ext = os.path.splitext(out_path)[1].lstrip(".").lower()
-            payload = output_bytes_by_ext.get(ext, output_bytes_by_ext.get("*", b"\x00"))
+            payload = output_bytes_by_ext.get(
+                ext, output_bytes_by_ext.get("*", b"\x00")
+            )
             with open(out_path, "wb") as fh:
                 fh.write(payload)
 
@@ -380,11 +376,12 @@ class VideoPosterExtractionTests(TestCase):
         asset = _make_video_asset(key="poster-basic")
         jpeg_bytes = _tiny_jpeg_bytes()
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg({"jpg": jpeg_bytes}),
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg({"jpg": jpeg_bytes}),
+            ),
         ):
             from engine.video_pipeline import extract_poster
 
@@ -406,11 +403,12 @@ class VideoPosterExtractionTests(TestCase):
         asset = _make_video_asset(key="poster-placeholders")
         jpeg_bytes = _tiny_jpeg_bytes()
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg({"jpg": jpeg_bytes}),
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg({"jpg": jpeg_bytes}),
+            ),
         ):
             from engine.video_pipeline import extract_poster
 
@@ -424,11 +422,12 @@ class VideoPosterExtractionTests(TestCase):
     def test_poster_failure_marks_rendition_failed(self):
         asset = _make_video_asset(key="poster-fail")
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg_failure(stderr="codec borked"),
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg_failure(stderr="codec borked"),
+            ),
         ):
             from engine.video_pipeline import extract_poster
 
@@ -450,9 +449,10 @@ class VideoPosterExtractionTests(TestCase):
             captured_argv.append(list(argv))
             return _mock_ffmpeg({"jpg": jpeg_bytes})(argv, *args, **kwargs)
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch("engine.video_pipeline.subprocess.run", side_effect=_capture):
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch("engine.video_pipeline.subprocess.run", side_effect=_capture),
+        ):
             from engine.video_pipeline import extract_poster
 
             extract_poster(asset)
@@ -470,14 +470,14 @@ class VideoRenditionGenerationTests(TestCase):
     def test_generates_mp4_and_webm_at_each_resolution(self):
         asset = _make_video_asset(key="transcode-1080", width=1920, height=1080)
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline._probe_output_bitrate", return_value=2500
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg(
-                {"mp4": b"fake-mp4-bytes", "webm": b"fake-webm-bytes"}
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch("engine.video_pipeline._probe_output_bitrate", return_value=2500),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg(
+                    {"mp4": b"fake-mp4-bytes", "webm": b"fake-webm-bytes"}
+                ),
             ),
         ):
             from engine.video_pipeline import generate_video_renditions
@@ -500,14 +500,12 @@ class VideoRenditionGenerationTests(TestCase):
         # 720p source → 1080p must be skipped (never upscale).
         asset = _make_video_asset(key="transcode-720", width=1280, height=720)
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline._probe_output_bitrate", return_value=1500
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg(
-                {"mp4": b"fake-mp4", "webm": b"fake-webm"}
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch("engine.video_pipeline._probe_output_bitrate", return_value=1500),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg({"mp4": b"fake-mp4", "webm": b"fake-webm"}),
             ),
         ):
             from engine.video_pipeline import generate_video_renditions
@@ -526,7 +524,7 @@ class VideoRenditionGenerationTests(TestCase):
             try:
                 out_path = argv[argv.index("-y") + 1]
                 out_ext = os.path.splitext(out_path)[1].lstrip(".").lower()
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 pass
             if out_ext == "webm":
                 return subprocess.CompletedProcess(argv, 1, "", "vp9 broke")
@@ -536,12 +534,10 @@ class VideoRenditionGenerationTests(TestCase):
                     fh.write(b"ok")
             return subprocess.CompletedProcess(argv, 0, "", "")
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline._probe_output_bitrate", return_value=None
-        ), patch(
-            "engine.video_pipeline.subprocess.run", side_effect=_side_effect
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch("engine.video_pipeline._probe_output_bitrate", return_value=None),
+            patch("engine.video_pipeline.subprocess.run", side_effect=_side_effect),
         ):
             from engine.video_pipeline import generate_video_renditions
 
@@ -556,13 +552,13 @@ class VideoRenditionGenerationTests(TestCase):
     def test_rerun_is_idempotent(self):
         asset = _make_video_asset(key="transcode-repeat", width=1280, height=720)
 
-        with patch(
-            "engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"
-        ), patch(
-            "engine.video_pipeline._probe_output_bitrate", return_value=1500
-        ), patch(
-            "engine.video_pipeline.subprocess.run",
-            side_effect=_mock_ffmpeg({"mp4": b"x", "webm": b"y"}),
+        with (
+            patch("engine.video_pipeline._ffmpeg_bin", return_value="/usr/bin/ffmpeg"),
+            patch("engine.video_pipeline._probe_output_bitrate", return_value=1500),
+            patch(
+                "engine.video_pipeline.subprocess.run",
+                side_effect=_mock_ffmpeg({"mp4": b"x", "webm": b"y"}),
+            ),
         ):
             from engine.video_pipeline import generate_video_renditions
 
@@ -581,12 +577,8 @@ class VideoEnhancerOutputTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.bare_asset = _make_video_asset(
-            key="enhance-bare", width=1280, height=720
-        )
-        cls.rich_asset = _make_video_asset(
-            key="enhance-rich", width=1920, height=1080
-        )
+        cls.bare_asset = _make_video_asset(key="enhance-bare", width=1280, height=720)
+        cls.rich_asset = _make_video_asset(key="enhance-rich", width=1920, height=1080)
         # Two video renditions + a poster for the "rich" asset.
         AssetRendition.objects.create(
             asset=cls.rich_asset,
@@ -750,19 +742,18 @@ class FinalizeUploadQueuesVideoProcessingTests(TestCase):
         asset.status = "processing"
         asset.save(update_fields=["status"])
 
-        with patch(
-            "engine.api.presigned.verify_object_exists",
-            return_value={"exists": True, "size": 1024},
-        ), patch.object(
-            tasks.extract_video_poster_async, "delay"
-        ) as poster_delay, patch.object(
-            tasks.generate_video_renditions_async, "delay"
-        ) as rendition_delay, patch.object(
-            tasks, "_extract_video_metadata"
-        ), patch.object(
-            tasks, "_calculate_file_hash"
-        ), patch(
-            "engine.metadata_extractor.extract_all_metadata", return_value=None
+        with (
+            patch(
+                "engine.api.presigned.verify_object_exists",
+                return_value={"exists": True, "size": 1024},
+            ),
+            patch.object(tasks.extract_video_poster_async, "delay") as poster_delay,
+            patch.object(
+                tasks.generate_video_renditions_async, "delay"
+            ) as rendition_delay,
+            patch.object(tasks, "_extract_video_metadata"),
+            patch.object(tasks, "_calculate_file_hash"),
+            patch("engine.metadata_extractor.extract_all_metadata", return_value=None),
         ):
             tasks.finalize_presigned_upload(asset.pk)
 

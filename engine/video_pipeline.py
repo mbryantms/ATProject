@@ -17,11 +17,15 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 from django.core.files.base import ContentFile
 from PIL import Image
 
 from .storage_utils import ensure_local_file
+
+if TYPE_CHECKING:
+    from .models import AssetRendition
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +35,9 @@ logger = logging.getLogger(__name__)
 # another entry here without touching the enhancer's source-picking logic.
 @dataclass(frozen=True)
 class VideoCodec:
-    format_tag: str   # AssetRendition.format value
-    codec_tag: str    # AssetRendition.codec value
-    ext: str          # file extension
+    format_tag: str  # AssetRendition.format value
+    codec_tag: str  # AssetRendition.codec value
+    ext: str  # file extension
     ffmpeg_args: tuple[str, ...]
 
 
@@ -42,12 +46,18 @@ _H264_MP4 = VideoCodec(
     codec_tag="h264",
     ext="mp4",
     ffmpeg_args=(
-        "-c:v", "libx264",
-        "-preset", "medium",
-        "-crf", "23",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "-movflags", "+faststart",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "23",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-movflags",
+        "+faststart",
     ),
 )
 
@@ -56,21 +66,27 @@ _VP9_WEBM = VideoCodec(
     codec_tag="vp9",
     ext="webm",
     ffmpeg_args=(
-        "-c:v", "libvpx-vp9",
-        "-crf", "31",
-        "-b:v", "0",
-        "-row-mt", "1",
-        "-c:a", "libopus",
-        "-b:a", "96k",
+        "-c:v",
+        "libvpx-vp9",
+        "-crf",
+        "31",
+        "-b:v",
+        "0",
+        "-row-mt",
+        "1",
+        "-c:a",
+        "libopus",
+        "-b:a",
+        "96k",
     ),
 )
 
 
-_POSTER_WIDTH_CAP = 1280   # px — matches the 720p rendition width so the
-                            # poster never outweighs the actual stream.
+_POSTER_WIDTH_CAP = 1280  # px — matches the 720p rendition width so the
+# poster never outweighs the actual stream.
 _POSTER_QUALITY_VFLAG = "3"  # ffmpeg -q:v for the intermediate JPEG grab
-_SUBPROCESS_TIMEOUT_METADATA = 30    # seconds (ffprobe on an already-local file)
-_SUBPROCESS_TIMEOUT_POSTER = 60      # seconds (single-frame grab)
+_SUBPROCESS_TIMEOUT_METADATA = 30  # seconds (ffprobe on an already-local file)
+_SUBPROCESS_TIMEOUT_POSTER = 60  # seconds (single-frame grab)
 _SUBPROCESS_TIMEOUT_TRANSCODE = 1800  # seconds (30 min — 1080p VP9 is slow)
 
 
@@ -100,8 +116,10 @@ def _probe_output_bitrate(path: str) -> int | None:
         proc = subprocess.run(
             [
                 ffprobe,
-                "-v", "quiet",
-                "-print_format", "json",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
                 "-show_format",
                 path,
             ],
@@ -134,8 +152,6 @@ def extract_poster(asset) -> "AssetRendition | None":
 
     Returns the WebP poster rendition on success, or None on any failure.
     """
-    from .models import AssetRendition
-
     if asset.asset_type != "video":
         return None
     if not asset.file:
@@ -143,9 +159,7 @@ def extract_poster(asset) -> "AssetRendition | None":
 
     ffmpeg = _ffmpeg_bin()
     if not ffmpeg:
-        logger.warning(
-            "ffmpeg not on PATH — cannot extract poster for %s", asset.key
-        )
+        logger.warning("ffmpeg not on PATH — cannot extract poster for %s", asset.key)
         return None
 
     # Resolve poster dimensions from the known video dimensions; ffmpeg
@@ -169,11 +183,16 @@ def extract_poster(asset) -> "AssetRendition | None":
                 proc = subprocess.run(
                     [
                         ffmpeg,
-                        "-ss", _poster_seek_time(asset),
-                        "-i", local_path,
-                        "-frames:v", "1",
-                        "-vf", f"scale='min({_POSTER_WIDTH_CAP},iw)':-2",
-                        "-q:v", _POSTER_QUALITY_VFLAG,
+                        "-ss",
+                        _poster_seek_time(asset),
+                        "-i",
+                        local_path,
+                        "-frames:v",
+                        "1",
+                        "-vf",
+                        f"scale='min({_POSTER_WIDTH_CAP},iw)':-2",
+                        "-q:v",
+                        _POSTER_QUALITY_VFLAG,
                         "-y",
                         jpg_path,
                     ],
@@ -189,10 +208,10 @@ def extract_poster(asset) -> "AssetRendition | None":
             return None
 
         if proc.returncode != 0 or not os.path.exists(jpg_path):
-            stderr_tail = (proc.stderr or "").strip().splitlines()[-1:] or ["exit %d" % proc.returncode]
-            logger.warning(
-                "ffmpeg poster failed for %s: %s", asset.key, stderr_tail[0]
-            )
+            stderr_tail = (proc.stderr or "").strip().splitlines()[-1:] or [
+                "exit %d" % proc.returncode
+            ]
+            logger.warning("ffmpeg poster failed for %s: %s", asset.key, stderr_tail[0])
             _record_poster_failure(asset, stderr_tail[0])
             return None
 
@@ -261,7 +280,13 @@ def _record_poster_failure(asset, message: str) -> None:
 
 
 def _store_poster_rendition(
-    *, asset, width, height, format_tag, ext, content,
+    *,
+    asset,
+    width,
+    height,
+    format_tag,
+    ext,
+    content,
 ):
     from .models import AssetRendition
 
@@ -273,10 +298,7 @@ def _store_poster_rendition(
         preset="poster",
         defaults={"file_size": 0, "status": AssetRendition.Status.PENDING},
     )
-    if (
-        rendition.file
-        and rendition.status == AssetRendition.Status.COMPLETED
-    ):
+    if rendition.file and rendition.status == AssetRendition.Status.COMPLETED:
         return rendition
 
     rendition.status = AssetRendition.Status.PROCESSING
@@ -287,7 +309,7 @@ def _store_poster_rendition(
     rendition.file.save(filename, ContentFile(content), save=False)
     rendition.height = height
     rendition.file_size = len(content)
-    rendition.is_webp = (format_tag == "webp")
+    rendition.is_webp = format_tag == "webp"
     rendition.status = AssetRendition.Status.COMPLETED
     rendition.save()
     return rendition
@@ -321,7 +343,9 @@ def populate_poster_placeholders(asset, poster_bytes: bytes) -> None:
     if not updates:
         return
 
-    metadata, created = AssetMetadata.objects.get_or_create(asset=asset, defaults=updates)
+    metadata, created = AssetMetadata.objects.get_or_create(
+        asset=asset, defaults=updates
+    )
     if not created:
         for field, value in updates.items():
             setattr(metadata, field, value)
@@ -339,8 +363,6 @@ def generate_video_renditions(
     surfaced on ``error_message`` rather than raised so one bad variant
     doesn't abort the batch.
     """
-    from .models import AssetRendition
-
     if asset.asset_type != "video":
         return []
     if not asset.file:
@@ -348,9 +370,7 @@ def generate_video_renditions(
 
     ffmpeg = _ffmpeg_bin()
     if not ffmpeg:
-        logger.warning(
-            "ffmpeg not on PATH — cannot transcode %s", asset.key
-        )
+        logger.warning("ffmpeg not on PATH — cannot transcode %s", asset.key)
         return []
 
     source_h = asset.height
@@ -392,7 +412,14 @@ def generate_video_renditions(
 
 
 def _transcode_one(
-    *, asset, local_path, codec: VideoCodec, target_w, target_h, preset, ffmpeg,
+    *,
+    asset,
+    local_path,
+    codec: VideoCodec,
+    target_w,
+    target_h,
+    preset,
+    ffmpeg,
 ):
     from .models import AssetRendition
 
@@ -409,10 +436,7 @@ def _transcode_one(
             "status": AssetRendition.Status.PENDING,
         },
     )
-    if (
-        rendition.file
-        and rendition.status == AssetRendition.Status.COMPLETED
-    ):
+    if rendition.file and rendition.status == AssetRendition.Status.COMPLETED:
         return None
 
     rendition.status = AssetRendition.Status.PROCESSING
@@ -426,8 +450,10 @@ def _transcode_one(
         out_path = os.path.join(tmp_dir, f"out.{codec.ext}")
         cmd = [
             ffmpeg,
-            "-i", local_path,
-            "-vf", f"scale=-2:{target_h}",
+            "-i",
+            local_path,
+            "-vf",
+            f"scale=-2:{target_h}",
             *codec.ffmpeg_args,
             "-y",
             out_path,
@@ -445,7 +471,9 @@ def _transcode_one(
             rendition.save(update_fields=["status", "error_message"])
             logger.warning(
                 "ffmpeg %s %sp timed out for %s",
-                codec.codec_tag, target_h, asset.key,
+                codec.codec_tag,
+                target_h,
+                asset.key,
             )
             return rendition
         except Exception as exc:
@@ -454,18 +482,26 @@ def _transcode_one(
             rendition.save(update_fields=["status", "error_message"])
             logger.warning(
                 "ffmpeg %s %sp invocation failed for %s: %s",
-                codec.codec_tag, target_h, asset.key, exc,
+                codec.codec_tag,
+                target_h,
+                asset.key,
+                exc,
             )
             return rendition
 
         if proc.returncode != 0 or not os.path.exists(out_path):
-            stderr_tail = (proc.stderr or "").strip().splitlines()[-1:] or [f"exit {proc.returncode}"]
+            stderr_tail = (proc.stderr or "").strip().splitlines()[-1:] or [
+                f"exit {proc.returncode}"
+            ]
             rendition.status = AssetRendition.Status.FAILED
             rendition.error_message = stderr_tail[0][:500]
             rendition.save(update_fields=["status", "error_message"])
             logger.warning(
                 "ffmpeg %s %sp failed for %s: %s",
-                codec.codec_tag, target_h, asset.key, stderr_tail[0],
+                codec.codec_tag,
+                target_h,
+                asset.key,
+                stderr_tail[0],
             )
             return rendition
 

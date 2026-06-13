@@ -88,7 +88,7 @@ class SearchAPIView(View):
         if year:
             try:
                 filters["year"] = int(year)
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
         sort = request.GET.get("sort", "relevance")
@@ -97,12 +97,12 @@ class SearchAPIView(View):
 
         try:
             limit = min(int(request.GET.get("limit", 20)), 50)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             limit = 20
 
         try:
             offset = max(int(request.GET.get("offset", 0)), 0)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             offset = 0
 
         # Cache key based on all params + user type

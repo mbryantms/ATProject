@@ -67,9 +67,7 @@ def _collect_figure_classes(img) -> list[str]:
     return list(dict.fromkeys(classes))
 
 
-def _sizes_for_figure(
-    figure_classes: list[str], display_width: int | None
-) -> str:
+def _sizes_for_figure(figure_classes: list[str], display_width: int | None) -> str:
     """Compute a ``sizes`` attribute tuned to how wide the figure actually renders.
 
     Author-requested ``display_width`` always wins — if they pinned the image
@@ -294,14 +292,16 @@ def enhance_image_assets(html: str, context: dict) -> str:
             for fmt_tag, mime in _PICTURE_FORMATS:
                 srcset = ", ".join(
                     f"{r.file.url} {r.width}w"
-                    for r in base_renditions if r.format == fmt_tag
+                    for r in base_renditions
+                    if r.format == fmt_tag
                 )
                 if srcset:
                     picture_sources.append((mime, srcset))
 
             fallback_srcset = ", ".join(
                 f"{r.file.url} {r.width}w"
-                for r in base_renditions if r.format == "auto"
+                for r in base_renditions
+                if r.format == "auto"
             )
             if fallback_srcset:
                 img["srcset"] = fallback_srcset

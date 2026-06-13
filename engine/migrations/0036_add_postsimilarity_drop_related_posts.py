@@ -5,31 +5,62 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0035_add_lqip_data_url'),
+        ("engine", "0035_add_lqip_data_url"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='post',
-            name='related_posts',
+            model_name="post",
+            name="related_posts",
         ),
         migrations.CreateModel(
-            name='PostSimilarity',
+            name="PostSimilarity",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('score', models.FloatField()),
-                ('components', models.JSONField(blank=True, default=dict)),
-                ('computed_at', models.DateTimeField(auto_now=True)),
-                ('source_post', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='similar_outgoing', to='engine.post')),
-                ('target_post', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='similar_incoming', to='engine.post')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("score", models.FloatField()),
+                ("components", models.JSONField(blank=True, default=dict)),
+                ("computed_at", models.DateTimeField(auto_now=True)),
+                (
+                    "source_post",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="similar_outgoing",
+                        to="engine.post",
+                    ),
+                ),
+                (
+                    "target_post",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="similar_incoming",
+                        to="engine.post",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Post Similarity',
-                'verbose_name_plural': 'Post Similarities',
-                'indexes': [models.Index(fields=['source_post', '-score'], name='postsim_source_score_idx')],
-                'constraints': [models.UniqueConstraint(fields=('source_post', 'target_post'), name='unique_post_similarity')],
+                "verbose_name": "Post Similarity",
+                "verbose_name_plural": "Post Similarities",
+                "indexes": [
+                    models.Index(
+                        fields=["source_post", "-score"],
+                        name="postsim_source_score_idx",
+                    )
+                ],
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("source_post", "target_post"),
+                        name="unique_post_similarity",
+                    )
+                ],
             },
         ),
     ]

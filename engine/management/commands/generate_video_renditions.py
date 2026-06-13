@@ -90,12 +90,8 @@ class Command(BaseCommand):
             if not skip_renditions:
                 renditions = generate_video_renditions(asset, resolutions=resolutions)
                 if renditions:
-                    tags = ", ".join(
-                        f"{r.preset}/{r.format}" for r in renditions
-                    )
-                    self.stdout.write(
-                        self.style.SUCCESS(f"  renditions: {tags}")
-                    )
+                    tags = ", ".join(f"{r.preset}/{r.format}" for r in renditions)
+                    self.stdout.write(self.style.SUCCESS(f"  renditions: {tags}"))
                 else:
                     self.stdout.write("  renditions: none generated")
 

@@ -474,9 +474,7 @@ def recompute_similarity_for_post(self, post_id: int):
                 "message": "Post is unpublished or deleted; cleared rows.",
             }
 
-        scored = compute_similar_posts(
-            post, limit=50, min_score=MIN_SCORE_DEFAULT
-        )
+        scored = compute_similar_posts(post, limit=50, min_score=MIN_SCORE_DEFAULT)
         rows = [
             PostSimilarity(
                 source_post_id=post_id,
@@ -1117,7 +1115,7 @@ def _clear_search_cache():
 
     try:
         cache.delete_pattern("search:*")
-    except (AttributeError, NotImplementedError):
+    except AttributeError, NotImplementedError:
         # Fallback for cache backends that don't support delete_pattern
         pass
 

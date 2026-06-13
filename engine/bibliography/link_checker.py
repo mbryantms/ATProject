@@ -57,7 +57,7 @@ def check_url(url: str) -> dict:
             "http_code": e.code,
             "final_url": None,
         }
-    except (URLError, TimeoutError, OSError):
+    except URLError, TimeoutError, OSError:
         return {
             "status": "broken",
             "http_code": None,
@@ -76,7 +76,7 @@ def _check_url_get(url: str) -> dict:
             return {"status": status, "http_code": code, "final_url": final_url}
     except HTTPError as e:
         return {"status": "broken", "http_code": e.code, "final_url": None}
-    except (URLError, TimeoutError, OSError):
+    except URLError, TimeoutError, OSError:
         return {"status": "broken", "http_code": None, "final_url": None}
 
 

@@ -125,7 +125,7 @@ def _prepare_heading_node(raw: Mapping[str, Any]) -> HeadingNode | None:
     level_value = raw.get("level")
     try:
         level = int(level_value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         level = 1
     level = max(1, min(level, 6))
 

@@ -545,8 +545,17 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         ext = os.path.splitext(self.file.name)[1].lower()
 
         image_exts = [
-            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif",
-            ".svg", ".bmp", ".ico", ".heic", ".heif",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".webp",
+            ".avif",
+            ".svg",
+            ".bmp",
+            ".ico",
+            ".heic",
+            ".heif",
         ]
         video_exts = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v"]
         audio_exts = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"]

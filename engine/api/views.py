@@ -207,7 +207,7 @@ def request_presigned_upload(request):
 
     try:
         file_size = int(file_size)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return JsonResponse({"error": "file_size must be an integer"}, status=400)
 
     # Detect asset type from content_type (preferred) or filename extension

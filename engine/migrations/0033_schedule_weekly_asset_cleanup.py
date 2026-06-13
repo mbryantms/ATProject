@@ -57,7 +57,6 @@ def remove_schedule(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("engine", "0032_alter_assetrendition_status"),
         ("django_celery_beat", "0001_initial"),
