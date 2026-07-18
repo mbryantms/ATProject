@@ -194,115 +194,78 @@ class SourceAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         )
 
     # -- Admin actions --
+    #
+    # These fetch external URLs (DOI/CrossRef, arbitrary web pages, the Zotero
+    # API), each up to the resolver timeout. Running them inline would time out
+    # the admin request for anything but a tiny selection, so they are queued on
+    # Celery; results land on the sources and in Task Results / the Celery
+    # status page. The .delay() is guarded so a dead broker reports an error
+    # instead of 500-ing the action.
 
-    @admin.action(description="Fetch metadata from DOI")
-    def fetch_metadata_from_doi(self, request, queryset):
-        from engine.bibliography.metadata_resolvers import (
-            apply_metadata_to_source,
-            resolve_doi,
-        )
-
-        updated = 0
-        for source in queryset.exclude(doi=""):
-            csl_data = resolve_doi(source.doi)
-            if csl_data:
-                fields = apply_metadata_to_source(source, csl_data)
-                if fields:
-                    source.save()
-                    updated += 1
-
-        self.message_user(
-            request,
-            f"Updated {updated} source(s) from DOI metadata.",
-            level=messages.SUCCESS,
-        )
-
-    @admin.action(description="Fetch metadata from URL")
-    def fetch_metadata_from_url(self, request, queryset):
-        from engine.bibliography.metadata_resolvers import (
-            apply_metadata_to_source,
-            resolve_url,
-        )
-
-        updated = 0
-        for source in queryset.exclude(url=""):
-            csl_data = resolve_url(source.url)
-            if csl_data:
-                fields = apply_metadata_to_source(source, csl_data)
-                if fields:
-                    source.save()
-                    updated += 1
-
-        self.message_user(
-            request,
-            f"Updated {updated} source(s) from URL metadata.",
-            level=messages.SUCCESS,
-        )
-
-    @admin.action(description="Check URLs for availability")
-    def check_urls(self, request, queryset):
-        from engine.bibliography.link_checker import check_url, check_wayback_machine
-
-        checked = 0
-        broken = 0
-        for source in queryset.exclude(url=""):
-            result = check_url(source.url)
-            status = result["status"]
-
-            archive_url = source.url_archive
-            if status == "broken":
-                archive_url = check_wayback_machine(source.url) or archive_url
-                if archive_url and archive_url != source.url_archive:
-                    status = "archived"
-                broken += 1
-
-            from django.utils import timezone
-
-            Source.objects.filter(pk=source.pk).update(
-                url_status=status,
-                url_last_checked=timezone.now(),
-                url_check_count=source.url_check_count + 1,
-                url_archive=archive_url,
-            )
-            checked += 1
-
-        msg = f"Checked {checked} URL(s)."
-        if broken:
-            msg += f" {broken} broken."
-        self.message_user(request, msg, level=messages.SUCCESS)
-
-    @admin.action(description="Sync selected from Zotero (re-import)")
-    def sync_from_zotero(self, request, queryset):
-        from engine.bibliography.zotero_sync import (
-            _update_source_from_csl,
-            get_zotero_client,
-        )
-
+    def _queue(self, request, task, *args, queued_msg=""):
         try:
-            zot = get_zotero_client()
-        except ValueError as e:
-            self.message_user(request, str(e), level=messages.ERROR)
+            task.delay(*args)
+        except Exception as exc:  # broker unreachable
+            self.message_user(
+                request,
+                f"Could not queue background task (broker unreachable?): {exc}",
+                level=messages.ERROR,
+            )
+            return False
+        self.message_user(request, queued_msg, level=messages.SUCCESS)
+        return True
+
+    def _queue_metadata_fetch(self, request, queryset, resolve_type, exclude_field):
+        from engine.bibliography.tasks import fetch_metadata_for_source
+
+        ids = list(queryset.exclude(**{exclude_field: ""}).values_list("pk", flat=True))
+        try:
+            for pk in ids:
+                fetch_metadata_for_source.delay(pk, resolve_type)
+        except Exception as exc:  # broker unreachable
+            self.message_user(
+                request,
+                f"Could not queue task (broker unreachable?): {exc}",
+                level=messages.ERROR,
+            )
             return
-
-        updated = 0
-        for source in queryset.exclude(zotero_key=""):
-            try:
-                items = zot.item(source.zotero_key, format="csljson")
-                if items:
-                    csl_item = items if isinstance(items, dict) else items[0]
-                    _update_source_from_csl(source, csl_item)
-                    source.zotero_raw = csl_item
-                    source.save()
-                    updated += 1
-            except Exception as e:
-                self.message_user(
-                    request,
-                    f"Error re-importing {source.citation_key}: {e}",
-                    level=messages.WARNING,
-                )
-
         self.message_user(
             request,
-            f"Re-imported {updated} source(s) from Zotero.",
+            f"Queued {resolve_type.upper()} metadata fetch for {len(ids)} "
+            "source(s). Results appear on the sources shortly (see Task Results).",
             level=messages.SUCCESS,
+        )
+
+    @admin.action(description="Fetch metadata from DOI (background)")
+    def fetch_metadata_from_doi(self, request, queryset):
+        self._queue_metadata_fetch(request, queryset, "doi", "doi")
+
+    @admin.action(description="Fetch metadata from URL (background)")
+    def fetch_metadata_from_url(self, request, queryset):
+        self._queue_metadata_fetch(request, queryset, "url", "url")
+
+    @admin.action(description="Check URLs for availability (background)")
+    def check_urls(self, request, queryset):
+        from engine.bibliography.tasks import check_source_urls_for_ids
+
+        ids = list(queryset.exclude(url="").values_list("pk", flat=True))
+        self._queue(
+            request,
+            check_source_urls_for_ids,
+            ids,
+            queued_msg=f"Queued URL availability check for {len(ids)} source(s). "
+            "Statuses update shortly (see Task Results).",
+        )
+
+    @admin.action(description="Sync selected from Zotero (background re-import)")
+    def sync_from_zotero(self, request, queryset):
+        from engine.bibliography.tasks import resync_zotero_sources
+
+        ids = list(queryset.exclude(zotero_key="").values_list("pk", flat=True))
+        self._queue(
+            request,
+            resync_zotero_sources,
+            ids,
+            queued_msg=f"Queued Zotero re-import for {len(ids)} source(s). "
+            "Results appear shortly (see Task Results).",
         )

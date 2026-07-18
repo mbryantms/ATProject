@@ -11,9 +11,10 @@ from django.contrib import admin, messages
 from django.db import models
 from django.http import HttpResponse
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from engine.models import Category, Series, Tag, TagAlias
+
+from .display import admin_change_link, admin_changelist_link, muted
 
 
 # --------------------------
@@ -33,6 +34,9 @@ class TagAliasInline(admin.TabularInline):
 # --------------------------
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
+    class Media:
+        css = {"all": ("css/admin-common.css",)}
+
     list_display = (
         "colored_name_display",
         "namespace_display",
@@ -42,7 +46,6 @@ class TagAdmin(admin.ModelAdmin):
         "usage_count_display",
         "post_count",
         "alias_count_display",
-        "children_count_display",
         "created_at",
     )
     list_display_links = ("colored_name_display",)
@@ -125,118 +128,77 @@ class TagAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         return (
             qs.select_related("parent")
-            .prefetch_related("children", "aliases")
+            .prefetch_related("aliases")
             .annotate(
-                _asset_count=models.Count("posts__post_assets__asset", distinct=True),
                 _post_count=models.Count("posts", distinct=True),
                 _alias_count=models.Count("aliases", distinct=True),
-                _children_count=models.Count("children", distinct=True),
             )
         )
 
-    # Custom display methods
+    # Custom display methods. Colors that are semantic use the shared theme-
+    # aware mk-* classes (admin-common.css); the tag's own configured color is
+    # the one intentional exception (it is the tag's identity) and is escaped
+    # via format_html.
     @admin.display(description="Tag", ordering="name")
     def colored_name_display(self, obj):
-        """Display tag name with colored badge and icon."""
-        icon_html = ""
-        if obj.icon:
-            # Support for Material icons or emoji
-            if len(obj.icon) <= 2:  # Likely an emoji
-                icon_html = f'<span style="margin-right: 6px;">{obj.icon}</span>'
-            else:  # Material icon or font-awesome
-                icon_html = f'<span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">{obj.icon}</span>'
-
-        html = f'{icon_html}<span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: {obj.color}; color: white; font-weight: 500; font-size: 13px;">{obj.name}</span>'
-        return mark_safe(html)
+        """Display tag name as a badge in the tag's own configured color."""
+        icon = format_html("{} ", obj.icon) if obj.icon else ""
+        return format_html(
+            '{}<span style="display:inline-block;padding:3px 9px;border-radius:10px;'
+            'background-color:{};color:#fff;font-weight:500;font-size:12px;">{}</span>',
+            icon,
+            obj.color,
+            obj.name,
+        )
 
     @admin.display(description="Namespace", ordering="namespace")
     def namespace_display(self, obj):
-        """Display namespace with distinct styling."""
         if not obj.namespace:
-            return mark_safe('<span style="color: #999; font-style: italic;">—</span>')
-        return mark_safe(
-            f'<span style="background-color: #F3F4F6; padding: 2px 8px; border-radius: 4px; '
-            f'font-size: 12px; font-weight: 500; color: #374151;">{obj.namespace}</span>'
-        )
+            return muted()
+        return format_html('<span class="mk-pill mk-pill--sm">{}</span>', obj.namespace)
 
     @admin.display(description="Parent", ordering="parent__name")
     def parent_display(self, obj):
-        """Display parent tag with link."""
         if not obj.parent:
-            return mark_safe(
-                '<span style="color: #999; font-style: italic;">Root</span>'
-            )
-        return mark_safe(
-            f'<a href="/admin/engine/tag/{obj.parent.pk}/change/" style="color: #3B82F6; font-weight: 500;">{obj.parent.name}</a>'
-        )
+            return muted("Root")
+        return admin_change_link(obj.parent, obj.parent.name)
 
     @admin.display(description="Active", ordering="is_active", boolean=True)
     def is_active_display(self, obj):
-        """Display active status as boolean icon."""
         return obj.is_active
 
     @admin.display(description="Rank", ordering="rank")
     def rank_display(self, obj):
-        """Display rank with visual indicator."""
         if obj.rank == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        color = "#10B981" if obj.rank > 0 else "#EF4444"
-        return mark_safe(
-            f'<span style="color: {color}; font-weight: 600;">{obj.rank}</span>'
-        )
+            return muted("0")
+        return format_html("<span class='mk-bold'>{}</span>", obj.rank)
 
     @admin.display(description="Usage", ordering="usage_count")
     def usage_count_display(self, obj):
-        """Display usage count with visual weight."""
         if obj.usage_count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        # Visual weight based on usage
-        if obj.usage_count > 50:
-            style = "color: #10B981; font-weight: 700; font-size: 14px;"
-        elif obj.usage_count > 20:
-            style = "color: #3B82F6; font-weight: 600;"
-        elif obj.usage_count > 5:
-            style = "color: #6B7280; font-weight: 500;"
-        else:
-            style = "color: #9CA3AF;"
-
-        return mark_safe(f'<span style="{style}">{obj.usage_count}</span>')
+            return muted("0")
+        return format_html("<span class='mk-bold'>{}</span>", obj.usage_count)
 
     @admin.display(description="Posts", ordering="_post_count")
     def post_count(self, obj):
-        """Display post count with link to filtered posts."""
         count = getattr(obj, "_post_count", 0)
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        return mark_safe(
-            f'<a href="/admin/engine/post/?tags__id__exact={obj.pk}" '
-            f'style="color: #3B82F6; font-weight: 500;">{count}</a>'
-        )
+            return muted("0")
+        from engine.models import Post
+
+        return admin_changelist_link(Post, count, tags__id__exact=obj.pk)
 
     @admin.display(description="Aliases", ordering="_alias_count")
     def alias_count_display(self, obj):
-        """Display alias count."""
         count = getattr(obj, "_alias_count", 0)
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        # Show alias names as tooltip
-        aliases = obj.aliases.all()
-        alias_list = ", ".join([a.alias for a in aliases[:5]])
+            return muted("0")
+        # aliases are prefetched; slice in Python to build the tooltip
+        names = [a.alias for a in list(obj.aliases.all())[:5]]
+        tooltip = ", ".join(names)
         if count > 5:
-            alias_list += f" (+{count - 5} more)"
-        return mark_safe(
-            f'<span title="{alias_list}" style="color: #8B5CF6; font-weight: 500; cursor: help;">{count}</span>'
-        )
-
-    @admin.display(description="Children", ordering="_children_count")
-    def children_count_display(self, obj):
-        """Display children count."""
-        count = getattr(obj, "_children_count", 0)
-        if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        return mark_safe(
-            f'<span style="color: #F59E0B; font-weight: 500;">{count}</span>'
-        )
+            tooltip += f" (+{count - 5} more)"
+        return format_html('<span title="{}">{}</span>', tooltip, count)
 
     # Bulk actions
     @admin.action(description="Activate selected tags")
@@ -344,14 +306,19 @@ class TagAliasAdmin(admin.ModelAdmin):
     list_per_page = 50
     autocomplete_fields = ("tag",)
 
+    list_select_related = ("tag",)
+
     @admin.display(description="Canonical Tag", ordering="tag__name")
     def tag_display(self, obj):
-        """Display the canonical tag with link and color."""
-        return mark_safe(
-            f'<a href="/admin/engine/tag/{obj.tag.pk}/change/" '
-            f'style="display: inline-block; padding: 4px 10px; border-radius: 12px; '
-            f"background-color: {obj.tag.color}; color: white; font-weight: 500; font-size: 13px; "
-            f'text-decoration: none;">{obj.tag.name}</a>'
+        """Display the canonical tag as a link in the tag's own color."""
+        return admin_change_link(
+            obj.tag,
+            format_html(
+                '<span style="display:inline-block;padding:3px 9px;border-radius:10px;'
+                'background-color:{};color:#fff;font-weight:500;font-size:12px;">{}</span>',
+                obj.tag.color,
+                obj.tag.name,
+            ),
         )
 
 
@@ -400,12 +367,10 @@ class CategoryAdmin(admin.ModelAdmin):
     def post_count(self, obj):
         count = getattr(obj, "_post_count", 0)
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        return format_html(
-            '<a href="/admin/engine/post/?categories__id__exact={}" style="font-weight: 500;">{}</a>',
-            obj.pk,
-            count,
-        )
+            return muted("0")
+        from engine.models import Post
+
+        return admin_changelist_link(Post, count, categories__id__exact=obj.pk)
 
 
 # --------------------------
@@ -450,12 +415,7 @@ class SeriesAdmin(admin.ModelAdmin):
     def post_count(self, obj):
         count = getattr(obj, "_post_count", 0)
         if count == 0:
-            return mark_safe('<span style="color: #999;">0</span>')
-        return format_html(
-            '<a href="/admin/engine/post/?series__id__exact={}" style="font-weight: 500;">{}</a>',
-            obj.pk,
-            count,
-        )
+            return muted("0")
+        from engine.models import Post
 
-    class Meta:
-        verbose_name_plural = "series"
+        return admin_changelist_link(Post, count, series__id__exact=obj.pk)

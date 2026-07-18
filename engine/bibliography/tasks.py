@@ -101,3 +101,65 @@ def fetch_metadata_for_source(self, source_id: int, resolve_type: str = "doi"):
         source.save()
 
     return {"success": True, "updated_fields": updated}
+
+
+@shared_task(bind=True)
+def check_source_urls_for_ids(self, source_ids):
+    """Check URL availability for a specific set of sources (admin bulk action).
+
+    Runs off the request thread so a large selection can't time out the admin
+    (each fetch can take up to the resolver timeout).
+    """
+    from django.utils import timezone
+
+    from engine.bibliography.link_checker import check_url, check_wayback_machine
+    from engine.models import Source
+
+    checked = broken = 0
+    for source in Source.objects.filter(pk__in=source_ids).exclude(url=""):
+        result = check_url(source.url)
+        status = result["status"]
+        archive_url = source.url_archive
+        if status == "broken":
+            archive_url = check_wayback_machine(source.url) or archive_url
+            if archive_url and archive_url != source.url_archive:
+                status = "archived"
+            broken += 1
+        Source.objects.filter(pk=source.pk).update(
+            url_status=status,
+            url_last_checked=timezone.now(),
+            url_check_count=source.url_check_count + 1,
+            url_archive=archive_url,
+        )
+        checked += 1
+    logger.info("URL check (ids) complete: checked=%s broken=%s", checked, broken)
+    return {"success": True, "checked": checked, "broken": broken}
+
+
+@shared_task(bind=True)
+def resync_zotero_sources(self, source_ids):
+    """Re-import a specific set of sources from Zotero (admin bulk action)."""
+    from engine.bibliography.zotero_sync import (
+        _update_source_from_csl,
+        get_zotero_client,
+    )
+    from engine.models import Source
+
+    try:
+        zot = get_zotero_client()
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+
+    updated = 0
+    for source in Source.objects.filter(pk__in=source_ids).exclude(zotero_key=""):
+        try:
+            items = zot.item(source.zotero_key, format="csljson")
+            if items:
+                csl_item = items if isinstance(items, dict) else items[0]
+                _update_source_from_csl(source, csl_item)
+                source.zotero_raw = csl_item
+                source.save()
+                updated += 1
+        except Exception:
+            logger.exception("Zotero re-import failed for source %s", source.pk)
+    return {"success": True, "updated": updated}

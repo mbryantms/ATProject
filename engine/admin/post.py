@@ -10,12 +10,20 @@ import difflib
 import re
 
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from engine.markdown.cheatsheet import (
+    palette_payload as cheatsheet_palette_payload,
+)
+from engine.markdown.cheatsheet import (
+    reference_html as cheatsheet_reference_html,
+)
 from engine.models import (
     InternalLink,
     Post,
@@ -26,7 +34,8 @@ from engine.models import (
     PostSlugHistory,
 )
 
-from .mixins import SoftDeleteAdminMixin
+from .display import admin_change_link
+from .mixins import ReadOnlyAdminMixin, SoftDeleteAdminMixin
 
 # Curated list of CSL styles supported by the citeproc-js bridge.
 # Leaving blank uses the site-wide default.
@@ -96,6 +105,9 @@ def _build_citation_style_help_html():
             f'<div class="mk-cs-sample">Bibliography: {bib}</div>'
             f"</div>"
         )
+    # The toggle behavior lives in static/js/admin-post-aux.js (loaded via
+    # PostAdmin.Media) — an external file so the site's nonce CSP doesn't block
+    # it, and so the JS is linted/cached in one place.
     return (
         '<span class="mk-citestyle-help">'
         "<button type='button' class='mk-citestyle-help-btn' "
@@ -105,24 +117,6 @@ def _build_citation_style_help_html():
         '<div style="margin-top:6px;">' + "".join(rows) + "</div>"
         "</div>"
         "</span>"
-        "<script>(function(){"
-        "if(window.__mkCsHelpBound)return;window.__mkCsHelpBound=true;"
-        "document.addEventListener('click',function(e){"
-        "if(e.target&&e.target.classList.contains('mk-citestyle-help-btn')){"
-        "e.preventDefault();"
-        "var p=e.target.nextElementSibling;"
-        "var shown=p.style.display==='block';"
-        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
-        "function(el){el.style.display='none';});"
-        "if(!shown){p.style.display='block';"
-        "var r=e.target.getBoundingClientRect();"
-        "p.style.left=(window.scrollX+r.left)+'px';"
-        "p.style.top=(window.scrollY+r.bottom+6)+'px';}"
-        "}else if(!(e.target.closest&&e.target.closest('.mk-citestyle-help-panel'))){"
-        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
-        "function(el){el.style.display='none';});"
-        "}});"
-        "})();</script>"
     )
 
 
@@ -132,245 +126,6 @@ CITATION_STYLE_HELP_HTML = _build_citation_style_help_html()
 # inside a markdown link/image target. Mirrors the production
 # asset_resolver preprocessor pattern so orphan warnings stay in sync.
 _ASSET_REF_RE = re.compile(r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)")
-
-
-_CITE_PICKER_JS = """
-<script>
-(function() {
-    if (window.__mkCitePickerBound) return;
-    window.__mkCitePickerBound = true;
-
-    var state = { results: [], selected: 0, savedCursor: null };
-
-    function escapeHtml(s) {
-        return String(s == null ? '' : s).replace(/[&<>\"']/g, function(c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
-        });
-    }
-
-    function openModal() {
-        var m = document.getElementById('mk-cite-modal');
-        if (!m) return;
-        // Remember cursor position before focus is stolen.
-        var view = window.__atpPostEditorView;
-        if (view) state.savedCursor = view.state.selection.main.head;
-        m.style.display = 'flex';
-        var input = document.getElementById('mk-cite-search');
-        if (input) { input.value = ''; setTimeout(function(){ input.focus(); }, 0); }
-        renderResults([]);
-        fetchResults('');
-    }
-
-    function closeModal() {
-        var m = document.getElementById('mk-cite-modal');
-        if (m) m.style.display = 'none';
-    }
-
-    function renderResults(rows) {
-        var out = document.getElementById('mk-cite-results');
-        if (!out) return;
-        state.results = rows;
-        if (state.selected >= rows.length) state.selected = 0;
-        if (!rows.length) {
-            out.innerHTML = '<div style=\"padding:14px 16px;color:var(--body-quiet-color);\">No matches.</div>';
-            return;
-        }
-        out.innerHTML = rows.map(function(r, i) {
-            var meta = [r.author, r.year].filter(Boolean).join(' ');
-            return '<div class=\"mk-cite-row' + (i === state.selected ? ' mk-active' : '') +
-                '\" data-idx=\"' + i + '\">' +
-                '<code>' + escapeHtml(r.key) + '</code>' +
-                '<div class=\"mk-cite-title\" title=\"' + escapeHtml(r.title) + '\">' +
-                escapeHtml(r.title) + '</div>' +
-                '<div class=\"mk-cite-meta\">' + escapeHtml(meta) + '</div>' +
-                '</div>';
-        }).join('');
-    }
-
-    var fetchTimer = null;
-    function fetchResults(q) {
-        var wrap = document.querySelector('.mk-cite-controls');
-        if (!wrap) return;
-        var url = wrap.getAttribute('data-cite-url');
-        if (fetchTimer) clearTimeout(fetchTimer);
-        fetchTimer = setTimeout(function() {
-            fetch(url + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
-                .then(function(r) { return r.ok ? r.json() : { results: [] }; })
-                .then(function(data) { renderResults(data.results || []); })
-                .catch(function() { renderResults([]); });
-        }, 180);
-    }
-
-    function insertAt(key) {
-        if (!key) return;
-        var view = window.__atpPostEditorView;
-        var insertText = '[@' + key + ']';
-        if (!view) {
-            // Fall back to textarea for authors without CM6 (just in case).
-            var ta = document.getElementById('id_content_markdown');
-            if (!ta) { closeModal(); return; }
-            var p = ta.selectionStart || 0;
-            ta.value = ta.value.slice(0, p) + insertText + ta.value.slice(p);
-            ta.selectionStart = ta.selectionEnd = p + insertText.length;
-            closeModal();
-            return;
-        }
-        var pos = state.savedCursor != null ? state.savedCursor : view.state.selection.main.head;
-        pos = Math.max(0, Math.min(pos, view.state.doc.length));
-        view.dispatch({
-            changes: { from: pos, insert: insertText },
-            selection: { anchor: pos + insertText.length },
-        });
-        view.focus();
-        closeModal();
-    }
-
-    function moveSelection(delta) {
-        if (!state.results.length) return;
-        state.selected = Math.max(0, Math.min(state.results.length - 1, state.selected + delta));
-        renderResults(state.results);
-        var active = document.querySelector('.mk-cite-row.mk-active');
-        if (active) active.scrollIntoView({ block: 'nearest' });
-    }
-
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('mk-cite-picker-btn')) {
-            e.preventDefault();
-            openModal();
-            return;
-        }
-        if (e.target && e.target.id === 'mk-cite-close') { closeModal(); return; }
-        if (e.target && e.target.id === 'mk-cite-modal') { closeModal(); return; }
-        var row = e.target && e.target.closest && e.target.closest('.mk-cite-row');
-        if (row) {
-            var idx = parseInt(row.getAttribute('data-idx'), 10);
-            if (!isNaN(idx) && state.results[idx]) insertAt(state.results[idx].key);
-        }
-    });
-
-    document.addEventListener('input', function(e) {
-        if (e.target && e.target.id === 'mk-cite-search') {
-            fetchResults(e.target.value || '');
-            state.selected = 0;
-        }
-    });
-
-    document.addEventListener('keydown', function(e) {
-        var modal = document.getElementById('mk-cite-modal');
-        if (!modal || modal.style.display !== 'flex') return;
-        if (e.key === 'Escape') { closeModal(); }
-        else if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
-        else if (e.key === 'Enter') {
-            e.preventDefault();
-            var r = state.results[state.selected];
-            if (r) insertAt(r.key);
-        }
-    });
-})();
-</script>
-"""
-
-
-_PREVIEW_MODAL_JS = """
-<script>
-(function() {
-    if (window.__markdownPreviewBound) return;
-    window.__markdownPreviewBound = true;
-
-    function getCookie(name) {
-        var cookies = document.cookie ? document.cookie.split('; ') : [];
-        for (var i = 0; i < cookies.length; i++) {
-            var parts = cookies[i].split('=');
-            if (parts[0] === name) return decodeURIComponent(parts.slice(1).join('='));
-        }
-        return '';
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>]/g, function(c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
-        });
-    }
-
-    function openModal() {
-        document.getElementById('markdown-preview-modal').style.display = 'flex';
-    }
-    function closeModal() {
-        document.getElementById('markdown-preview-modal').style.display = 'none';
-    }
-
-    function renderLint(items) {
-        var box = document.getElementById('markdown-preview-lint');
-        if (!items || !items.length) { box.innerHTML = ''; return; }
-        var html = '<div class="mk-lint-box"><strong>⚠️ Lint warnings:</strong><ul>';
-        items.forEach(function(m) { html += '<li>' + escapeHtml(m) + '</li>'; });
-        html += '</ul></div>';
-        box.innerHTML = html;
-    }
-
-    function setIframeDoc(doc) {
-        var iframe = document.getElementById('markdown-preview-iframe');
-        iframe.srcdoc = doc;
-    }
-
-    function errorDoc(msg) {
-        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
-            'padding:20px;color:#b00;">' + escapeHtml(msg) + '</body></html>';
-    }
-
-    function loadingDoc() {
-        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
-            'padding:20px;color:#888;"><em>Rendering…</em></body></html>';
-    }
-
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('markdown-preview-btn')) {
-            e.preventDefault();
-            var wrap = e.target.closest('.markdown-preview-controls');
-            var url = wrap.getAttribute('data-preview-url');
-            var postId = wrap.getAttribute('data-post-id');
-            var textarea = document.getElementById('id_content_markdown');
-            if (!textarea) { alert('Content textarea not found.'); return; }
-
-            setIframeDoc(loadingDoc());
-            renderLint([]);
-            openModal();
-
-            var form = new FormData();
-            form.append('content', textarea.value || '');
-            if (postId) form.append('post_id', postId);
-
-            fetch(url, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                body: form,
-                credentials: 'same-origin'
-            }).then(function(r) { return r.json(); })
-              .then(function(json) {
-                  renderLint(json.lint || []);
-                  if (json.ok) {
-                      setIframeDoc(json.html);
-                  } else {
-                      setIframeDoc(errorDoc(json.error || 'Preview failed.'));
-                  }
-              }).catch(function(err) {
-                  setIframeDoc(errorDoc('Preview failed: ' + err));
-              });
-        }
-        if (e.target && e.target.id === 'markdown-preview-close') { closeModal(); }
-        if (e.target && e.target.id === 'markdown-preview-modal') { closeModal(); }
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            var modal = document.getElementById('markdown-preview-modal');
-            if (modal && modal.style.display !== 'none') closeModal();
-        }
-    });
-})();
-</script>
-"""
 
 
 # Fenced-div snippets surfaced in the CM6 editor when a line starts with ``:::``.
@@ -481,497 +236,6 @@ EDITOR_INLINE_CLASSES = [
 ]
 
 
-_ADMIN_AUX_STYLE = """
-<style>
-/* --- Markdown cheatsheet (Phase 1) --- */
-.markdown-cheatsheet {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--darkened-bg);
-  margin: 0 0 12px 0;
-  color: var(--body-fg);
-}
-.markdown-cheatsheet > summary {
-  cursor: pointer; padding: 10px 14px; font-weight: 600;
-  color: var(--body-fg); user-select: none;
-}
-.markdown-cheatsheet details { margin-bottom: 10px; }
-.markdown-cheatsheet details > summary {
-  cursor: pointer; font-weight: 600; color: var(--link-fg, var(--body-fg));
-}
-.markdown-cheatsheet .mc-body { padding: 10px 16px 16px 16px; font-size: 13px; line-height: 1.5; }
-.markdown-cheatsheet .mc-lead, .markdown-cheatsheet .mc-note {
-  color: var(--body-quiet-color); margin: 0 0 10px 0;
-}
-.markdown-cheatsheet .mc-note { font-size: 12px; margin: 6px 0 0 0; }
-.markdown-cheatsheet table { border-collapse: collapse; margin-top: 6px; width: 100%; }
-.markdown-cheatsheet td { padding: 4px 8px; vertical-align: top; }
-.markdown-cheatsheet td.mc-syntax { width: 50%; }
-.markdown-cheatsheet td.mc-desc { color: var(--body-quiet-color); }
-.markdown-cheatsheet code {
-  background: var(--body-bg); color: var(--body-fg);
-  padding: 2px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
-}
-.markdown-cheatsheet pre {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 8px 10px; border-radius: 4px; margin: 6px 0;
-  font-size: 12px; overflow-x: auto;
-}
-.markdown-cheatsheet a { color: var(--link-fg); }
-
-/* --- Asset reference helper --- */
-.mk-asset-info, .mk-asset-none, .mk-asset-orphan {
-  padding: 10px 12px; border-radius: 4px; margin-bottom: 10px;
-  border: 1px solid var(--border-color); background: var(--darkened-bg);
-  color: var(--body-fg); font-size: 13px;
-}
-.mk-asset-info code, .mk-asset-none code {
-  background: var(--body-bg); color: var(--body-fg);
-  padding: 1px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
-}
-.mk-asset-orphan { border-color: var(--error-fg, #ba2121); }
-.mk-asset-orphan strong { color: var(--error-fg, #ba2121); }
-.mk-asset-orphan .mk-orphan-chip {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color);
-  padding: 2px 6px; border-radius: 3px; margin-right: 6px;
-  display: inline-block;
-}
-.mk-asset-orphan .mk-hint { font-size: 11px; margin-top: 4px; color: var(--body-quiet-color); }
-
-.mk-asset-list {
-  max-height: 400px; overflow-y: auto;
-  border: 1px solid var(--border-color); border-radius: 4px;
-  padding: 12px; background: var(--darkened-bg);
-}
-.mk-asset-list .mk-asset-header {
-  margin-bottom: 8px; font-weight: 600; color: var(--body-fg);
-}
-.mk-asset-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 8px;
-}
-.mk-asset-card {
-  background: var(--body-bg); border: 1px solid var(--border-color);
-  border-radius: 3px; padding: 8px; cursor: pointer; color: var(--body-fg);
-}
-.mk-asset-card:hover { border-color: var(--link-fg); background: var(--selected-bg, var(--body-bg)); }
-.mk-asset-card.mk-copied { border-color: #28a745; }
-.mk-asset-card .mk-meta { font-size: 11px; color: var(--body-quiet-color); margin-bottom: 3px; }
-.mk-asset-card .mk-title {
-  font-weight: 500; font-size: 13px; margin-bottom: 4px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mk-asset-card code {
-  font-size: 10px; background: var(--darkened-bg); color: var(--body-fg);
-  padding: 2px 4px; border-radius: 2px; display: block;
-  font-family: monospace; border: 1px solid var(--hairline-color);
-}
-.mk-asset-order-badge {
-  background: var(--border-color); color: var(--body-fg);
-  padding: 2px 6px; border-radius: 2px; font-size: 9px;
-  font-weight: 600; margin-right: 4px;
-}
-.mk-asset-tip {
-  margin-top: 8px; padding: 8px; border-radius: 3px;
-  background: var(--darkened-bg); border: 1px solid var(--hairline-color);
-  font-size: 11px; color: var(--body-quiet-color);
-}
-
-/* --- Preview button + modal --- */
-.markdown-preview-controls { margin: 4px 0 10px 0; }
-.markdown-preview-btn {
-  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
-  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
-}
-.markdown-preview-btn:hover { background: var(--button-hover-bg); }
-.markdown-preview-hint {
-  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
-}
-.markdown-preview-modal {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.55); z-index: 9999;
-  align-items: stretch; justify-content: center; padding: 16px;
-}
-.markdown-preview-modal .mk-panel {
-  background: var(--body-bg); color: var(--body-fg);
-  width: min(1400px, 96vw); height: calc(100vh - 32px);
-  border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: column;
-  border: 1px solid var(--border-color);
-}
-.markdown-preview-modal .mk-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: var(--darkened-bg);
-  border-bottom: 1px solid var(--border-color);
-}
-.markdown-preview-modal .mk-header strong { color: var(--body-fg); }
-.markdown-preview-modal .mk-close {
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 20px; color: var(--body-quiet-color);
-}
-.markdown-preview-modal .mk-lint { padding: 0 16px; }
-.markdown-preview-modal .mk-lint-box {
-  background: var(--message-warning-bg, #ffc); color: var(--body-fg);
-  border: 1px solid var(--border-color);
-  padding: 8px 12px; margin: 10px 0; border-radius: 4px; font-size: 12px;
-}
-.markdown-preview-modal .mk-lint-box ul { margin: 4px 0 0 18px; padding: 0; }
-.markdown-preview-modal .mk-iframe {
-  flex: 1; min-height: 600px; width: 100%; border: 0;
-  background: #ffffff;
-}
-
-/* --- Inline asset preview card (PostAssetInline) --- */
-.mk-ap-card, .mk-ap-img {
-  width: 120px; text-align: center;
-}
-.mk-ap-card {
-  height: 90px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: var(--darkened-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px; color: var(--body-fg);
-}
-.mk-ap-empty {
-  border: 2px dashed var(--border-color);
-  color: var(--body-quiet-color);
-}
-.mk-ap-icon { font-size: 40px; margin-bottom: 4px; opacity: 0.9; }
-.mk-ap-empty .mk-ap-icon { font-size: 32px; }
-.mk-ap-label { font-size: 11px; font-weight: 500; }
-.mk-ap-empty .mk-ap-label { opacity: 0.7; }
-.mk-ap-img-thumb {
-  max-width: 120px; max-height: 90px; border-radius: 6px;
-  border: 1px solid var(--border-color);
-  display: block; margin: 0 auto 4px;
-}
-.mk-ap-dims { font-size: 10px; color: var(--body-quiet-color); }
-
-/* --- Inline reference copy button (PostAssetInline) --- */
-.mk-inline-ref { display: flex; align-items: center; gap: 8px; }
-.mk-inline-ref-code {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 4px 8px; border-radius: 3px; font-family: monospace;
-}
-.mk-inline-ref-copy {
-  background: var(--button-bg); color: var(--button-fg);
-  border: 1px solid var(--border-color); border-radius: 3px;
-  padding: 4px 12px; cursor: pointer; font-size: 12px;
-}
-.mk-inline-ref-copy:hover { background: var(--button-hover-bg); }
-
-/* --- Override fallback previews (Phase 5.3) --- */
-.mk-override-fallback {
-  display: block; margin-top: 4px; padding: 6px 8px;
-  background: var(--darkened-bg); color: var(--body-quiet-color);
-  border: 1px dashed var(--hairline-color); border-radius: 3px;
-  font-size: 11px; line-height: 1.4;
-}
-.mk-override-fallback .mk-of-label {
-  color: var(--body-fg); font-weight: 600; margin-right: 4px;
-}
-.mk-override-fallback code {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 1px 4px; border-radius: 2px;
-}
-
-/* --- Citation style help popover (Phase 4.2) --- */
-.mk-citestyle-help {
-  display: inline-flex; align-items: center; margin-left: 8px;
-  vertical-align: middle;
-}
-.mk-citestyle-help-btn {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 50%;
-  width: 20px; height: 20px; line-height: 0; padding: 0;
-  font-size: 12px; cursor: pointer;
-}
-.mk-citestyle-help-btn:hover { background: var(--darkened-bg); }
-.mk-citestyle-help-panel {
-  display: none; position: absolute; z-index: 200;
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  padding: 10px 12px; max-width: 480px; font-size: 12px; line-height: 1.45;
-}
-.mk-citestyle-help-panel h5 {
-  margin: 0 0 4px 0; font-size: 12px; color: var(--link-fg, var(--body-fg));
-}
-.mk-citestyle-help-panel .mk-cs-sample {
-  padding: 4px 6px; margin-bottom: 8px;
-  background: var(--darkened-bg); border-left: 2px solid var(--border-color);
-  font-family: Georgia, serif;
-}
-
-/* --- Citation picker modal (Phase 4.1) --- */
-.mk-cite-controls { margin: 4px 0 10px 0; }
-.mk-cite-picker-btn {
-  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
-  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
-}
-.mk-cite-picker-btn:hover { background: var(--button-hover-bg); }
-.mk-cite-picker-hint {
-  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
-}
-.mk-cite-modal {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.55); z-index: 9999;
-  align-items: center; justify-content: center; padding: 16px;
-}
-.mk-cite-modal .mk-panel {
-  background: var(--body-bg); color: var(--body-fg);
-  width: min(820px, 96vw); max-height: 85vh;
-  border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: column;
-  border: 1px solid var(--border-color);
-}
-.mk-cite-modal .mk-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: var(--darkened-bg);
-  border-bottom: 1px solid var(--border-color);
-}
-.mk-cite-modal .mk-close {
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 20px; color: var(--body-quiet-color);
-}
-.mk-cite-modal .mk-search-row {
-  display: flex; gap: 8px; padding: 10px 16px;
-  border-bottom: 1px solid var(--hairline-color);
-}
-.mk-cite-modal .mk-search-row input {
-  flex: 1; padding: 6px 10px;
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 3px;
-}
-.mk-cite-modal .mk-results {
-  flex: 1; overflow-y: auto; padding: 4px 0;
-}
-.mk-cite-row {
-  padding: 8px 16px; border-bottom: 1px solid var(--hairline-color);
-  cursor: pointer; display: grid;
-  grid-template-columns: minmax(140px, auto) 1fr auto;
-  gap: 12px; align-items: baseline;
-}
-.mk-cite-row:hover, .mk-cite-row.mk-active {
-  background: var(--selected-row, rgba(127,127,127,0.1));
-}
-.mk-cite-row code {
-  background: var(--darkened-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 1px 6px; border-radius: 2px; font-size: 12px;
-}
-.mk-cite-row .mk-cite-title {
-  color: var(--body-fg); font-size: 13px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-.mk-cite-row .mk-cite-meta {
-  color: var(--body-quiet-color); font-size: 11px; white-space: nowrap;
-}
-.mk-cite-footer {
-  padding: 8px 16px; font-size: 11px; color: var(--body-quiet-color);
-  border-top: 1px solid var(--hairline-color);
-  background: var(--darkened-bg);
-}
-</style>
-"""
-
-
-MARKDOWN_CHEATSHEET_HTML = (
-    _ADMIN_AUX_STYLE
-    + """
-<details class="markdown-cheatsheet">
-<summary>📖 Markdown reference — click to expand</summary>
-<div class="mc-body">
-  <p class="mc-lead">Pandoc-flavoured Markdown with project extensions. All sections collapsed by default — open the ones you need.</p>
-
-  <details>
-    <summary>Inline formatting</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>**bold**</code></td><td class="mc-desc">Bold</td></tr>
-      <tr><td class="mc-syntax"><code>*italic*</code></td><td class="mc-desc">Italic</td></tr>
-      <tr><td class="mc-syntax"><code>***bold italic***</code></td><td class="mc-desc">Bold + italic</td></tr>
-      <tr><td class="mc-syntax"><code>~~strike~~</code></td><td class="mc-desc">Strikethrough</td></tr>
-      <tr><td class="mc-syntax"><code>`inline code`</code></td><td class="mc-desc">Inline code</td></tr>
-      <tr><td class="mc-syntax"><code>H~2~O</code></td><td class="mc-desc">Subscript</td></tr>
-      <tr><td class="mc-syntax"><code>x^2^</code></td><td class="mc-desc">Superscript (adjacent sub+sup are auto-stacked)</td></tr>
-      <tr><td class="mc-syntax"><code>[SPQR]{.smallcaps}</code></td><td class="mc-desc">Small caps</td></tr>
-      <tr><td class="mc-syntax"><code>[note here]{.marginnote}</code></td><td class="mc-desc">Margin note (bracketed span, renders in outer margin)</td></tr>
-      <tr><td class="mc-syntax"><code>[0123]{.tabular-nums}</code></td><td class="mc-desc">Tabular (lined-up) numerals</td></tr>
-      <tr><td class="mc-syntax"><code>[text]{.sans-serif}</code></td><td class="mc-desc">Sans-serif inline run</td></tr>
-      <tr><td class="mc-syntax">line 1 <em>(two trailing spaces)</em><br/>line 2</td><td class="mc-desc">Hard line break</td></tr>
-      <tr><td class="mc-syntax"><code>*[HTML]: Hyper Text Markup Language</code></td><td class="mc-desc">Abbreviation — expands all occurrences into <code>&lt;abbr&gt;</code></td></tr>
-    </table>
-    <p class="mc-note">Smart punctuation is automatic: <code>--</code> → en-dash, <code>---</code> → em-dash, <code>...</code> → ellipsis, straight quotes → curly.</p>
-  </details>
-
-  <details>
-    <summary>Headings &amp; structural blocks</summary>
-    <table>
-      <tr><td class="mc-syntax"><code># H1</code> … <code>###### H6</code></td><td class="mc-desc">Headings — auto-anchored, auto-sectionized, copy-link button</td></tr>
-      <tr><td class="mc-syntax"><code>## Heading {#custom-id}</code></td><td class="mc-desc">Heading with explicit anchor ID</td></tr>
-      <tr><td class="mc-syntax"><code>&gt; quote</code></td><td class="mc-desc">Blockquote (nesting supported; nested levels auto-classed)</td></tr>
-      <tr><td class="mc-syntax"><code>&gt; {&gt;&gt;} text</code><br/><code>&gt; {&lt;&lt;} text</code></td><td class="mc-desc">Float blockquote right / left</td></tr>
-      <tr><td class="mc-syntax"><code>---</code> · <code>***</code> · <code>___</code></td><td class="mc-desc">Horizontal rule (three or more)</td></tr>
-      <tr><td class="mc-syntax"><code>```lang<br/>code<br/>```</code></td><td class="mc-desc">Fenced code block with syntax highlighting</td></tr>
-      <tr><td class="mc-syntax"><code>&lt;blank line&gt;<br/>    4-space indent</code></td><td class="mc-desc">Indented code block (no highlighting)</td></tr>
-      <tr><td class="mc-syntax"><code>term<br/>:   definition</code></td><td class="mc-desc">Definition list</td></tr>
-      <tr><td class="mc-syntax"><code>- [ ] todo</code><br/><code>- [x] done</code></td><td class="mc-desc">Task list (display-only checkboxes)</td></tr>
-    </table>
-  </details>
-
-  <details>
-    <summary>Lists</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>- item</code> · <code>* item</code> · <code>+ item</code></td><td class="mc-desc">Unordered list (indent 4 spaces to nest)</td></tr>
-      <tr><td class="mc-syntax"><code>1. item</code> or <code>1) item</code></td><td class="mc-desc">Ordered list</td></tr>
-      <tr><td class="mc-syntax"><code>5. item</code></td><td class="mc-desc">Ordered list starting at 5 (fancy-lists)</td></tr>
-      <tr><td class="mc-syntax"><code>a. item</code> · <code>I) item</code> · <code>i. item</code></td><td class="mc-desc">Alpha / roman numbering</td></tr>
-    </table>
-    <p class="mc-note">Nesting auto-classifies levels (<code>.list-level-1</code>, etc.). Mixed ordered/unordered is supported at each level.</p>
-  </details>
-
-  <details>
-    <summary>Links &amp; decorators</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>[text](https://example.com)</code></td><td class="mc-desc">External link — auto gets <code>target="_blank"</code>, <code>rel="noopener"</code>, and a domain or file-type icon</td></tr>
-      <tr><td class="mc-syntax"><code>[text](/posts/other-slug/)</code></td><td class="mc-desc">Internal link — backlinks auto-extracted on save</td></tr>
-      <tr><td class="mc-syntax"><code>[text](url "hover title")</code></td><td class="mc-desc">Link with title attribute</td></tr>
-      <tr><td class="mc-syntax"><code>[text](url){.icon-not}</code></td><td class="mc-desc">Suppress the auto link icon</td></tr>
-      <tr><td class="mc-syntax"><code>https://example.com</code></td><td class="mc-desc">Bare URL is auto-linked</td></tr>
-      <tr><td class="mc-syntax"><code>[text][ref]</code> … <code>[ref]: url</code></td><td class="mc-desc">Reference-style link (defined anywhere in the doc)</td></tr>
-    </table>
-    <p class="mc-note">Auto-decorated domains include ArXiv, GitHub, Wikipedia, YouTube, Twitter/X, Mastodon, Reddit, NYT, Google Scholar, PubMed, Internet Archive, and more. File-type icons cover PDF, doc, image, video, audio, archive, code.</p>
-  </details>
-
-  <details>
-    <summary>Images &amp; media</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>![Alt text](@asset:my-key)</code></td><td class="mc-desc">Global asset by key — responsive srcset, lazy, sized from metadata</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt text](@fig1)</code></td><td class="mc-desc">Post-local alias (set on the Post Asset row)</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt](@asset:key?width=400)</code></td><td class="mc-desc">Width override (in px); aspect ratio preserved</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt](@asset:key "Caption text")</code></td><td class="mc-desc">Image with caption (rendered in a <code>&lt;figure&gt;</code>)</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt](@asset:key){.float-right}</code></td><td class="mc-desc">Float right (also <code>.float-left</code>)</td></tr>
-      <tr><td class="mc-syntax"><code>![Alt](@asset:key){.width-full}</code></td><td class="mc-desc">Full bleed width</td></tr>
-      <tr><td class="mc-syntax"><code>![](@asset:clip)</code></td><td class="mc-desc">Video / audio — asset type is auto-detected, controls added</td></tr>
-      <tr><td class="mc-syntax"><code>![](@asset:clip?loop=1&amp;autoplay=1)</code></td><td class="mc-desc">Video query params: <code>loop</code>, <code>autoplay</code>, <code>muted</code></td></tr>
-    </table>
-  </details>
-
-  <details>
-    <summary>Citations</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>[@smith2020]</code></td><td class="mc-desc">Parenthetical citation</td></tr>
-      <tr><td class="mc-syntax"><code>[@smith2020, pp. 42–44]</code></td><td class="mc-desc">With locator</td></tr>
-      <tr><td class="mc-syntax"><code>@smith2020</code></td><td class="mc-desc">Narrative ("Smith (2020) showed…")</td></tr>
-      <tr><td class="mc-syntax"><code>[-@smith2020]</code></td><td class="mc-desc">Suppress author (year only)</td></tr>
-      <tr><td class="mc-syntax"><code>[@a; @b, p. 10; @c]</code></td><td class="mc-desc">Multi-citation (semicolon-separated)</td></tr>
-    </table>
-    <p class="mc-note">Unknown keys render as <code>[??key]</code>. Keys come from the <a href="/admin/engine/source/" target="_blank">Source library</a>. Citation style is set per-post or site-wide — see the <em>Rendering &amp; Metadata</em> section.</p>
-  </details>
-
-  <details>
-    <summary>Footnotes</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>A claim.[^1]</code><br/><code>[^1]: The footnote body.</code></td><td class="mc-desc">Reference-style footnote (define anywhere)</td></tr>
-      <tr><td class="mc-syntax"><code>A claim.^[Inline footnote.]</code></td><td class="mc-desc">Inline footnote (no separate definition)</td></tr>
-    </table>
-    <p class="mc-note">All footnotes collect into a single "Footnotes" section at the bottom with backlink arrows.</p>
-  </details>
-
-  <details>
-    <summary>Math</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>$E = mc^2$</code></td><td class="mc-desc">Inline math</td></tr>
-      <tr><td class="mc-syntax"><code>$$<br/>\\int_0^\\infty e^{-x}\\,dx = 1<br/>$$</code></td><td class="mc-desc">Display math (copy-LaTeX button added automatically)</td></tr>
-    </table>
-    <p class="mc-note">Full LaTeX math via MathJax — custom <code>\\newcommand</code> persists within a post.</p>
-  </details>
-
-  <details>
-    <summary>Tables</summary>
-    <pre>| Right | Left | Center | Default |
-|------:|:-----|:------:|---------|
-|    12 | foo  |  bar   | baz     |
-
-: Caption goes under the table.</pre>
-    <table>
-      <tr><td class="mc-syntax"><code>: Caption here</code></td><td class="mc-desc">Caption line after the table</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.table-small} … :::</code></td><td class="mc-desc">Compact / dense table variant</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.width-full} … :::</code></td><td class="mc-desc">Full-width table</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.sortable} … :::</code></td><td class="mc-desc">Client-sortable table</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.float-right} … :::</code></td><td class="mc-desc">Floated table</td></tr>
-      <tr><td class="mc-syntax">Pandoc grid tables</td><td class="mc-desc">Use <code>+---+---+</code> / <code>|…|</code> grids for multi-line or spanned cells</td></tr>
-    </table>
-  </details>
-
-  <details>
-    <summary>Admonitions (callout boxes)</summary>
-    <pre>::: {.admonition-tip}
-# Optional title
-Body paragraph.
-:::
-
-::: {.admonition-note}
-Body without a title still works.
-:::</pre>
-    <p class="mc-note">Four types: <code>tip</code>, <code>note</code>, <code>warning</code>, <code>error</code>. Title is optional — if present, it must be a heading line (<code>#</code>…<code>######</code>) immediately inside the fence; it's converted to a styled title row.</p>
-  </details>
-
-  <details>
-    <summary>Layout &amp; utility blocks</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>::: {.epigraph}<br/>&gt; Quote<br/>&gt;<br/>&gt; --- Attribution<br/>:::</code></td><td class="mc-desc">Epigraph — blockquote + right-aligned attribution</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.columns}<br/>- a<br/>- b<br/>- c<br/>:::</code></td><td class="mc-desc">Multi-column layout (applies to the nested list)</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.text-center} … :::</code></td><td class="mc-desc">Center-align the paragraphs inside</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.text-right} … :::</code></td><td class="mc-desc">Right-align</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.sans-serif} … :::</code></td><td class="mc-desc">Switch paragraphs to the sans-serif stack</td></tr>
-      <tr><td class="mc-syntax"><code>::: {.float-left} … :::</code> · <code>{.float-right}</code> · <code>{.width-full}</code></td><td class="mc-desc">Float or full-bleed any block</td></tr>
-    </table>
-  </details>
-
-  <details>
-    <summary>Dates</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>[2020-01-15]{.date-since}</code></td><td class="mc-desc">Renders date + subscript "Ny ago"</td></tr>
-      <tr><td class="mc-syntax"><code>[1500–1600]{.date-range}</code></td><td class="mc-desc">Date range with duration subscript between the years</td></tr>
-      <tr><td class="mc-syntax"><code>[1500–1600]{.date-range-since}</code></td><td class="mc-desc">Range + "years since end date"</td></tr>
-    </table>
-    <p class="mc-note">Separator must be an en-dash (<code>–</code>), em-dash (<code>—</code>), or <code>--</code>. Year-only, ISO dates, BC/BCE, and natural dates all supported.</p>
-  </details>
-
-  <details>
-    <summary>Raw HTML &amp; escapes</summary>
-    <table>
-      <tr><td class="mc-syntax"><code>&lt;div class="my-class"&gt;…&lt;/div&gt;</code></td><td class="mc-desc">Raw HTML is passed through, then sanitized — scripts and event handlers stripped</td></tr>
-      <tr><td class="mc-syntax"><code>\\*not italic\\*</code></td><td class="mc-desc">Backslash escape any markdown metacharacter</td></tr>
-    </table>
-    <p class="mc-note">Allowed tags include all structural, semantic, and media tags plus <code>data-*</code> / <code>aria-*</code> attributes. Disallowed: <code>&lt;script&gt;</code>, <code>&lt;style&gt;</code>, <code>on*=</code> handlers.</p>
-  </details>
-
-  <details>
-    <summary>Automatic — things you don't have to type</summary>
-    <table>
-      <tr><td class="mc-syntax">Heading anchors</td><td class="mc-desc">Every heading gets a slugified <code>id</code> + copy-link button</td></tr>
-      <tr><td class="mc-syntax">First paragraph</td><td class="mc-desc">Tagged <code>.first-graf</code>; post-level "Intro paragraph small caps" toggle uses it</td></tr>
-      <tr><td class="mc-syntax">Smart punctuation</td><td class="mc-desc"><code>"…"</code>, en/em-dashes, ellipsis, no-break spaces for units</td></tr>
-      <tr><td class="mc-syntax">Sub/super stacking</td><td class="mc-desc">Adjacent <code>~sub~</code> + <code>^sup^</code> wrapped in <code>.subsup</code> to stack</td></tr>
-      <tr><td class="mc-syntax">External link icons</td><td class="mc-desc">Domain / file-type icons attached via <code>data-link-icon</code></td></tr>
-      <tr><td class="mc-syntax">Bibliography</td><td class="mc-desc">Appended to post whenever citations resolve</td></tr>
-      <tr><td class="mc-syntax">TOC</td><td class="mc-desc">Generated from headings when the <em>Show Table of Contents</em> toggle is on</td></tr>
-    </table>
-  </details>
-
-  <p class="mc-note">Full pipeline lives in <code>engine/markdown/</code>. If something renders unexpectedly, the preview button below the editor shows the live site CSS applied.</p>
-</div>
-</details>
-"""
-)
-
-
 class PostAssetInline(admin.StackedInline):
     model = PostAsset
     extra = 1
@@ -980,6 +244,11 @@ class PostAssetInline(admin.StackedInline):
 
     autocomplete_fields = ["asset"]
     ordering = ["order"]
+
+    def get_queryset(self, request):
+        # Every readonly display method reads obj.asset.* — pull it in one join
+        # instead of a query per attached asset row.
+        return super().get_queryset(request).select_related("asset")
 
     # Verbose names for better UX
     verbose_name = "Asset"
@@ -1140,32 +409,22 @@ class PostAssetInline(admin.StackedInline):
 
     @admin.display(description="Reference")
     def markdown_ref_display(self, obj):
-        """Show the markdown reference with copy button (theme-aware)."""
-        if obj and obj.pk and obj.asset:
-            if obj.alias:
-                ref = f"@{obj.alias}"
-            else:
-                ref = f"@asset:{obj.asset.key}"
-        else:
-            ref = "-"
+        """Show the markdown reference with a copy button (theme-aware).
 
+        The copy button carries the text in ``data-clipboard-text``; the click
+        handler is delegated in static/js/admin-post-aux.js (no inline onclick,
+        which the site's nonce CSP would block).
+        """
+        if not (obj and obj.pk and obj.asset):
+            return mark_safe('<code class="mk-inline-ref-code">-</code>')
+        ref = f"@{obj.alias}" if obj.alias else f"@asset:{obj.asset.key}"
         return format_html(
             '<div class="mk-inline-ref">'
             '<code class="mk-inline-ref-code">{}</code>'
-            "<button type='button' class='mk-inline-ref-copy' "
-            'onclick="'
-            "const code = this.previousElementSibling.textContent; "
-            "if (code !== '-') {{ "
-            "navigator.clipboard.writeText(code).then(() => {{ "
-            "const orig = this.textContent; this.textContent = '✓ Copied'; "
-            "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
-            "}}); "
-            "}} else {{ "
-            "alert('Please select an asset and save first'); "
-            "}} "
-            "event.preventDefault();"
-            '">Copy</button>'
+            '<button type="button" class="mk-inline-ref-copy mk-copy-btn" '
+            'data-clipboard-text="{}">Copy</button>'
             "</div>",
+            ref,
             ref,
         )
 
@@ -1184,6 +443,10 @@ class IncomingLinksInline(admin.TabularInline):
     fields = ("source_post_link", "link_count", "created_at")
     readonly_fields = ("source_post_link", "link_count", "created_at")
 
+    def get_queryset(self, request):
+        # source_post_link reads obj.source_post.title — avoid a query per row.
+        return super().get_queryset(request).select_related("source_post")
+
     def has_add_permission(self, request, obj=None):
         """Backlinks are auto-generated, not manually added."""
         return False
@@ -1193,11 +456,7 @@ class IncomingLinksInline(admin.TabularInline):
         """Display source post with link to admin."""
         if not obj or not obj.pk:
             return "—"
-        return format_html(
-            '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
-            obj.source_post.pk,
-            obj.source_post.title,
-        )
+        return admin_change_link(obj.source_post, obj.source_post.title)
 
 
 class PostSimilarityInline(admin.TabularInline):
@@ -1235,11 +494,7 @@ class PostSimilarityInline(admin.TabularInline):
     def target_post_link(self, obj):
         if not obj or not obj.target_post_id:
             return "—"
-        return format_html(
-            '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
-            obj.target_post.pk,
-            obj.target_post.title,
-        )
+        return admin_change_link(obj.target_post, obj.target_post.title)
 
     @admin.display(description="Components")
     def components_display(self, obj):
@@ -1308,6 +563,10 @@ class PostCitationInline(admin.TabularInline):
     verbose_name = "Cited Source"
     verbose_name_plural = "Cited Sources"
 
+    def get_queryset(self, request):
+        # source_display reads obj.source.* — avoid a query per citation row.
+        return super().get_queryset(request).select_related("source")
+
     @admin.display(description="Source")
     def source_display(self, obj):
         if obj.pk and obj.source:
@@ -1329,7 +588,7 @@ class PostCitationInline(admin.TabularInline):
 # Post admin
 # --------------------------
 @admin.register(Post)
-class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
+class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     inlines = [
         PostAssetInline,
         PostCitationInline,
@@ -1341,7 +600,11 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     date_hierarchy = "published_at"
 
     class Media:
-        js = ("js/dist/admin-post-editor.js",)
+        js = (
+            "js/dist/admin-post-editor.js",
+            "js/admin-post-aux.js",
+            "js/admin-clipboard.js",
+        )
         css = {"all": ("css/admin-common.css", "css/admin-post.css")}
 
     list_display = (
@@ -1373,21 +636,26 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         "author",
     )
 
-    search_fields = ("title", "subtitle", "description", "content_markdown", "slug")
+    # content_markdown is intentionally excluded: admin search does an
+    # unindexed ILIKE '%term%' over the full body (the search_vector GIN index
+    # can't serve it), which is slow at scale. Body text is searchable through
+    # the site's full-text search; these fields identify a post for editing.
+    search_fields = ("title", "subtitle", "description", "slug")
     ordering = ("-is_pinned", "pin_order", "-published_at", "-created_at")
     list_select_related = ("author", "series")
 
+    # Autocomplete for every editable relation. (published_by / last_edited_by
+    # are readonly audit fields, so they aren't listed here — the autocomplete
+    # widget would never render for them. filter_horizontal was also removed:
+    # when a field is in autocomplete_fields, Django uses the autocomplete
+    # widget and ignores filter_horizontal, so it was dead configuration.)
     autocomplete_fields = (
         "author",
         "co_authors",
         "series",
         "categories",
         "tags",
-        "published_by",
-        "last_edited_by",
     )
-
-    filter_horizontal = ("co_authors", "categories", "tags")
 
     # Fields excluded from the form entirely — internal caches and
     # derived columns that the Celery pipeline / DB triggers manage.
@@ -1435,15 +703,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     # Slug from title is handy for editors
     prepopulated_fields = {"slug": ("title",)}
 
-    # Show facets for filters
-    show_facets = admin.ShowFacets.ALWAYS
-
-    # Optional: nicer widgets for large text fields
-    formfield_overrides = {
-        admin.widgets.AdminTextareaWidget: {
-            "widget": admin.widgets.AdminTextareaWidget
-        },
-    }
+    # Facet counts are opt-in (append ?_facets to the URL). Computing them on
+    # every changelist load ran a COUNT per choice across 14 filters (incl. the
+    # categories/tags/series/author M2M-FK filters) — ~75 queries per load.
+    show_facets = admin.ShowFacets.ALLOW
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         from django import forms as dj_forms
@@ -1474,6 +737,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     else "",
                     "data-cm-fence-snippets": _json.dumps(EDITOR_FENCE_SNIPPETS),
                     "data-cm-inline-classes": _json.dumps(EDITOR_INLINE_CLASSES),
+                    # Full markdown reference for the in-editor "Markdown helper"
+                    # search-and-insert palette (admin-markdown-helper.js).
+                    "data-cm-cheatsheet": cheatsheet_palette_payload(),
                 }
             )
             formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
@@ -1748,13 +1014,15 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def lint_content_view(self, request):
         """Return CM6-compatible diagnostics for the submitted content.
 
-        Diagnostics carry absolute character offsets (``from`` / ``to``)
-        into the source text plus severity + message, matching the shape
-        of ``@codemirror/lint`` ``Diagnostic``.
+        Diagnostics carry absolute character offsets (``from`` / ``to``) into
+        the source text plus severity + message, matching the shape of
+        ``@codemirror/lint`` ``Diagnostic``. Detection lives in
+        :mod:`engine.markdown.lint`, shared with the preview modal and the
+        save-time warnings so all three stay in sync.
         """
         from django.http import JsonResponse
 
-        from engine.models import Asset, Source
+        from engine.markdown.lint import lint_markdown, to_diagnostics
 
         if request.method != "POST":
             return JsonResponse({"diagnostics": []}, status=405)
@@ -1773,155 +1041,15 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             except ValueError, Post.DoesNotExist:
                 pass
 
-        diagnostics = []
-
-        # Asset references: find every @asset:key / @alias inside a markdown
-        # link/image target, then flag any that don't resolve.
-        if "@" in content:
-            post_assets = (
-                list(post.post_assets.select_related("asset").all()) if post else []
-            )
-            aliases = {pa.alias for pa in post_assets if pa.alias}
-            post_keys = {pa.asset.key for pa in post_assets if pa.asset}
-
-            candidate_keys = set()
-            candidate_globals = set()
-            for m in _ASSET_REF_RE.finditer(content):
-                key = m.group(2)
-                if m.group(1) == "asset:":
-                    candidate_globals.add(key)
-                else:
-                    candidate_keys.add(key)
-            all_candidates = candidate_keys | candidate_globals
-            known_globals = (
-                set(
-                    Asset.objects.filter(
-                        key__in=all_candidates, is_deleted=False, status="ready"
-                    ).values_list("key", flat=True)
-                )
-                if all_candidates
-                else set()
-            )
-
-            for m in _ASSET_REF_RE.finditer(content):
-                is_global = m.group(1) == "asset:"
-                key = m.group(2)
-                if is_global:
-                    if key in post_keys or key in known_globals:
-                        continue
-                    label = f"@asset:{key}"
-                else:
-                    if key in aliases or key in post_keys or key in known_globals:
-                        continue
-                    label = f"@{key}"
-                # Position the diagnostic on just the @...key span, not the
-                # whole image syntax, so the underline lines up with the
-                # broken reference.
-                frag_start = m.start(1) - 1 if is_global else m.start(2) - 1
-                frag_end = m.end(2)
-                diagnostics.append(
-                    {
-                        "from": frag_start,
-                        "to": frag_end,
-                        "severity": "warning",
-                        "message": f"Unresolved asset reference: {label}",
-                    }
-                )
-
-        # Citations — locate each @key with its source position, then
-        # flag anything not present in the Source library.
-        if "@" in content:
-            stripped_ranges = []  # positions to skip (code + asset refs)
-            for pat in (r"```[\s\S]*?```", r"~~~[\s\S]*?~~~", r"`[^`\n]+`"):
-                for m in re.finditer(pat, content):
-                    stripped_ranges.append((m.start(), m.end()))
-            for m in _ASSET_REF_RE.finditer(content):
-                stripped_ranges.append((m.start(), m.end()))
-
-            def _in_stripped(pos):
-                return any(a <= pos < b for a, b in stripped_ranges)
-
-            found = []  # list of (key, from_offset, to_offset)
-
-            # Bracketed citations: walk each @key occurrence inside the
-            # bracket span so multi-cite and locator forms both work.
-            for m in re.finditer(r"\[(-?@[^\]]+)\]", content):
-                if _in_stripped(m.start()):
-                    continue
-                base = m.start(1)
-                for km in re.finditer(
-                    r"-?@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*)",
-                    m.group(1),
-                ):
-                    key = km.group(1).rstrip(".")
-                    key_start = base + km.start(1)
-                    # Include the leading @ so the underline covers the sigil.
-                    found.append((key, key_start - 1, key_start + len(key)))
-
-            # Narrative citations: @key not preceded by another word / [ / @.
-            for m in re.finditer(
-                r"(?<![@\[\\\w])@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9])",
-                content,
-            ):
-                if _in_stripped(m.start()):
-                    continue
-                key = m.group(1).rstrip(".")
-                found.append((key, m.start(), m.start(1) + len(key)))
-
-            if found:
-                keys_seen = {k for k, _, _ in found}
-                known = set(
-                    Source.objects.filter(citation_key__in=keys_seen).values_list(
-                        "citation_key", flat=True
-                    )
-                )
-                for key, s, e in found:
-                    if key in known:
-                        continue
-                    diagnostics.append(
-                        {
-                            "from": s,
-                            "to": e,
-                            "severity": "warning",
-                            "message": f"Unknown citation key: @{key}",
-                        }
-                    )
-
-        # Internal links: /posts/<slug>/
-        link_pattern = re.compile(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)")
-        slug_matches = list(link_pattern.finditer(content))
-        if slug_matches:
-            slugs = {m.group(1) for m in slug_matches}
-            known_slugs = set(
-                Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
-            )
-            for m in slug_matches:
-                slug = m.group(1)
-                if slug in known_slugs:
-                    continue
-                diagnostics.append(
-                    {
-                        "from": m.start(1) - len("/posts/"),
-                        "to": m.end(1) + 1,
-                        "severity": "warning",
-                        "message": f"Internal link to unknown slug: /posts/{slug}/",
-                    }
-                )
-
-        # Unclosed admonition fences — flag the final unclosed opener.
-        fence_matches = list(re.finditer(r"^:::+.*$", content, flags=re.MULTILINE))
-        if len(fence_matches) % 2 == 1 and fence_matches:
-            last = fence_matches[-1]
-            diagnostics.append(
-                {
-                    "from": last.start(),
-                    "to": last.end(),
-                    "severity": "warning",
-                    "message": "Unclosed ::: fence — missing matching ::: below.",
-                }
-            )
-
-        return JsonResponse({"diagnostics": diagnostics})
+        post_assets = (
+            list(post.post_assets.select_related("asset").all()) if post else []
+        )
+        findings = lint_markdown(
+            content,
+            post_assets=post_assets,
+            current_post_pk=post.pk if post else None,
+        )
+        return JsonResponse({"diagnostics": to_diagnostics(findings)})
 
     # Site CSS files loaded inside the preview iframe. Matches the set
     # included by templates/base.html so rendered posts look close to the
@@ -1946,6 +1074,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         from django.http import JsonResponse
         from django.templatetags.static import static
 
+        from engine.markdown.lint import lint_markdown, summarize
         from engine.markdown.renderer import render_markdown
 
         if request.method != "POST":
@@ -1967,29 +1096,15 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             except ValueError, Post.DoesNotExist:
                 pass
 
-        lint_items = []
         post_assets = (
             list(post.post_assets.select_related("asset").all()) if post else []
         )
-
-        orphans = self._find_orphan_asset_refs(content, post_assets)
-        if orphans:
-            lint_items.append("Unresolved asset references: " + ", ".join(orphans))
-        missing_cites = self._find_unresolved_citation_keys(content)
-        if missing_cites:
-            lint_items.append(
-                "Unknown citation keys: " + ", ".join(f"@{k}" for k in missing_cites)
-            )
-        broken_links = self._find_broken_internal_links(content)
-        if broken_links:
-            lint_items.append(
-                "Broken internal links: "
-                + ", ".join(f"/posts/{s}/" for s in broken_links)
-            )
-        if self._find_unmatched_admonitions(content):
-            lint_items.append(
-                "Odd number of ::: fences — check for an unclosed admonition."
-            )
+        findings = lint_markdown(
+            content,
+            post_assets=post_assets,
+            current_post_pk=post.pk if post else None,
+        )
+        lint_items = summarize(findings)
 
         try:
             rendered = render_markdown(content, context=context)
@@ -2025,8 +1140,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         return JsonResponse({"ok": True, "html": iframe_doc, "lint": lint_items})
 
     def revision_diff_view(self, request, post_id, revision_id):
-        post = Post.all_objects.get(pk=post_id)
-        revision = PostRevision.objects.get(pk=revision_id, post=post)
+        post = get_object_or_404(Post.all_objects, pk=post_id)
+        if not self.has_view_permission(request, post):
+            raise PermissionDenied
+        revision = get_object_or_404(PostRevision, pk=revision_id, post=post)
 
         # Find the previous revision for diffing
         prev_revision = (
@@ -2077,8 +1194,12 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def revision_restore_view(self, request, post_id, revision_id):
         if request.method != "POST":
             raise Http404
-        post = Post.all_objects.get(pk=post_id)
-        revision = PostRevision.objects.get(pk=revision_id, post=post)
+        post = get_object_or_404(Post.all_objects, pk=post_id)
+        # Restoring a revision overwrites the post body — require change rights
+        # on this object (admin_view only guarantees is_staff).
+        if not self.has_change_permission(request, post):
+            raise PermissionDenied
+        revision = get_object_or_404(PostRevision, pk=revision_id, post=post)
 
         post.content_markdown = revision.content_markdown
         post.last_edited_by = request.user
@@ -2128,14 +1249,31 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "Publishing",
             {
                 "fields": (
-                    ("status", "completion_status"),
-                    ("visibility",),
+                    ("status", "visibility"),
                     ("published_at", "expire_at"),
                     ("is_featured", "is_pinned", "pin_order"),
                 ),
                 "description": (
-                    "Lifecycle state, who can see the post, and scheduled "
-                    "go-live / expiry times."
+                    "<strong>Status</strong> is the publication lifecycle "
+                    "(draft → scheduled → published → archived) and, with "
+                    "<strong>Visibility</strong>, controls whether the post is "
+                    "live and who can see it. Scheduled/published posts go live "
+                    "at <em>Published at</em>. (Not to be confused with the "
+                    "editorial <em>Completion</em> field under Editorial notes, "
+                    "which is only a label shown on the page.)"
+                ),
+            },
+        ),
+        (
+            "Editorial notes",
+            {
+                "fields": ("completion_status",),
+                "classes": ["collapse"],
+                "description": (
+                    "<strong>Completion</strong> is an editorial label shown in "
+                    "the page metadata (Notes / Draft / In Progress / Finished / "
+                    "Abandoned). It does <strong>not</strong> affect visibility "
+                    "or publication — that's <em>Status</em> above."
                 ),
             },
         ),
@@ -2349,13 +1487,26 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     @admin.display(description="Markdown reference")
     def markdown_cheatsheet(self, obj=None):
-        """Collapsible cheatsheet of supported markdown syntax.
+        """Markdown reference + launcher for the in-editor helper palette.
 
-        Rendered above the content textarea so authors can discover
-        admonitions, asset/citation syntax, and other custom features
-        without leaving the change form.
+        Renders a launcher button (wired by ``admin-markdown-helper.js`` to open
+        a searchable insert-at-cursor palette) plus the full browsable reference
+        as a no-JS fallback. Both are generated from
+        :mod:`engine.markdown.cheatsheet`, the single source of truth also stamped
+        onto the editor as JSON.
         """
-        return mark_safe(MARKDOWN_CHEATSHEET_HTML)
+        return mark_safe(
+            '<div class="markdown-cheatsheet" data-md-helper-root>'
+            '<button type="button" class="mc-launch" data-md-helper-open>'
+            "📖 Markdown helper "
+            '<span class="mc-launch-hint">search &amp; insert · '
+            "<kbd>Ctrl</kbd>/<kbd>⌘</kbd> <kbd>/</kbd></span>"
+            "</button>"
+            '<details class="mc-fallback">'
+            "<summary>Or browse the full reference</summary>"
+            + cheatsheet_reference_html()
+            + "</details></div>"
+        )
 
     @admin.display(description="Preview")
     def preview_controls(self, obj=None):
@@ -2386,11 +1537,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             '<div id="markdown-preview-lint" class="mk-lint"></div>'
             '<iframe id="markdown-preview-iframe" class="mk-iframe" '
             'sandbox="allow-same-origin"></iframe>'
-            "</div></div>"
-            "{}",
+            "</div></div>",
             preview_url,
             post_id,
-            mark_safe(_PREVIEW_MODAL_JS),
         )
 
     @admin.display(description="Insert citation")
@@ -2422,10 +1571,8 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             '<div id="mk-cite-results" class="mk-results"></div>'
             '<div class="mk-cite-footer">'
             "Inserts <code>[@key]</code> at the current cursor position in the markdown editor."
-            "</div></div></div>"
-            "{}",
+            "</div></div></div>",
             citations_url,
-            mark_safe(_CITE_PICKER_JS),
         )
 
     @admin.display(description="Asset Markdown References")
@@ -2511,33 +1658,20 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         parts.append(
             '<div class="mk-asset-tip">💡 <strong>Tip:</strong> Click any asset card above to copy its markdown reference.</div>'
         )
-        parts.append(
-            """
-<script>
-(function() {
-    setTimeout(function() {
-        document.querySelectorAll('.mk-asset-card').forEach(function(card) {
-            if (card.hasAttribute('data-listener')) return;
-            card.setAttribute('data-listener', 'true');
-            card.addEventListener('click', function() {
-                var ref = this.getAttribute('data-ref');
-                navigator.clipboard.writeText(ref).then(function() {
-                    card.classList.add('mk-copied');
-                    setTimeout(function() { card.classList.remove('mk-copied'); }, 2000);
-                });
-            });
-        });
-    }, 500);
-})();
-</script>
-"""
-        )
-
+        # Click-to-copy on the cards (data-ref) is handled by delegation in
+        # static/js/admin-post-aux.js — no inline <script> (nonce CSP).
         return mark_safe(orphan_html + "".join(parts))
 
     def _orphan_asset_ref_warning(self, obj, post_assets):
         """Render HTML listing asset references in content that don't resolve."""
-        orphans = self._find_orphan_asset_refs(obj.content_markdown or "", post_assets)
+        from engine.markdown.lint import group_labels, lint_markdown
+
+        findings = lint_markdown(
+            obj.content_markdown or "",
+            post_assets=post_assets,
+            current_post_pk=obj.pk,
+        )
+        orphans = group_labels(findings).get("asset", [])
         if not orphans:
             return ""
 
@@ -2555,181 +1689,26 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             mark_safe(chips),
         )
 
-    @staticmethod
-    def _find_orphan_asset_refs(content, post_assets):
-        """Return the sorted list of unresolved ``@asset:`` / ``@alias`` refs.
-
-        Compares every reference against the PostAsset aliases attached to
-        this post and the global Asset key set.
-        """
-        if not content or "@" not in content:
-            return []
-
-        from engine.models import Asset
-
-        aliases = {pa.alias for pa in post_assets if pa.alias}
-        global_keys = {pa.asset.key for pa in post_assets if pa.asset}
-
-        orphans = []
-        checked = set()
-
-        for match in _ASSET_REF_RE.finditer(content):
-            is_global = match.group(1) == "asset:"
-            key = match.group(2)
-            cache_key = (is_global, key)
-            if cache_key in checked:
-                continue
-            checked.add(cache_key)
-
-            if is_global:
-                if key in global_keys:
-                    continue
-                if Asset.objects.filter(
-                    key=key, is_deleted=False, status="ready"
-                ).exists():
-                    continue
-                orphans.append(f"@asset:{key}")
-            else:
-                if key in aliases or key in global_keys:
-                    continue
-                if Asset.objects.filter(
-                    key=key, is_deleted=False, status="ready"
-                ).exists():
-                    continue
-                orphans.append(f"@{key}")
-
-        return orphans
-
-    @staticmethod
-    def _find_unresolved_citation_keys(content):
-        """Return the sorted list of citation keys not in the Source library.
-
-        Matches Pandoc-style bracketed citations ``[@key]`` / ``[-@key]`` /
-        ``[@a; @b]`` and bare narrative ``@key``. Code spans, fenced code,
-        and asset-reference link targets are stripped first so they don't
-        produce false positives (mirrors the production preprocessor
-        ordering: asset_resolver runs before citation_escaper).
-        """
-        if not content or "@" not in content:
-            return []
-
-        from engine.models import Source
-
-        # Strip fenced and inline code so citations inside examples don't flag.
-        stripped = re.sub(r"```[\s\S]*?```", "", content)
-        stripped = re.sub(r"~~~[\s\S]*?~~~", "", stripped)
-        stripped = re.sub(r"`[^`\n]+`", "", stripped)
-        # Strip markdown link/image targets that contain @ (asset references).
-        stripped = _ASSET_REF_RE.sub("", stripped)
-
-        # Keys end in an alphanumeric character — trailing `.` is sentence
-        # punctuation, not part of the key.
-        key_pat = r"[a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9]"
-
-        keys = set()
-        # Bracketed: [@key] / [-@key] / [@k1; @k2, pp. 3]
-        for match in re.finditer(r"\[(-?@[^\]]+)\]", stripped):
-            for piece in match.group(1).split(";"):
-                piece = piece.strip().lstrip("-").lstrip("@")
-                head = piece.split(",", 1)[0].strip()
-                m = re.match(r"([a-zA-Z0-9][\w:.#$%&\-+?<>~/]*?)\.?$", head)
-                key = m.group(1) if m else ""
-                if key:
-                    keys.add(key)
-        # Narrative: @key (not already inside brackets, not after a word char)
-        for match in re.finditer(rf"(?<![@\[\\\w])@({key_pat})", stripped):
-            keys.add(match.group(1))
-
-        if not keys:
-            return []
-
-        known = set(
-            Source.objects.filter(citation_key__in=keys).values_list(
-                "citation_key", flat=True
-            )
-        )
-        return sorted(keys - known)
-
-    @staticmethod
-    def _find_broken_internal_links(content, current_post_pk=None):
-        """Return sorted list of ``/posts/<slug>/`` targets not matching a Post."""
-        if not content:
-            return []
-        slugs = set(re.findall(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)", content))
-        if not slugs:
-            return []
-        known = set(
-            Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
-        )
-        return sorted(slugs - known)
-
-    @staticmethod
-    def _find_unmatched_admonitions(content):
-        """Return diagnostic count of unmatched ``:::`` fenced divs.
-
-        Pandoc fenced divs come in matched pairs: an opener like
-        ``::: {.admonition-tip}`` and a bare ``:::`` closer. An odd total
-        almost always means the author forgot to close a block.
-        """
-        if not content:
-            return 0
-        fences = re.findall(r"^:::+.*$", content, flags=re.MULTILINE)
-        return len(fences) % 2
-
     def _collect_content_lint_messages(self, post):
-        """Return a list of (level, message) tuples for save-time lint warnings."""
-        messages_out = []
+        """Return a list of (level, message) tuples for save-time lint warnings.
+
+        Derives from the shared :mod:`engine.markdown.lint` engine so the
+        warnings surfaced on save match the CodeMirror gutter and the preview
+        modal exactly.
+        """
+        from engine.markdown.lint import lint_markdown, summarize
+
         content = post.content_markdown or ""
         if not content:
-            return messages_out
+            return []
 
         post_assets = (
             list(post.post_assets.select_related("asset").all()) if post.pk else []
         )
-
-        orphans = self._find_orphan_asset_refs(content, post_assets)
-        if orphans:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Unresolved asset reference(s): "
-                    + ", ".join(orphans)
-                    + ". Attach the asset or fix the key/alias.",
-                )
-            )
-
-        missing_cites = self._find_unresolved_citation_keys(content)
-        if missing_cites:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Unknown citation key(s) — will render as [??key]: "
-                    + ", ".join(f"@{k}" for k in missing_cites)
-                    + ". Add to the Source library or correct the key.",
-                )
-            )
-
-        broken_links = self._find_broken_internal_links(content, post.pk)
-        if broken_links:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Internal link(s) to unknown slugs: "
-                    + ", ".join(f"/posts/{s}/" for s in broken_links)
-                    + ".",
-                )
-            )
-
-        if self._find_unmatched_admonitions(content):
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Odd number of ::: fences detected — an admonition "
-                    "or fenced div is likely unclosed.",
-                )
-            )
-
-        return messages_out
+        findings = lint_markdown(
+            content, post_assets=post_assets, current_post_pk=post.pk
+        )
+        return [(messages.WARNING, line) for line in summarize(findings)]
 
     def save_model(self, request, obj, form, change):
         # Auto-stamp audit provenance so authors can't forget.
@@ -2743,15 +1722,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     @admin.action(description="Publish selected posts")
     def publish_selected(self, request, queryset):
-        """Publish selected posts."""
-        from django.utils import timezone
-
+        """Publish selected posts (go-live time + publisher via Post.publish)."""
         count = 0
         for post in queryset:
-            post.status = "published"
-            if not post.published_at:
-                post.published_at = timezone.now()
-            post.save()
+            post.publish(by=request.user)
             count += 1
         self.message_user(request, f"Published {count} post(s).")
 
@@ -3009,7 +1983,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 # Internal Links (Backlinks)
 # --------------------------
 @admin.register(InternalLink)
-class InternalLinkAdmin(admin.ModelAdmin):
+class InternalLinkAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """
     Read-only admin for viewing internal links between posts.
 
@@ -3073,27 +2047,13 @@ class InternalLinkAdmin(admin.ModelAdmin):
         ),
     )
 
-    def has_add_permission(self, request):
-        """Disable manual creation - links are auto-generated from post content."""
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        """Disable editing - links must stay in sync with post content."""
-        return False
-
     @admin.display(description="Link", ordering="source_post__title")
     def link_display(self, obj):
         """Display the link relationship."""
         return format_html(
-            '<div style="font-size: 12px;">'
-            '<a href="/admin/engine/post/{}/change/" style="color: #0066cc;">{}</a>'
-            '<span style="margin: 0 8px; color: #999;">→</span>'
-            '<a href="/admin/engine/post/{}/change/" style="color: #0066cc;">{}</a>'
-            "</div>",
-            obj.source_post.pk,
-            obj.source_post.title[:40],
-            obj.target_post.pk,
-            obj.target_post.title[:40],
+            "{} → {}",
+            admin_change_link(obj.source_post, obj.source_post.title[:40]),
+            admin_change_link(obj.target_post, obj.target_post.title[:40]),
         )
 
     @admin.display(description="Type")
@@ -3109,7 +2069,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
 # Post Revisions
 # --------------------------
 @admin.register(PostRevision)
-class PostRevisionAdmin(admin.ModelAdmin):
+class PostRevisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = ("post", "version", "created_by", "created_at", "size_display")
     list_filter = ("created_at",)
     list_select_related = ("post", "created_by")
@@ -3123,15 +2083,23 @@ class PostRevisionAdmin(admin.ModelAdmin):
     )
     ordering = ("-created_at",)
 
-    def has_add_permission(self, request):
-        return False
+    def get_queryset(self, request):
+        # Compute the body length in the DB so the changelist's size column
+        # doesn't load every revision's full markdown into memory.
+        from django.db.models.functions import Length
 
-    def has_change_permission(self, request, obj=None):
-        return False
+        return (
+            super()
+            .get_queryset(request)
+            .defer("content_markdown")
+            .annotate(_md_len=Length("content_markdown"))
+        )
 
     @admin.display(description="Size")
     def size_display(self, obj):
-        size = len(obj.content_markdown)
+        size = getattr(obj, "_md_len", None)
+        if size is None:
+            size = len(obj.content_markdown)
         if size < 1024:
             return f"{size} B"
         return f"{size / 1024:.1f} KB"
@@ -3141,7 +2109,7 @@ class PostRevisionAdmin(admin.ModelAdmin):
 # Post Similarity (auto-computed)
 # --------------------------
 @admin.register(PostSimilarity)
-class PostSimilarityAdmin(admin.ModelAdmin):
+class PostSimilarityAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Read-only browser over the precomputed similarity table."""
 
     list_display = ("source_post", "target_post", "score", "computed_at")
@@ -3162,15 +2130,9 @@ class PostSimilarityAdmin(admin.ModelAdmin):
     )
     list_per_page = 100
 
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
 
 @admin.register(PostSlugHistory)
-class PostSlugHistoryAdmin(admin.ModelAdmin):
+class PostSlugHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Read-only view of former slugs that 301-redirect to their post."""
 
     list_display = ("old_slug", "post", "created_at")
@@ -3178,9 +2140,3 @@ class PostSlugHistoryAdmin(admin.ModelAdmin):
     list_select_related = ("post",)
     readonly_fields = ("old_slug", "post", "created_at")
     list_per_page = 100
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False

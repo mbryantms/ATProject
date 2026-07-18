@@ -48,6 +48,7 @@ import {
 } from './admin-post-editor/completions.js';
 import { makeLintSource } from './admin-post-editor/lint-source.js';
 import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
+import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.js';
 
 const TEXTAREA_ID = 'id_content_markdown';
 
@@ -303,6 +304,17 @@ function initEditor() {
   // preview button, future tooling) can insert at cursor or read state
   // without touching the textarea directly.
   window.__atpPostEditorView = view;
+
+  // Searchable markdown-reference palette (Ctrl/Cmd-/ or the "Markdown helper"
+  // button) that inserts snippets at the cursor. Data is the same cheatsheet
+  // stamped onto the textarea as JSON.
+  try {
+    if (textarea.dataset.cmCheatsheet) {
+      mountCheatsheetPalette(view, JSON.parse(textarea.dataset.cmCheatsheet));
+    }
+  } catch (err) {
+    console.warn('CM6: failed to mount markdown helper', err);
+  }
 
   // Ensure the textarea is in sync on submit regardless of
   // whether a docChanged event fired between the last keystroke
