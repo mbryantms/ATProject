@@ -41,6 +41,7 @@ _BRACKET_KEY_RE = re.compile(r"-?@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*)")
 _NARRATIVE_RE = re.compile(rf"(?<![@\[\\\w])@({_CITE_KEY})")
 _CODE_SPAN_PATTERNS = (r"```[\s\S]*?```", r"~~~[\s\S]*?~~~", r"`[^`\n]+`")
 
+
 @dataclass(frozen=True)
 class LintFinding:
     """One authoring-lint problem, with its span in the source text."""
