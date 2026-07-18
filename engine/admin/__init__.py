@@ -22,6 +22,7 @@ admin.site.index_title = getattr(settings, "ADMIN_INDEX_TITLE", "Site administra
 # Import admin classes to ensure they're registered
 # The @admin.register() decorators in each module handle the registration
 
+from . import navigation as navigation  # orders the engine models in the sidebar
 from .asset import (
     AssetAdmin,
     AssetCollectionAdmin,
@@ -33,7 +34,7 @@ from .asset import (
 from .celery_status import (
     celery_status_view as celery_status_view,  # registers admin:celery_status URL
 )
-from .mixins import SoftDeleteAdminMixin
+from .mixins import ReadOnlyAdminMixin, SoftDeleteAdminMixin
 from .page import PageAdmin
 from .post import InternalLinkAdmin, PostAdmin, PostRevisionAdmin
 from .settings import SiteSettingsAdmin
@@ -45,6 +46,7 @@ from .taxonomy import CategoryAdmin, SeriesAdmin, TagAdmin, TagAliasAdmin
 __all__ = [
     # Mixins
     "SoftDeleteAdminMixin",
+    "ReadOnlyAdminMixin",
     # Taxonomy
     "TagAdmin",
     "TagAliasAdmin",

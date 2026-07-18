@@ -10,7 +10,9 @@ import difflib
 import re
 
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -26,7 +28,8 @@ from engine.models import (
     PostSlugHistory,
 )
 
-from .mixins import SoftDeleteAdminMixin
+from .display import admin_change_link
+from .mixins import ReadOnlyAdminMixin, SoftDeleteAdminMixin
 
 # Curated list of CSL styles supported by the citeproc-js bridge.
 # Leaving blank uses the site-wide default.
@@ -870,7 +873,7 @@ MARKDOWN_CHEATSHEET_HTML = (
       <tr><td class="mc-syntax"><code>[-@smith2020]</code></td><td class="mc-desc">Suppress author (year only)</td></tr>
       <tr><td class="mc-syntax"><code>[@a; @b, p. 10; @c]</code></td><td class="mc-desc">Multi-citation (semicolon-separated)</td></tr>
     </table>
-    <p class="mc-note">Unknown keys render as <code>[??key]</code>. Keys come from the <a href="/admin/engine/source/" target="_blank">Source library</a>. Citation style is set per-post or site-wide — see the <em>Rendering &amp; Metadata</em> section.</p>
+    <p class="mc-note">Unknown keys render as <code>[??key]</code>. Keys come from the Source library. Citation style is set per-post or site-wide — see the <em>Rendering &amp; Metadata</em> section.</p>
   </details>
 
   <details>
@@ -980,6 +983,11 @@ class PostAssetInline(admin.StackedInline):
 
     autocomplete_fields = ["asset"]
     ordering = ["order"]
+
+    def get_queryset(self, request):
+        # Every readonly display method reads obj.asset.* — pull it in one join
+        # instead of a query per attached asset row.
+        return super().get_queryset(request).select_related("asset")
 
     # Verbose names for better UX
     verbose_name = "Asset"
@@ -1184,6 +1192,10 @@ class IncomingLinksInline(admin.TabularInline):
     fields = ("source_post_link", "link_count", "created_at")
     readonly_fields = ("source_post_link", "link_count", "created_at")
 
+    def get_queryset(self, request):
+        # source_post_link reads obj.source_post.title — avoid a query per row.
+        return super().get_queryset(request).select_related("source_post")
+
     def has_add_permission(self, request, obj=None):
         """Backlinks are auto-generated, not manually added."""
         return False
@@ -1193,11 +1205,7 @@ class IncomingLinksInline(admin.TabularInline):
         """Display source post with link to admin."""
         if not obj or not obj.pk:
             return "—"
-        return format_html(
-            '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
-            obj.source_post.pk,
-            obj.source_post.title,
-        )
+        return admin_change_link(obj.source_post, obj.source_post.title)
 
 
 class PostSimilarityInline(admin.TabularInline):
@@ -1235,11 +1243,7 @@ class PostSimilarityInline(admin.TabularInline):
     def target_post_link(self, obj):
         if not obj or not obj.target_post_id:
             return "—"
-        return format_html(
-            '<a href="/admin/engine/post/{}/change/" target="_blank">{}</a>',
-            obj.target_post.pk,
-            obj.target_post.title,
-        )
+        return admin_change_link(obj.target_post, obj.target_post.title)
 
     @admin.display(description="Components")
     def components_display(self, obj):
@@ -1308,6 +1312,10 @@ class PostCitationInline(admin.TabularInline):
     verbose_name = "Cited Source"
     verbose_name_plural = "Cited Sources"
 
+    def get_queryset(self, request):
+        # source_display reads obj.source.* — avoid a query per citation row.
+        return super().get_queryset(request).select_related("source")
+
     @admin.display(description="Source")
     def source_display(self, obj):
         if obj.pk and obj.source:
@@ -1329,7 +1337,7 @@ class PostCitationInline(admin.TabularInline):
 # Post admin
 # --------------------------
 @admin.register(Post)
-class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
+class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     inlines = [
         PostAssetInline,
         PostCitationInline,
@@ -1373,21 +1381,26 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         "author",
     )
 
-    search_fields = ("title", "subtitle", "description", "content_markdown", "slug")
+    # content_markdown is intentionally excluded: admin search does an
+    # unindexed ILIKE '%term%' over the full body (the search_vector GIN index
+    # can't serve it), which is slow at scale. Body text is searchable through
+    # the site's full-text search; these fields identify a post for editing.
+    search_fields = ("title", "subtitle", "description", "slug")
     ordering = ("-is_pinned", "pin_order", "-published_at", "-created_at")
     list_select_related = ("author", "series")
 
+    # Autocomplete for every editable relation. (published_by / last_edited_by
+    # are readonly audit fields, so they aren't listed here — the autocomplete
+    # widget would never render for them. filter_horizontal was also removed:
+    # when a field is in autocomplete_fields, Django uses the autocomplete
+    # widget and ignores filter_horizontal, so it was dead configuration.)
     autocomplete_fields = (
         "author",
         "co_authors",
         "series",
         "categories",
         "tags",
-        "published_by",
-        "last_edited_by",
     )
-
-    filter_horizontal = ("co_authors", "categories", "tags")
 
     # Fields excluded from the form entirely — internal caches and
     # derived columns that the Celery pipeline / DB triggers manage.
@@ -1435,15 +1448,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     # Slug from title is handy for editors
     prepopulated_fields = {"slug": ("title",)}
 
-    # Show facets for filters
-    show_facets = admin.ShowFacets.ALWAYS
-
-    # Optional: nicer widgets for large text fields
-    formfield_overrides = {
-        admin.widgets.AdminTextareaWidget: {
-            "widget": admin.widgets.AdminTextareaWidget
-        },
-    }
+    # Facet counts are opt-in (append ?_facets to the URL). Computing them on
+    # every changelist load ran a COUNT per choice across 14 filters (incl. the
+    # categories/tags/series/author M2M-FK filters) — ~75 queries per load.
+    show_facets = admin.ShowFacets.ALLOW
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         from django import forms as dj_forms
@@ -2025,8 +2033,10 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         return JsonResponse({"ok": True, "html": iframe_doc, "lint": lint_items})
 
     def revision_diff_view(self, request, post_id, revision_id):
-        post = Post.all_objects.get(pk=post_id)
-        revision = PostRevision.objects.get(pk=revision_id, post=post)
+        post = get_object_or_404(Post.all_objects, pk=post_id)
+        if not self.has_view_permission(request, post):
+            raise PermissionDenied
+        revision = get_object_or_404(PostRevision, pk=revision_id, post=post)
 
         # Find the previous revision for diffing
         prev_revision = (
@@ -2077,8 +2087,12 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     def revision_restore_view(self, request, post_id, revision_id):
         if request.method != "POST":
             raise Http404
-        post = Post.all_objects.get(pk=post_id)
-        revision = PostRevision.objects.get(pk=revision_id, post=post)
+        post = get_object_or_404(Post.all_objects, pk=post_id)
+        # Restoring a revision overwrites the post body — require change rights
+        # on this object (admin_view only guarantees is_staff).
+        if not self.has_change_permission(request, post):
+            raise PermissionDenied
+        revision = get_object_or_404(PostRevision, pk=revision_id, post=post)
 
         post.content_markdown = revision.content_markdown
         post.last_edited_by = request.user
@@ -3009,7 +3023,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 # Internal Links (Backlinks)
 # --------------------------
 @admin.register(InternalLink)
-class InternalLinkAdmin(admin.ModelAdmin):
+class InternalLinkAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """
     Read-only admin for viewing internal links between posts.
 
@@ -3073,27 +3087,13 @@ class InternalLinkAdmin(admin.ModelAdmin):
         ),
     )
 
-    def has_add_permission(self, request):
-        """Disable manual creation - links are auto-generated from post content."""
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        """Disable editing - links must stay in sync with post content."""
-        return False
-
     @admin.display(description="Link", ordering="source_post__title")
     def link_display(self, obj):
         """Display the link relationship."""
         return format_html(
-            '<div style="font-size: 12px;">'
-            '<a href="/admin/engine/post/{}/change/" style="color: #0066cc;">{}</a>'
-            '<span style="margin: 0 8px; color: #999;">→</span>'
-            '<a href="/admin/engine/post/{}/change/" style="color: #0066cc;">{}</a>'
-            "</div>",
-            obj.source_post.pk,
-            obj.source_post.title[:40],
-            obj.target_post.pk,
-            obj.target_post.title[:40],
+            "{} → {}",
+            admin_change_link(obj.source_post, obj.source_post.title[:40]),
+            admin_change_link(obj.target_post, obj.target_post.title[:40]),
         )
 
     @admin.display(description="Type")
@@ -3109,7 +3109,7 @@ class InternalLinkAdmin(admin.ModelAdmin):
 # Post Revisions
 # --------------------------
 @admin.register(PostRevision)
-class PostRevisionAdmin(admin.ModelAdmin):
+class PostRevisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = ("post", "version", "created_by", "created_at", "size_display")
     list_filter = ("created_at",)
     list_select_related = ("post", "created_by")
@@ -3123,15 +3123,23 @@ class PostRevisionAdmin(admin.ModelAdmin):
     )
     ordering = ("-created_at",)
 
-    def has_add_permission(self, request):
-        return False
+    def get_queryset(self, request):
+        # Compute the body length in the DB so the changelist's size column
+        # doesn't load every revision's full markdown into memory.
+        from django.db.models.functions import Length
 
-    def has_change_permission(self, request, obj=None):
-        return False
+        return (
+            super()
+            .get_queryset(request)
+            .defer("content_markdown")
+            .annotate(_md_len=Length("content_markdown"))
+        )
 
     @admin.display(description="Size")
     def size_display(self, obj):
-        size = len(obj.content_markdown)
+        size = getattr(obj, "_md_len", None)
+        if size is None:
+            size = len(obj.content_markdown)
         if size < 1024:
             return f"{size} B"
         return f"{size / 1024:.1f} KB"
@@ -3141,7 +3149,7 @@ class PostRevisionAdmin(admin.ModelAdmin):
 # Post Similarity (auto-computed)
 # --------------------------
 @admin.register(PostSimilarity)
-class PostSimilarityAdmin(admin.ModelAdmin):
+class PostSimilarityAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Read-only browser over the precomputed similarity table."""
 
     list_display = ("source_post", "target_post", "score", "computed_at")
@@ -3162,15 +3170,9 @@ class PostSimilarityAdmin(admin.ModelAdmin):
     )
     list_per_page = 100
 
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
 
 @admin.register(PostSlugHistory)
-class PostSlugHistoryAdmin(admin.ModelAdmin):
+class PostSlugHistoryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     """Read-only view of former slugs that 301-redirect to their post."""
 
     list_display = ("old_slug", "post", "created_at")
@@ -3178,9 +3180,3 @@ class PostSlugHistoryAdmin(admin.ModelAdmin):
     list_select_related = ("post",)
     readonly_fields = ("old_slug", "post", "created_at")
     list_per_page = 100
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False

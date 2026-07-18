@@ -15,10 +15,12 @@ import csv
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.urls import path
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 
 from engine.models import (
@@ -31,7 +33,8 @@ from engine.models import (
     PostAsset,
 )
 
-from .mixins import SoftDeleteAdminMixin
+from .display import muted
+from .mixins import ReadOnlyAdminMixin, SoftDeleteAdminMixin
 
 
 def _status_pill_class(status: str) -> str:
@@ -304,7 +307,7 @@ class PostAssetInline(admin.TabularInline):
 # Asset Admin
 # --------------------------
 @admin.register(Asset)
-class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
+class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     # Add custom button to changelist
     change_list_template = "admin/engine/asset_changelist.html"
 
@@ -409,7 +412,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     list_select_related = ["uploaded_by"]
     list_per_page = 50
 
-    show_facets = admin.ShowFacets.ALWAYS
+    # Opt-in facets (append ?_facets). Computing them for every filter choice
+    # on each changelist load was ~35 queries even on an empty changelist.
+    show_facets = admin.ShowFacets.ALLOW
 
     readonly_fields = [
         "preview_large",
@@ -628,6 +633,9 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     def presigned_upload_view(self, request):
         """Custom view for large file uploads using presigned URLs."""
+        # Creates Asset rows — require add rights (admin_view only gives staff).
+        if not self.has_add_permission(request):
+            raise PermissionDenied
         context = {
             **self.admin_site.each_context(request),
             "title": "Upload Large File",
@@ -643,6 +651,12 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
         from django.db.models import Count
         from django.utils import timezone
+
+        # This view permanently deletes assets (and, with --delete-files, their
+        # R2 objects). admin_view only guarantees is_staff; require delete
+        # rights on Asset so a staff account without them can't purge files.
+        if not self.has_delete_permission(request):
+            raise PermissionDenied
 
         context = {
             **self.admin_site.each_context(request),
@@ -965,21 +979,28 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
     @admin.display(description="Collections")
     def collection_badge(self, obj):
         """Display collections as badges."""
-        from django.utils.html import escape
-
-        collections = list(obj.collections.all()[:4])
+        # collections is prefetched in get_queryset; materialize the cache and
+        # slice/count in Python. The old ``.all()[:4]`` sliced at the ORM level,
+        # which bypasses the prefetch and fired a fresh query (plus a second
+        # .count()) for every row on the changelist.
+        collections = list(obj.collections.all())
         if not collections:
-            return mark_safe('<span class="mk-muted">—</span>')
+            return muted()
 
-        shown = collections[:3]
         badges = [
-            f'<span class="mk-pill mk-pill--sm mk-pill--collection">{escape(c.name)}</span>'
-            for c in shown
+            format_html(
+                '<span class="mk-pill mk-pill--sm mk-pill--collection">{}</span>',
+                c.name,
+            )
+            for c in collections[:3]
         ]
         if len(collections) > 3:
-            remaining = obj.collections.count() - 3
-            badges.append(f'<span class="mk-muted">+{remaining} more</span>')
-        return mark_safe(" ".join(badges))
+            badges.append(
+                format_html(
+                    '<span class="mk-muted">+{} more</span>', len(collections) - 3
+                )
+            )
+        return format_html_join(" ", "{}", ((b,) for b in badges))
 
     @admin.display(description="Status", ordering="status")
     def status_badge(self, obj):
@@ -1031,6 +1052,10 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 obj.file.url,
                 obj.mime_type or "audio/mpeg",
             )
+        if not obj.file:
+            # A presigned-upload placeholder or any fileless asset — accessing
+            # obj.file.url would raise ValueError and break the change page.
+            return format_html('<span class="mk-muted">No file</span>')
         return format_html(
             '<a href="{}" target="_blank" class="mk-btn">Download file</a>',
             obj.file.url,
@@ -1751,11 +1776,13 @@ class AssetAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 # --------------------------
 # AssetMetadata Admin
 # --------------------------
-class AssetMetadataAdmin(admin.ModelAdmin):
-    """Admin for extended asset metadata.
+@admin.register(AssetMetadata)
+class AssetMetadataAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """Read-only, cross-asset browser over extracted metadata.
 
-    Not registered with the sidebar: metadata is exposed inline on Asset.
-    Kept as a ModelAdmin subclass for potential future standalone use.
+    Metadata is also shown inline on each Asset; this standalone view exists for
+    fleet-wide queries (e.g. filter by camera, find assets missing metadata).
+    It is view-only — metadata is extracted by the pipeline, never hand-entered.
     """
 
     list_display = (
@@ -1979,11 +2006,13 @@ class AssetMetadataAdmin(admin.ModelAdmin):
 # --------------------------
 # AssetRendition Admin
 # --------------------------
-class AssetRenditionAdmin(admin.ModelAdmin):
-    """Admin for asset renditions.
+@admin.register(AssetRendition)
+class AssetRenditionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    """Read-only, cross-asset browser over generated renditions.
 
-    Not registered with the sidebar: renditions are exposed inline on Asset.
-    Kept as a ModelAdmin subclass for potential future standalone use.
+    Renditions are also shown inline on each Asset; this standalone view exists
+    for fleet-wide queries (e.g. find all failed or missing renditions). It is
+    view-only — renditions are produced by the pipeline, never hand-created.
     """
 
     list_display = (
@@ -2139,13 +2168,19 @@ class AssetFolderAdmin(admin.ModelAdmin):
     autocomplete_fields = ["user", "parent"]
     readonly_fields = ("path", "created_at", "updated_at")
     ordering = ["path"]
+    list_select_related = ("user",)
 
-    def get_search_results(self, request, queryset, search_term):
-        """Enable autocomplete search."""
-        queryset, may_have_duplicates = super().get_search_results(
-            request, queryset, search_term
+    def get_queryset(self, request):
+        # Annotate the per-row counts (asset count + whether it has children)
+        # instead of a .count()/.exists() query per folder on the changelist.
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                _asset_count=Count("folder_assets", distinct=True),
+                _child_count=Count("children", distinct=True),
+            )
         )
-        return queryset, may_have_duplicates
 
     fieldsets = (
         (
@@ -2173,7 +2208,7 @@ class AssetFolderAdmin(admin.ModelAdmin):
         """Display folder with icon and hierarchy."""
         depth = obj.path.count("/")
         indent = mark_safe("&nbsp;" * (depth * 4))
-        icon = "📁" if obj.children.exists() else "📂"
+        icon = "📁" if getattr(obj, "_child_count", 0) else "📂"
 
         return format_html(
             "{}{} <strong>{}</strong>",
@@ -2182,12 +2217,12 @@ class AssetFolderAdmin(admin.ModelAdmin):
             obj.name,
         )
 
-    @admin.display(description="Assets")
+    @admin.display(description="Assets", ordering="_asset_count")
     def asset_count_display(self, obj):
         """Display number of assets in folder."""
-        count = obj.folder_assets.count()
+        count = getattr(obj, "_asset_count", 0)
         if count == 0:
-            return mark_safe('<span class="mk-muted">0</span>')
+            return muted("0")
         return format_html(
             '<span class="mk-pill mk-pill--sm mk-pill--info">{}</span>',
             count,
@@ -2205,6 +2240,13 @@ class AssetTagAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
     ordering = ("name",)
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_asset_count=Count("tagged_assets", distinct=True))
+        )
 
     fieldsets = (
         (
@@ -2227,12 +2269,12 @@ class AssetTagAdmin(admin.ModelAdmin):
             obj.name,
         )
 
-    @admin.display(description="Assets")
+    @admin.display(description="Assets", ordering="_asset_count")
     def asset_count_display(self, obj):
         """Display number of assets with this tag."""
-        count = obj.tagged_assets.count()
+        count = getattr(obj, "_asset_count", 0)
         if count == 0:
-            return mark_safe('<span class="mk-muted">0</span>')
+            return muted("0")
         return format_html(
             '<span class="mk-pill mk-pill--sm" style="border-left:3px solid {};">{}</span>',
             obj.color,
@@ -2266,6 +2308,14 @@ class AssetCollectionAdmin(admin.ModelAdmin):
     search_fields = ("name", "description")
     autocomplete_fields = ["user", "cover_asset", "assets"]
     readonly_fields = ("created_at", "updated_at", "asset_count_display")
+    list_select_related = ("user", "cover_asset")
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_asset_count=Count("assets", distinct=True))
+        )
 
     fieldsets = (
         (
@@ -2326,12 +2376,16 @@ class AssetCollectionAdmin(admin.ModelAdmin):
             visibility,
         )
 
-    @admin.display(description="Assets")
+    @admin.display(description="Assets", ordering="_asset_count")
     def asset_count_display(self, obj):
         """Display number of assets in collection."""
-        count = obj.asset_count()
+        # Annotated on the changelist; falls back to the model method on the
+        # change form (where the annotation isn't present).
+        count = getattr(obj, "_asset_count", None)
+        if count is None:
+            count = obj.asset_count()
         if count == 0:
-            return mark_safe('<em class="mk-muted">No assets yet</em>')
+            return format_html('<em class="mk-muted">No assets yet</em>')
         return format_html(
             '<span class="mk-pill mk-pill--info">{} asset{}</span>',
             count,
