@@ -3,7 +3,7 @@
 # -- Stage 1: Node.js builder --
 # Builds frontend CSS/JS assets and installs citeproc-js production deps.
 # This stage is discarded — only built artifacts are copied to production.
-FROM node:22-slim AS node-builder
+FROM node:24-slim AS node-builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN npm run build
 
 
 # -- Stage 2: Python production image --
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1

@@ -2,45 +2,45 @@
 name = "atproject"
 version = "0.1.0"
 description = "A personal place for all my thoughts"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
-    "beautifulsoup4>=4.12.0",
-    "nh3>=0.2.18",
-    "boto3>=1.35.0",
-    "celery>=5.4.0",
+    "beautifulsoup4>=4.15.0",
+    "nh3>=0.3.5",
+    "boto3>=1.43.0",
+    "celery>=5.6.0",
     "flower>=2.0.1",
     "django>=6.0.0,<7.0",
     "django-celery-beat>=2.9.0",
-    "django-celery-results>=2.5.0",
-"django-ratelimit>=4.1.0",
+    "django-celery-results>=2.6.0",
+    "django-ratelimit>=4.1.0",
     "django-environ>=0.13.0",
-    "django-redis>=6.0.0",
-    "django-storages>=1.14.0",
-    "gunicorn>=23.0.0",
-    "pillow>=10.4.0",
-    "pillow-heif>=0.18.0",
-    "psycopg[binary]>=3.1.12",
-    "pygments>=2.18.0",
-    "pypandoc-binary>=1.14",
+    "django-redis>=7.0.0",
+    "django-storages>=1.14.6",
+    "gunicorn>=26.0.0",
+    "pillow>=12.2.0",
+    "pillow-heif>=1.4.0",
+    "psycopg[binary]>=3.3.0",
+    "pygments>=2.20.0",
+    "pypandoc-binary>=1.17",
     "python-dateutil>=2.9.0",
-    "redis>=5.2.0",
-    "sentry-sdk[django,celery]>=2.0.0",
+    "redis>=8.0.0",
+    "sentry-sdk[django,celery]>=2.62.0",
     "whitenoise[brotli]>=6.12.0",
-    "pyzotero>=1.5.0",
+    "pyzotero>=1.13.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "celery-types>=0.22.0",
-    "django-debug-toolbar>=5.0.0",
-    "djlint>=1.36.0",
+    "celery-types>=0.26.0",
+    "django-debug-toolbar>=6.3.0",
+    "djlint>=1.39.0",
     "ffprobe>=0.5",
-    "pre-commit>=4.0.0",
-    "ruff>=0.8.0",
+    "pre-commit>=4.6.0",
+    "ruff>=0.15.0",
 ]
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py314"
 line-length = 88
 
 [tool.ruff.lint]

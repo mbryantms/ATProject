@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Something Went Wrong — Architextual{% endblock %}
+
+{% block page_title %}Something Went Wrong{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <p>An unexpected error occurred while handling your request. This has been logged and will be looked into.</p>
+
+  <p>In the meantime, you can:</p>
+
+  <ul class="list-level-1 list block">
+    <li class="in-list">Reload the page — the problem may be temporary</li>
+    <li class="in-list">Return to the <a href="/">home page</a></li>
+    <li class="in-list">Browse the <a href="/posts/">post archive</a></li>
+  </ul>
+</div>
+{% endblock content %}

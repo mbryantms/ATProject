@@ -8,6 +8,7 @@
  * Uses @floating-ui/dom for positioning (same library as the existing tooltip system).
  */
 
+import './reduced-motion-scroll.js';
 import {
   computePosition,
   flip,

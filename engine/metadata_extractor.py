@@ -673,9 +673,7 @@ def _extract_lqip(img) -> str | None:
             mime = "image/webp"
         except Exception:
             buf = BytesIO()
-            preview.convert("RGB").save(
-                buf, format="JPEG", quality=40, optimize=True
-            )
+            preview.convert("RGB").save(buf, format="JPEG", quality=40, optimize=True)
             mime = "image/jpeg"
 
         data = buf.getvalue()

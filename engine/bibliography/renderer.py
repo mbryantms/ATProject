@@ -8,6 +8,40 @@ from formatted citation data (produced by the formatter/citeproc-js).
 import html
 import re
 
+# Citation HTML (inline clusters and bibliography entries) is produced by the
+# formatter *after* the markdown pipeline's nh3 pass (sanitize_html is the first
+# postprocessor; citation_renderer runs much later), so it never passes through
+# the site sanitizer. citeproc-js escapes field values, but the plain-text
+# fallback path and any future formatter change would not — so we sanitize the
+# citeproc/fallback output here against a tight allowlist of the presentational
+# tags a CSL processor legitimately emits. This is the last line of defense for
+# a stored-XSS vector whose field data comes from admin input, Zotero sync, and
+# DOI/URL resolvers.
+_CSL_ALLOWED_TAGS = {"i", "b", "em", "strong", "span", "sup", "sub", "div", "a"}
+_CSL_ALLOWED_ATTRIBUTES = {
+    "*": {"class"},
+    "a": {"href", "class"},
+    "div": {"class"},
+    "span": {"class"},
+}
+_CSL_ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
+
+
+def sanitize_citation_html(fragment: str) -> str:
+    """Strip anything but CSL presentational markup from a citation fragment."""
+    if not fragment:
+        return fragment
+    import nh3
+
+    return nh3.clean(
+        fragment,
+        tags=_CSL_ALLOWED_TAGS,
+        attributes=_CSL_ALLOWED_ATTRIBUTES,
+        url_schemes=_CSL_ALLOWED_URL_SCHEMES,
+        link_rel="noopener noreferrer",
+    )
+
+
 # Compact link icon SVG (same as the heading copy-section-link-button)
 _LINK_ICON_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">'
@@ -53,12 +87,16 @@ def render_inline_citation(
 
     css_class = "citation citation-narrative" if is_narrative else "citation"
 
+    # citation_text is rendered as visible markup; sanitize it (the data-
+    # attribute copy is already html.escape'd above).
+    safe_text = sanitize_citation_html(citation_text)
+
     return (
         f'<a href="{href}" class="{css_class}" '
         f'role="doc-noteref" '
         f'data-citation-keys="{keys_attr}" '
         f'data-citation="{escaped_text}">'
-        f"{citation_text}</a>"
+        f"{safe_text}</a>"
     )
 
 
@@ -123,6 +161,9 @@ def render_bibliography_section(
     items_html = []
     for idx, (key, formatted_html) in enumerate(entries, start=1):
         escaped_key = html.escape(key)
+        # Neutralize any active markup from the formatter (see
+        # sanitize_citation_html) before it is embedded and cached.
+        formatted_html = sanitize_citation_html(formatted_html)
 
         # Build the number/anchor element with link icon for copy affordance
         link_icon = (

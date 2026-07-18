@@ -130,7 +130,15 @@ class BasePostFeed(Feed):
             Post.objects.published()
             .public()
             .select_related("author")
-            .prefetch_related("tags", "categories", "co_authors")
+            .prefetch_related(
+                "tags",
+                "categories",
+                "co_authors",
+                # Feed enclosures call get_og_image_url(), which walks a post's
+                # assets and their renditions; prefetch them so a 20-item feed
+                # doesn't fire 2-3 asset queries per item.
+                "post_assets__asset__renditions",
+            )
             .order_by("-published_at")
         )
 
@@ -172,9 +180,12 @@ class BasePostFeed(Feed):
 
     def item_categories(self, item):
         # Expose both taxonomies; readers treat <category> as a flat list.
+        # Iterate the prefetched relations (base_queryset prefetches tags and
+        # categories) rather than .values_list(), which bypasses the prefetch
+        # cache and issues two extra queries per item.
         return [
-            *item.tags.values_list("name", flat=True),
-            *item.categories.values_list("name", flat=True),
+            *(t.name for t in item.tags.all()),
+            *(c.name for c in item.categories.all()),
         ]
 
     def item_enclosure_url(self, item):

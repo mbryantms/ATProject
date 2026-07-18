@@ -23,6 +23,7 @@ from engine.models import (
     PostCitation,
     PostRevision,
     PostSimilarity,
+    PostSlugHistory,
 )
 
 from .mixins import SoftDeleteAdminMixin
@@ -45,22 +46,42 @@ CITATION_STYLE_CHOICES = [
 # without leaving the change form. These are illustrative, not authoritative —
 # the real renderer is citeproc-js on the server.
 _CITATION_STYLE_SAMPLES = [
-    ("chicago-author-date", "(Smith 2024, 42)",
-     "Smith, Jane. 2024. “A Short Article.” Journal of Things 12 (3): 37–58."),
-    ("chicago-note-bibliography", "¹ Jane Smith, “A Short Article,”…",
-     "Smith, Jane. “A Short Article.” Journal of Things 12, no. 3 (2024): 37–58."),
-    ("apa", "(Smith, 2024, p. 42)",
-     "Smith, J. (2024). A short article. Journal of Things, 12(3), 37–58."),
-    ("modern-language-association", "(Smith 42)",
-     "Smith, Jane. “A Short Article.” Journal of Things, vol. 12, no. 3, 2024, pp. 37–58."),
-    ("ieee", "[1]",
-     "[1] J. Smith, “A short article,” J. Things, vol. 12, no. 3, pp. 37–58, 2024."),
-    ("nature", "Smith, J. ¹",
-     "1. Smith, J. A short article. J. Things 12, 37–58 (2024)."),
-    ("harvard-cite-them-right", "(Smith, 2024)",
-     "Smith, J. (2024) ‘A short article’, Journal of Things, 12(3), pp. 37–58."),
-    ("vancouver", "(1)",
-     "1. Smith J. A short article. J Things. 2024;12(3):37–58."),
+    (
+        "chicago-author-date",
+        "(Smith 2024, 42)",
+        "Smith, Jane. 2024. “A Short Article.” Journal of Things 12 (3): 37–58.",
+    ),
+    (
+        "chicago-note-bibliography",
+        "¹ Jane Smith, “A Short Article,”…",
+        "Smith, Jane. “A Short Article.” Journal of Things 12, no. 3 (2024): 37–58.",
+    ),
+    (
+        "apa",
+        "(Smith, 2024, p. 42)",
+        "Smith, J. (2024). A short article. Journal of Things, 12(3), 37–58.",
+    ),
+    (
+        "modern-language-association",
+        "(Smith 42)",
+        "Smith, Jane. “A Short Article.” Journal of Things, vol. 12, no. 3, 2024, pp. 37–58.",
+    ),
+    (
+        "ieee",
+        "[1]",
+        "[1] J. Smith, “A short article,” J. Things, vol. 12, no. 3, pp. 37–58, 2024.",
+    ),
+    (
+        "nature",
+        "Smith, J. ¹",
+        "1. Smith, J. A short article. J. Things 12, 37–58 (2024).",
+    ),
+    (
+        "harvard-cite-them-right",
+        "(Smith, 2024)",
+        "Smith, J. (2024) ‘A short article’, Journal of Things, 12(3), pp. 37–58.",
+    ),
+    ("vancouver", "(1)", "1. Smith J. A short article. J Things. 2024;12(3):37–58."),
 ]
 
 
@@ -70,7 +91,7 @@ def _build_citation_style_help_html():
         label = dict(CITATION_STYLE_CHOICES).get(key, key)
         rows.append(
             f'<div class="mk-cs-entry">'
-            f'<h5>{label} <code>{key}</code></h5>'
+            f"<h5>{label} <code>{key}</code></h5>"
             f'<div class="mk-cs-sample">Inline: {inline}</div>'
             f'<div class="mk-cs-sample">Bibliography: {bib}</div>'
             f"</div>"
@@ -110,9 +131,7 @@ CITATION_STYLE_HELP_HTML = _build_citation_style_help_html()
 # Regex matching asset references in markdown: @asset:key or @alias used
 # inside a markdown link/image target. Mirrors the production
 # asset_resolver preprocessor pattern so orphan warnings stay in sync.
-_ASSET_REF_RE = re.compile(
-    r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)"
-)
+_ASSET_REF_RE = re.compile(r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)")
 
 
 _CITE_PICKER_JS = """
@@ -761,7 +780,9 @@ _ADMIN_AUX_STYLE = """
 """
 
 
-MARKDOWN_CHEATSHEET_HTML = _ADMIN_AUX_STYLE + """
+MARKDOWN_CHEATSHEET_HTML = (
+    _ADMIN_AUX_STYLE
+    + """
 <details class="markdown-cheatsheet">
 <summary>📖 Markdown reference — click to expand</summary>
 <div class="mc-body">
@@ -948,6 +969,7 @@ Body without a title still works.
 </div>
 </details>
 """
+)
 
 
 class PostAssetInline(admin.StackedInline):
@@ -1232,6 +1254,7 @@ class PostRevisionInline(admin.TabularInline):
     extra = 0
     can_delete = False
     max_num = 0
+    ordering = ["-version"]
     verbose_name = "Revision"
     verbose_name_plural = "Revision History"
 
@@ -1240,6 +1263,20 @@ class PostRevisionInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def get_queryset(self, request):
+        # Defer the (potentially large) markdown body and compute its length in
+        # the database instead. size_display previously called
+        # len(obj.content_markdown), which loaded the full body of every
+        # historical revision on each change-form open.
+        from django.db.models.functions import Length
+
+        return (
+            super()
+            .get_queryset(request)
+            .defer("content_markdown")
+            .annotate(_md_len=Length("content_markdown"))
+        )
 
     @admin.display(description="Version")
     def version_link(self, obj):
@@ -1254,7 +1291,9 @@ class PostRevisionInline(admin.TabularInline):
     def size_display(self, obj):
         if not obj or not obj.pk:
             return "-"
-        size = len(obj.content_markdown)
+        size = getattr(obj, "_md_len", None)
+        if size is None:
+            size = len(obj.content_markdown)
         if size < 1024:
             return f"{size} B"
         return f"{size / 1024:.1f} KB"
@@ -1684,15 +1723,13 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                             "title": (pa.asset.title or "")[:140],
                         }
                     )
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 pass
 
         # Then global asset keys.
         asset_qs = Asset.objects.filter(is_deleted=False, status="ready")
         if q:
-            asset_qs = asset_qs.filter(
-                Q(key__icontains=q) | Q(title__icontains=q)
-            )
+            asset_qs = asset_qs.filter(Q(key__icontains=q) | Q(title__icontains=q))
         for a in asset_qs.order_by("key")[: 20 - len(results)]:
             if a.key in seen:
                 continue
@@ -1733,7 +1770,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 post = Post.all_objects.prefetch_related("post_assets__asset").get(
                     pk=int(post_id)
                 )
-            except (ValueError, Post.DoesNotExist):
+            except ValueError, Post.DoesNotExist:
                 pass
 
         diagnostics = []
@@ -1927,7 +1964,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     pk=int(post_id)
                 )
                 context["post"] = post
-            except (ValueError, Post.DoesNotExist):
+            except ValueError, Post.DoesNotExist:
                 pass
 
         lint_items = []
@@ -1985,9 +2022,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             "</div></body></html>"
         )
 
-        return JsonResponse(
-            {"ok": True, "html": iframe_doc, "lint": lint_items}
-        )
+        return JsonResponse({"ok": True, "html": iframe_doc, "lint": lint_items})
 
     def revision_diff_view(self, request, post_id, revision_id):
         post = Post.all_objects.get(pk=post_id)
@@ -2288,9 +2323,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
         """Show featured/pinned indicators."""
         badges = []
         if obj.is_featured:
-            badges.append(
-                '<span class="mk-pill mk-pill-featured">⭐ FEATURED</span>'
-            )
+            badges.append('<span class="mk-pill mk-pill-featured">⭐ FEATURED</span>')
         if obj.is_pinned:
             badges.append(
                 f'<span class="mk-pill mk-pill-pin">📌 PIN {obj.pin_order}</span>'
@@ -2504,9 +2537,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
 
     def _orphan_asset_ref_warning(self, obj, post_assets):
         """Render HTML listing asset references in content that don't resolve."""
-        orphans = self._find_orphan_asset_refs(
-            obj.content_markdown or "", post_assets
-        )
+        orphans = self._find_orphan_asset_refs(obj.content_markdown or "", post_assets)
         if not orphans:
             return ""
 
@@ -2606,9 +2637,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                 if key:
                     keys.add(key)
         # Narrative: @key (not already inside brackets, not after a word char)
-        for match in re.finditer(
-            rf"(?<![@\[\\\w])@({key_pat})", stripped
-        ):
+        for match in re.finditer(rf"(?<![@\[\\\w])@({key_pat})", stripped):
             keys.add(match.group(1))
 
         if not keys:
@@ -2655,9 +2684,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             return messages_out
 
         post_assets = (
-            list(post.post_assets.select_related("asset").all())
-            if post.pk
-            else []
+            list(post.post_assets.select_related("asset").all()) if post.pk else []
         )
 
         orphans = self._find_orphan_asset_refs(content, post_assets)
@@ -2883,9 +2910,9 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
             }
 
             # Figure out a starting order offset so we don't collide.
-            next_order = (
-                post.post_assets.order_by("-order").values_list("order", flat=True)[:1]
-            )
+            next_order = post.post_assets.order_by("-order").values_list(
+                "order", flat=True
+            )[:1]
             next_order = (next_order[0] if next_order else 0) + 1
 
             post_touched = False
@@ -2895,9 +2922,7 @@ class PostAdmin(admin.ModelAdmin, SoftDeleteAdminMixin):
                     unresolved.add(key)
                     total_skipped += 1
                     continue
-                PostAsset.objects.create(
-                    post=post, asset=asset, order=next_order
-                )
+                PostAsset.objects.create(post=post, asset=asset, order=next_order)
                 next_order += 1
                 total_attached += 1
                 post_touched = True
@@ -3135,6 +3160,23 @@ class PostSimilarityAdmin(admin.ModelAdmin):
         "components",
         "computed_at",
     )
+    list_per_page = 100
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PostSlugHistory)
+class PostSlugHistoryAdmin(admin.ModelAdmin):
+    """Read-only view of former slugs that 301-redirect to their post."""
+
+    list_display = ("old_slug", "post", "created_at")
+    search_fields = ("old_slug", "post__title", "post__slug")
+    list_select_related = ("post",)
+    readonly_fields = ("old_slug", "post", "created_at")
     list_per_page = 100
 
     def has_add_permission(self, request):

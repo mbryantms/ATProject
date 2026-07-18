@@ -8,9 +8,11 @@ via the Wayback Machine when links are broken.
 import json
 import logging
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from django.utils import timezone
+
+from .net import safe_urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def check_url(url: str) -> dict:
     req = Request(url, method="HEAD", headers={"User-Agent": _USER_AGENT})
 
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             code = resp.getcode()
             final_url = resp.geturl()
 
@@ -57,7 +59,7 @@ def check_url(url: str) -> dict:
             "http_code": e.code,
             "final_url": None,
         }
-    except (URLError, TimeoutError, OSError):
+    except URLError, TimeoutError, OSError:
         return {
             "status": "broken",
             "http_code": None,
@@ -69,14 +71,14 @@ def _check_url_get(url: str) -> dict:
     """Fallback: check URL with GET when HEAD is rejected."""
     req = Request(url, headers={"User-Agent": _USER_AGENT})
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             code = resp.getcode()
             final_url = resp.geturl()
             status = "redirect" if final_url != url else "ok"
             return {"status": status, "http_code": code, "final_url": final_url}
     except HTTPError as e:
         return {"status": "broken", "http_code": e.code, "final_url": None}
-    except (URLError, TimeoutError, OSError):
+    except URLError, TimeoutError, OSError:
         return {"status": "broken", "http_code": None, "final_url": None}
 
 
@@ -91,7 +93,7 @@ def check_wayback_machine(url: str) -> str | None:
     req = Request(api_url, headers={"User-Agent": _USER_AGENT})
 
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             data = json.loads(resp.read())
 
         snapshots = data.get("archived_snapshots", {})
@@ -118,7 +120,7 @@ def submit_to_wayback(url: str) -> bool:
     req = Request(save_url, headers={"User-Agent": _USER_AGENT})
 
     try:
-        with urlopen(req, timeout=30) as resp:
+        with safe_urlopen(req, timeout=30) as resp:
             return resp.getcode() in (200, 302)
     except Exception:
         logger.debug("Wayback Machine save failed for %s", url)

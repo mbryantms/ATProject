@@ -11,7 +11,9 @@ import json
 import logging
 import re
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from .net import safe_urlopen
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ def resolve_doi(doi: str) -> dict | None:
     req = Request(url, headers={"User-Agent": _USER_AGENT})
 
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             data = json.loads(resp.read())
 
         message = data.get("message", {})
@@ -129,7 +131,7 @@ def resolve_isbn(isbn: str) -> dict | None:
     req = Request(url, headers={"User-Agent": _USER_AGENT})
 
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             data = json.loads(resp.read())
 
         csl = {
@@ -162,7 +164,7 @@ def resolve_isbn(isbn: str) -> dict | None:
                     author_req = Request(
                         author_url, headers={"User-Agent": _USER_AGENT}
                     )
-                    with urlopen(author_req, timeout=_TIMEOUT) as aresp:
+                    with safe_urlopen(author_req, timeout=_TIMEOUT) as aresp:
                         author_data = json.loads(aresp.read())
                     name = author_data.get("name", "")
                     if name:
@@ -202,7 +204,7 @@ def resolve_url(url: str) -> dict | None:
     )
 
     try:
-        with urlopen(req, timeout=_TIMEOUT) as resp:
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             html = resp.read().decode("utf-8", errors="replace")
 
         from bs4 import BeautifulSoup

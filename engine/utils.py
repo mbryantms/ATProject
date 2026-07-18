@@ -33,7 +33,7 @@ _SOURCE_FORMAT_TAG = "auto"
 # og:image, Twitter card, and card thumbnails where the browser needs a
 # fixed-ratio image, not a down-scaled copy of the original.
 _SOCIAL_CROPS = (
-    ("social-wide", 1200, 630),   # 1.905:1 — Facebook / Twitter summary_large_image
+    ("social-wide", 1200, 630),  # 1.905:1 — Facebook / Twitter summary_large_image
     ("social-square", 1200, 1200),  # 1:1 — Instagram-style cards, Mastodon
 )
 
@@ -121,7 +121,8 @@ def _supported_modern_formats() -> tuple[tuple[str, str, str, str], ...]:
     from PIL import features
 
     return tuple(
-        entry for entry in _MODERN_FORMATS
+        entry
+        for entry in _MODERN_FORMATS
         if entry[0] != "avif" or features.check("avif")
     )
 
@@ -227,7 +228,10 @@ def _generate_animated_renditions(*, asset, img, widths, jpeg_quality):
                 rendition.save(update_fields=["status", "error_message"])
                 logger.warning(
                     "Animated rendition %sw %s failed for asset %s: %s",
-                    width, fmt_tag, asset.key, exc,
+                    width,
+                    fmt_tag,
+                    asset.key,
+                    exc,
                 )
                 continue
 
@@ -235,7 +239,7 @@ def _generate_animated_renditions(*, asset, img, widths, jpeg_quality):
             rendition.file.save(filename, ContentFile(content), save=False)
             rendition.height = height
             rendition.file_size = len(content)
-            rendition.is_webp = (fmt_tag == "webp")
+            rendition.is_webp = fmt_tag == "webp"
             rendition.status = AssetRendition.Status.COMPLETED
             rendition.save()
             touched.append(rendition)
@@ -288,9 +292,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
         file_obj = open_field_file(asset.file)
         with Image.open(file_obj) as img:
             img.load()
-            is_animated = (
-                getattr(img, "is_animated", False) and img.n_frames > 1
-            )
+            is_animated = getattr(img, "is_animated", False) and img.n_frames > 1
             if is_animated:
                 animated_touched = _generate_animated_renditions(
                     asset=asset,
@@ -315,9 +317,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
             if formats is None:
                 # Default emitted set: AVIF + WebP + source.
                 target_formats = [
-                    *(
-                        (tag, pil, ext) for tag, pil, ext, _mime in modern_formats
-                    ),
+                    *((tag, pil, ext) for tag, pil, ext, _mime in modern_formats),
                     (_SOURCE_FORMAT_TAG, original_pil_format, original_ext),
                 ]
             else:
@@ -328,9 +328,7 @@ def generate_asset_renditions(asset, widths=None, formats=None):
                             (_SOURCE_FORMAT_TAG, original_pil_format, original_ext)
                         )
                     else:
-                        match = next(
-                            (m for m in _MODERN_FORMATS if m[0] == fmt), None
-                        )
+                        match = next((m for m in _MODERN_FORMATS if m[0] == fmt), None)
                         if match:
                             target_formats.append((match[0], match[1], match[2]))
 
@@ -366,8 +364,12 @@ def generate_asset_renditions(asset, widths=None, formats=None):
                 if crop_w > original_width or crop_h > original_height:
                     continue
                 box = _compute_focal_crop_box(
-                    original_width, original_height, crop_w, crop_h,
-                    focal_x, focal_y,
+                    original_width,
+                    original_height,
+                    crop_w,
+                    crop_h,
+                    focal_x,
+                    focal_y,
                 )
                 cropped = img.crop(box).resize(
                     (crop_w, crop_h), Image.Resampling.LANCZOS
@@ -393,15 +395,21 @@ def generate_asset_renditions(asset, widths=None, formats=None):
             pass
 
     except Exception as exc:
-        logger.exception(
-            "Rendition pipeline aborted for asset %s: %s", asset.key, exc
-        )
+        logger.exception("Rendition pipeline aborted for asset %s: %s", asset.key, exc)
 
     return touched
 
 
 def _encode_and_save_rendition(
-    *, asset, source_img, width, height, fmt_tag, pil_format, ext, preset,
+    *,
+    asset,
+    source_img,
+    width,
+    height,
+    fmt_tag,
+    pil_format,
+    ext,
+    preset,
     jpeg_quality,
 ):
     """Encode ``source_img`` and attach it to the AssetRendition row.
@@ -462,7 +470,7 @@ def _encode_and_save_rendition(
     rendition.file.save(filename, ContentFile(content), save=False)
     rendition.height = height
     rendition.file_size = len(content)
-    rendition.is_webp = (fmt_tag == "webp")
+    rendition.is_webp = fmt_tag == "webp"
     rendition.status = AssetRendition.Status.COMPLETED
     rendition.save()
     return rendition
@@ -500,9 +508,7 @@ def refresh_asset_metadata(instance) -> dict:
         if mime_type:
             _note("mime_type", mime_type)
         else:
-            result["errors"].append(
-                "Could not guess MIME type from file extension."
-            )
+            result["errors"].append("Could not guess MIME type from file extension.")
     else:
         result["skipped"].append("mime_type")
 
@@ -549,7 +555,9 @@ def refresh_asset_metadata(instance) -> dict:
                 except Exception:
                     pass
             except Exception as exc:
-                logger.exception("Image dimension extraction failed for %s", instance.key)
+                logger.exception(
+                    "Image dimension extraction failed for %s", instance.key
+                )
                 result["errors"].append(f"image dimensions: {exc}")
         else:
             result["skipped"].extend(["width", "height"])
@@ -639,7 +647,9 @@ def _extract_video_stream_metadata(instance, note, result):
         result["errors"].append(f"ffprobe output was not valid JSON: {exc}")
         return
 
-    video_streams = [s for s in data.get("streams", []) if s.get("codec_type") == "video"]
+    video_streams = [
+        s for s in data.get("streams", []) if s.get("codec_type") == "video"
+    ]
     if not video_streams:
         result["errors"].append("ffprobe reported no video streams in this file.")
         return

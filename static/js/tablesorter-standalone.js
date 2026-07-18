@@ -99,13 +99,12 @@
     },
 
     getCellValue: (cell) => {
-      // Get text content, excluding any nested elements we want to ignore
-      let text = cell.textContent || '';
-      // Remove link icons and other decorative elements
+      // Clone so we can strip decorative elements without mutating the cell,
+      // then read the remaining text content.
       const clone = cell.cloneNode(true);
       const iconsToRemove = clone.querySelectorAll('.link-icon-hook, .indicator-hook');
       iconsToRemove.forEach((el) => el.remove());
-      text = clone.textContent || '';
+      const text = clone.textContent || '';
       return text.trim();
     },
 
@@ -239,7 +238,7 @@
       const headers = thead.querySelectorAll(
         TablesorterStandalone.config.headerSelector,
       );
-      headers.forEach((th, index) => {
+      headers.forEach((th) => {
         // Skip if already has no-sort class
         if (th.classList.contains(TablesorterStandalone.config.noSortClass)) {
           return;

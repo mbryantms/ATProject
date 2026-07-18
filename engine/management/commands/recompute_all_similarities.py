@@ -37,9 +37,7 @@ class Command(BaseCommand):
         dry_run = options.get("dry_run")
         verbose = options.get("verbose")
 
-        qs = Post.objects.filter(
-            status=Post.Status.PUBLISHED, is_deleted=False
-        )
+        qs = Post.objects.filter(status=Post.Status.PUBLISHED, is_deleted=False)
         if slug:
             qs = qs.filter(slug=slug)
             if not qs.exists():

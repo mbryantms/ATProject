@@ -181,9 +181,7 @@ class RecomputeTaskTests(TestCase):
         self.assertTrue(result["success"])
         self.assertGreaterEqual(result["rows"], 1)
         self.assertTrue(
-            PostSimilarity.objects.filter(
-                source_post=p1, target_post=p2
-            ).exists()
+            PostSimilarity.objects.filter(source_post=p1, target_post=p2).exists()
         )
 
     def test_task_clears_rows_for_unpublished_post(self):
@@ -195,9 +193,7 @@ class RecomputeTaskTests(TestCase):
         result = recompute_similarity_for_post.apply(args=(p1.pk,)).result
         self.assertTrue(result["success"])
         self.assertEqual(result["rows"], 0)
-        self.assertFalse(
-            PostSimilarity.objects.filter(source_post=p1).exists()
-        )
+        self.assertFalse(PostSimilarity.objects.filter(source_post=p1).exists())
 
 
 class SignalTriggerTests(TestCase):
@@ -231,12 +227,8 @@ class SignalTriggerTests(TestCase):
         PostSimilarity.objects.all().delete()
         InternalLink.objects.create(source_post=p1, target_post=p2)
         # Both endpoints' similarity rows should have been (re)computed.
-        p1_row = PostSimilarity.objects.filter(
-            source_post=p1, target_post=p2
-        ).first()
-        p2_row = PostSimilarity.objects.filter(
-            source_post=p2, target_post=p1
-        ).first()
+        p1_row = PostSimilarity.objects.filter(source_post=p1, target_post=p2).first()
+        p2_row = PostSimilarity.objects.filter(source_post=p2, target_post=p1).first()
         self.assertTrue(p1_row is not None or p2_row is not None)
 
     def test_citation_creation_recomputes_source_post(self):
@@ -249,9 +241,7 @@ class SignalTriggerTests(TestCase):
         PostCitation.objects.create(post=p2, source=src, position=1)
         # After both citations exist, p1's outgoing rows should include p2.
         self.assertTrue(
-            PostSimilarity.objects.filter(
-                source_post=p1, target_post=p2
-            ).exists()
+            PostSimilarity.objects.filter(source_post=p1, target_post=p2).exists()
         )
 
 

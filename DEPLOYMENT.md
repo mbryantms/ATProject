@@ -283,6 +283,34 @@ curl https://your-app.up.railway.app/health/
 
 ---
 
+## CI/CD (GitHub Actions → Railway)
+
+CI lives in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and runs on every push to `main`, every pull request, and on manual dispatch. Jobs:
+
+| Job | What it does |
+|-----|--------------|
+| `test` | Spins up Postgres + Redis service containers, installs deps with `uv`, runs `ruff check`/`ruff format --check`, a migration-drift check, the full test suite (`DEBUG=True`), and `manage.py check --deploy` (`DEBUG=False`, which also exercises the `SECRET_KEY`/`REDIS_URL` startup guards). |
+| `frontend` | `npm ci`, builds the CSS/JS bundles, runs Prettier `--check` and ESLint. |
+| `security` | `pip-audit` on the locked production dependencies and `npm audit --audit-level=high`. |
+| `docker-build` | Builds the production Docker image (with buildx + GHA layer cache) — mirrors exactly what Railway builds, so a broken Dockerfile fails CI instead of the deploy. |
+
+The `test` job uses a **non-secret placeholder `SECRET_KEY`** (tests run under `DEBUG=True`, which skips the production guard). No real secrets are needed by CI.
+
+### Connecting CI to Railway ("Wait for CI")
+
+Deployment stays with **Railway's native GitHub integration**, gated on the CI checks above — no tokens, no deploy job, and no risk of double deploys. To wire it up:
+
+1. In Railway → your **web** service → **Settings** → **Deploy**, enable **"Wait for CI"**. Railway then reads the GitHub commit's check statuses and only deploys once the `test`, `frontend`, `security`, and `docker-build` jobs are green.
+2. Do the same for the **worker** and **beat** services if they deploy from the same repo (so a red commit doesn't ship to any service).
+
+That's it — push to `main`, CI runs, and Railway deploys only green commits.
+
+> **Deploy-time guard reminder.** The guards in `settings.py` make a service **refuse to boot** if the production `SECRET_KEY` is weak (< 50 chars or `django-insecure-…`) or `REDIS_URL` is unset on any service (web, worker, beat). The `check --deploy` CI job catches the weak-`SECRET_KEY` case before Railway ever deploys; confirm `REDIS_URL` is referenced on all three services.
+
+> **If you later want CI-driven deploys instead** (GitHub Actions runs the deploy rather than Railway): add a `deploy` job that runs `railway up --ci` with a `RAILWAY_TOKEN` repo secret, and turn **off** Railway's native auto-deploy to avoid deploying twice.
+
+---
+
 ## Environment Variables Reference
 
 ### Complete List

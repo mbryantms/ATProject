@@ -4,15 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0031_alter_asset_status'),
+        ("engine", "0031_alter_asset_status"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='assetrendition',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed')], default='pending', help_text='Generation status', max_length=20),
+            model_name="assetrendition",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending"),
+                    ("processing", "Processing"),
+                    ("completed", "Completed"),
+                    ("failed", "Failed"),
+                ],
+                default="pending",
+                help_text="Generation status",
+                max_length=20,
+            ),
         ),
     ]

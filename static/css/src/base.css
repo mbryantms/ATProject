@@ -125,6 +125,74 @@ body {
   overflow-x: hidden;
 }
 
+/************************/
+/* ACCESSIBILITY HELPERS */
+/************************/
+
+/* Visually hide content while keeping it available to screen readers. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link: off-screen until focused, then eased into view. Styled to match
+   the site's restrained typographic aesthetic — a quiet box that echoes the
+   header rule rather than a loud button, using the core theme tokens so it
+   adapts to light/dark automatically. */
+.skip-to-content {
+  position: absolute;
+  top: -4rem;
+  left: var(--AT-body-side-padding, 1.25rem);
+  z-index: 1000;
+  padding: 0.4rem 0.9rem;
+  font-family: var(--AT-serif-font-stack);
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  color: var(--AT-body-text-color, #000);
+  background-color: var(--AT-body-background-color, #fff);
+  border: 1px solid var(--AT-horizontal-rule-stroke-color, #ddd);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  text-decoration: none;
+  transition: top 0.15s ease-in-out;
+}
+
+.skip-to-content:hover,
+.skip-to-content:focus {
+  color: var(--AT-body-text-color, #000);
+}
+
+.skip-to-content:focus {
+  top: 1rem;
+}
+
+/* Consistent keyboard focus indicator. Several rules across the codebase strip
+   the UA outline with `outline: none`; restore a visible ring for keyboard
+   users (pointer users are unaffected by :focus-visible). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--AT-body-link-color, #1a5fb4);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-to-content {
+    transition: none;
+  }
+}
+
 main {
   position: relative;
   box-sizing: border-box;
@@ -749,6 +817,31 @@ header h1 em {
 
 .archive-list {
   margin-bottom: 1.5em;
+}
+
+/* Archive pagination — understated, centered, matches the muted control row. */
+.pagination {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.5em;
+  margin: 2.5em 0 1em;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.9rem;
+}
+
+.pagination-status {
+  color: var(--AT-nav-header-link-color, #888);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-link {
+  text-decoration: none;
+}
+
+.pagination-disabled {
+  color: var(--AT-nav-header-link-color, #888);
+  opacity: 0.45;
 }
 
 ol.archive-list {

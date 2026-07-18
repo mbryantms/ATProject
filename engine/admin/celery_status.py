@@ -26,7 +26,6 @@ from django.shortcuts import render
 from django.urls import path
 from django.utils.timezone import now
 
-
 # How long (seconds) to wait for workers to respond to an inspect() ping.
 # Redis ping is fast; keep this tight so the admin page never hangs the UI
 # if workers are down.
@@ -190,11 +189,16 @@ def active_tasks_for_asset(asset) -> list[dict]:
         return []
 
     pk_str = str(asset.pk)
-    key = (asset.key or "")
+    key = asset.key or ""
     matches = []
     for task in _collect_active_tasks():
         blob = f"{task['args']} {task['kwargs']}"
-        if pk_str and (f"[{pk_str}]" in blob or f", {pk_str}" in blob or f"({pk_str}" in blob or f" {pk_str}," in blob):
+        if pk_str and (
+            f"[{pk_str}]" in blob
+            or f", {pk_str}" in blob
+            or f"({pk_str}" in blob
+            or f" {pk_str}," in blob
+        ):
             matches.append(task)
         elif key and key in blob:
             matches.append(task)

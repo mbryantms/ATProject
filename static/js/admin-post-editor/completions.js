@@ -14,7 +14,7 @@ function debounceFetch(url, delay = 150) {
   let pending = null;
   return async (q, signal) => {
     if (pending) clearTimeout(pending.timer);
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const timer = setTimeout(async () => {
         try {
           const res = await fetch(`${url}?q=${encodeURIComponent(q)}`, {
@@ -89,8 +89,6 @@ export function makeCitationCompletionSource(url) {
 }
 
 export function makeAssetCompletionSource(url, getPostId) {
-  const fetcher = debounceFetch(url);
-
   return async (context) => {
     // Trigger inside an image or link target: `](...` where the user
     // has typed `@`, optionally with `asset:` prefix.

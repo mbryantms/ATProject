@@ -5,20 +5,67 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0034_remove_assetrendition_unique_asset_rendition_and_more'),
+        ("engine", "0034_remove_assetrendition_unique_asset_rendition_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='assetmetadata',
-            name='lqip_data_url',
-            field=models.TextField(blank=True, help_text="Low-quality image placeholder as an inline data URL. Rendered as a CSS background while the full image streams in so the reader sees the image's shape (not just a flat color)."),
+            model_name="assetmetadata",
+            name="lqip_data_url",
+            field=models.TextField(
+                blank=True,
+                help_text="Low-quality image placeholder as an inline data URL. Rendered as a CSS background while the full image streams in so the reader sees the image's shape (not just a flat color).",
+            ),
         ),
         migrations.AlterField(
-            model_name='asset',
-            name='file',
-            field=models.FileField(help_text='The asset file (max: 100MB for images, 500MB for videos)', upload_to='assets/%Y/%m/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'heic', 'heif', 'mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'pdf', 'epub', 'doc', 'docx', 'txt', 'md', 'csv', 'json', 'xml', 'jsonl', 'tsv', 'yaml', 'yml'])]),
+            model_name="asset",
+            name="file",
+            field=models.FileField(
+                help_text="The asset file (max: 100MB for images, 500MB for videos)",
+                upload_to="assets/%Y/%m/",
+                validators=[
+                    django.core.validators.FileExtensionValidator(
+                        allowed_extensions=[
+                            "jpg",
+                            "jpeg",
+                            "png",
+                            "gif",
+                            "webp",
+                            "avif",
+                            "svg",
+                            "bmp",
+                            "ico",
+                            "heic",
+                            "heif",
+                            "mp4",
+                            "webm",
+                            "mov",
+                            "avi",
+                            "mkv",
+                            "m4v",
+                            "mp3",
+                            "wav",
+                            "ogg",
+                            "m4a",
+                            "flac",
+                            "aac",
+                            "pdf",
+                            "epub",
+                            "doc",
+                            "docx",
+                            "txt",
+                            "md",
+                            "csv",
+                            "json",
+                            "xml",
+                            "jsonl",
+                            "tsv",
+                            "yaml",
+                            "yml",
+                        ]
+                    )
+                ],
+            ),
         ),
     ]

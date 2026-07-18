@@ -127,7 +127,7 @@ class TagViewTests(TestSetupMixin, TestCase):
     def test_tag_alias_redirects(self):
         from engine.models import TagAlias
 
-        TagAlias.objects.create(name="Django FW", slug="django-fw", tag=self.tag)
+        TagAlias.objects.create(alias="Django FW", slug="django-fw", tag=self.tag)
         response = self.client.get("/tags/django-fw/")
         self.assertEqual(response.status_code, 301)
 

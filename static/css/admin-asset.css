@@ -5,25 +5,54 @@
  */
 
 /* Asset type left-border accent. Semantic hues that survive light/dark. */
-.mk-pill--type-image    { border-left: 3px solid #1e88e5; }
-.mk-pill--type-video    { border-left: 3px solid #d81b60; }
-.mk-pill--type-audio    { border-left: 3px solid #8e24aa; }
-.mk-pill--type-document { border-left: 3px solid #ef6c00; }
-.mk-pill--type-archive  { border-left: 3px solid #43a047; }
-.mk-pill--type-other    { border-left: 3px solid var(--body-quiet-color); }
+.mk-pill--type-image {
+  border-left: 3px solid #1e88e5;
+}
+.mk-pill--type-video {
+  border-left: 3px solid #d81b60;
+}
+.mk-pill--type-audio {
+  border-left: 3px solid #8e24aa;
+}
+.mk-pill--type-document {
+  border-left: 3px solid #ef6c00;
+}
+.mk-pill--type-archive {
+  border-left: 3px solid #43a047;
+}
+.mk-pill--type-other {
+  border-left: 3px solid var(--body-quiet-color);
+}
 
 /* Folder badge */
-.mk-pill--folder     { border-left: 3px solid #ef6c00; }
+.mk-pill--folder {
+  border-left: 3px solid #ef6c00;
+}
 
 /* Collection badge */
-.mk-pill--collection { border-left: 3px solid #8e24aa; }
-.mk-pill--collection + .mk-pill--collection { margin-left: 4px; }
+.mk-pill--collection {
+  border-left: 3px solid #8e24aa;
+}
+.mk-pill--collection + .mk-pill--collection {
+  margin-left: 4px;
+}
 
 /* Usage density on changelist — kept as text color tint, no background */
-.mk-usage--none { color: var(--body-quiet-color); }
-.mk-usage--low  { color: var(--link-fg); font-weight: 600; }
-.mk-usage--med  { color: #2e7d32; font-weight: 600; }
-.mk-usage--high { color: #6a1b9a; font-weight: 600; }
+.mk-usage--none {
+  color: var(--body-quiet-color);
+}
+.mk-usage--low {
+  color: var(--link-fg);
+  font-weight: 600;
+}
+.mk-usage--med {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.mk-usage--high {
+  color: #6a1b9a;
+  font-weight: 600;
+}
 
 /* Asset title block (changelist row head) */
 .mk-asset-row {
@@ -53,7 +82,9 @@
   font-weight: 500;
   text-decoration: none;
 }
-.mk-asset-row__title:hover { text-decoration: underline; }
+.mk-asset-row__title:hover {
+  text-decoration: underline;
+}
 .mk-asset-row__meta {
   color: var(--body-quiet-color);
   font-size: 11px;
@@ -76,14 +107,29 @@
 }
 
 /* Change page: color swatch strip */
-.mk-color-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.mk-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .mk-color-swatch {
-  width: 40px; height: 40px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--hairline-color);
   border-radius: 4px;
 }
-.mk-color-swatch--sm { width: 28px; height: 28px; border-radius: 3px; }
-.mk-color-strip { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.mk-color-swatch--sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+}
+.mk-color-strip {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
 
 /* Change page: GPS card */
 .mk-gps-card {
@@ -96,8 +142,14 @@
 }
 
 /* Metadata summary status badges */
-.mk-meta-complete { color: #2e7d32; font-weight: 600; }
-.mk-meta-incomplete { color: #c77700; font-weight: 600; }
+.mk-meta-complete {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.mk-meta-incomplete {
+  color: #c77700;
+  font-weight: 600;
+}
 
 /* AssetRenditionInline thumbnail */
 .mk-rendition-thumb {

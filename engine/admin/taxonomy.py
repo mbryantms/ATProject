@@ -387,9 +387,18 @@ class CategoryAdmin(admin.ModelAdmin):
 
     readonly_fields = ("created_at", "updated_at")
 
-    @admin.display(description="Posts", ordering="posts__count")
+    def get_queryset(self, request):
+        # Annotate the post count once instead of a per-row COUNT query in
+        # post_count() (N+1 across the 50-row changelist).
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_post_count=models.Count("posts", distinct=True))
+        )
+
+    @admin.display(description="Posts", ordering="_post_count")
     def post_count(self, obj):
-        count = obj.posts.count()
+        count = getattr(obj, "_post_count", 0)
         if count == 0:
             return mark_safe('<span style="color: #999;">0</span>')
         return format_html(
@@ -428,9 +437,18 @@ class SeriesAdmin(admin.ModelAdmin):
 
     readonly_fields = ("created_at", "updated_at")
 
-    @admin.display(description="Posts", ordering="posts__count")
+    def get_queryset(self, request):
+        # Annotate the post count once instead of a per-row COUNT query in
+        # post_count() (N+1 across the 50-row changelist).
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_post_count=models.Count("posts", distinct=True))
+        )
+
+    @admin.display(description="Posts", ordering="_post_count")
     def post_count(self, obj):
-        count = obj.posts.count()
+        count = getattr(obj, "_post_count", 0)
         if count == 0:
             return mark_safe('<span style="color: #999;">0</span>')
         return format_html(

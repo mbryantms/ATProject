@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
         flip(),
         shift({ padding: 8, limiter: limitShift({ offset: 4 }) }),
         size({
-          apply({ availableWidth, availableHeight, elements }) {
+          apply({ availableWidth, elements }) {
             Object.assign(elements.floating.style, {
               maxWidth: Math.min(availableWidth, 360) + 'px', // clamp to viewport
             });

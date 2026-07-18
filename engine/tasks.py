@@ -12,9 +12,12 @@ To use Celery, you need to:
 3. Run celery worker: celery -A ATProject worker -l info
 """
 
+import logging
 import time
 
 from celery import shared_task
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(
@@ -332,15 +335,39 @@ def publish_scheduled_posts():
         return {"skipped": True, "reason": "Scheduled publishing is disabled."}
 
     now = timezone.now()
-    due = Post.objects.filter(
-        status=Post.Status.SCHEDULED,
-        published_at__isnull=False,
-        published_at__lte=now,
+    due = list(
+        Post.objects.filter(
+            status=Post.Status.SCHEDULED,
+            published_at__isnull=False,
+            published_at__lte=now,
+        )
     )
+    if not due:
+        return {"success": True, "published": 0}
 
-    count = due.update(status=Post.Status.PUBLISHED)
+    ids = [p.pk for p in due]
+    Post.objects.filter(pk__in=ids).update(status=Post.Status.PUBLISHED)
 
-    return {"success": True, "published": count}
+    # A bulk .update() flips the status efficiently but fires no post_save
+    # signal, so the InternalLink/similarity handlers (which only run for
+    # PUBLISHED posts) never see these posts go live — they would otherwise have
+    # no backlinks or similarity until a manual re-save. Extract links and
+    # enqueue similarity now that each post is published. The rendered HTML was
+    # already produced when the draft's content was saved, so it is not re-run.
+    from .links.extractor import update_post_links
+    from .signals import _enqueue_similarity
+
+    for post in due:
+        post.status = Post.Status.PUBLISHED  # reflect the flip in memory
+        try:
+            update_post_links(post)
+        except Exception:
+            logger.exception(
+                "Link extraction failed for auto-published post %s", post.pk
+            )
+        _enqueue_similarity(post.pk)
+
+    return {"success": True, "published": len(due)}
 
 
 @shared_task(
@@ -474,9 +501,7 @@ def recompute_similarity_for_post(self, post_id: int):
                 "message": "Post is unpublished or deleted; cleared rows.",
             }
 
-        scored = compute_similar_posts(
-            post, limit=50, min_score=MIN_SCORE_DEFAULT
-        )
+        scored = compute_similar_posts(post, limit=50, min_score=MIN_SCORE_DEFAULT)
         rows = [
             PostSimilarity(
                 source_post_id=post_id,
@@ -1117,7 +1142,7 @@ def _clear_search_cache():
 
     try:
         cache.delete_pattern("search:*")
-    except (AttributeError, NotImplementedError):
+    except AttributeError, NotImplementedError:
         # Fallback for cache backends that don't support delete_pattern
         pass
 

@@ -24,6 +24,40 @@ from .presigned import (
     verify_object_exists,
 )
 
+# Content types that are safe to serve inline from the asset origin. Anything
+# else — notably text/html, image/svg+xml, and *.xml, which browsers can
+# execute as script — is forced to download via Content-Disposition: attachment
+# so a staff/token caller cannot stage a stored-XSS payload on the media origin
+# by declaring an active content type. The declared type is pinned onto the R2
+# object by the presigned PUT, so a mismatched inline-safe declaration (e.g.
+# HTML bytes labelled image/png) renders as a broken image, not script.
+INLINE_SAFE_CONTENT_TYPES = frozenset(
+    {
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/avif",
+        "image/bmp",
+        "image/x-icon",
+        "image/heic",
+        "image/heif",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/x-matroska",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/flac",
+        "audio/aac",
+        "audio/x-m4a",
+        "application/pdf",
+    }
+)
+
 
 def get_asset_type_from_content_type(content_type):
     """Detect asset type from MIME content type."""
@@ -207,7 +241,7 @@ def request_presigned_upload(request):
 
     try:
         file_size = int(file_size)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return JsonResponse({"error": "file_size must be an integer"}, status=400)
 
     # Detect asset type from content_type (preferred) or filename extension
@@ -227,9 +261,10 @@ def request_presigned_upload(request):
         # Generate the object key for R2
         object_key = get_asset_upload_key(filename, asset_type)
 
-        # Generate presigned URL (SVGs served as attachments to prevent XSS)
+        # Force download for anything not on the inline-safe allowlist (HTML,
+        # SVG, XML, etc.) to prevent stored XSS on the asset origin.
         extra_params = {}
-        if content_type == "image/svg+xml":
+        if content_type.lower().split(";")[0].strip() not in INLINE_SAFE_CONTENT_TYPES:
             extra_params["ContentDisposition"] = "attachment"
         upload_url, expires_at = generate_presigned_put_url(
             object_key, content_type, extra_params=extra_params

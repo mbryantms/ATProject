@@ -5,7 +5,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from django.db.models import Q
 from django.utils import timezone
@@ -306,7 +306,7 @@ def compute_similar_posts(
     scored.sort(
         key=lambda c: (
             getattr(c, "similarity_score", 0.0),
-            c.published_at or datetime.min.replace(tzinfo=timezone.utc),
+            c.published_at or datetime.min.replace(tzinfo=UTC),
         ),
         reverse=True,
     )
@@ -403,7 +403,9 @@ def _backlink_score(
     link neighborhoods (friends-of-friends). Weighted 60/40 in favor of
     direct edges — human-authored links are the stronger intent signal.
     """
-    direct = 1.0 if candidate_id in post_neighbors or post_id in candidate_neighbors else 0.0
+    direct = (
+        1.0 if candidate_id in post_neighbors or post_id in candidate_neighbors else 0.0
+    )
     # Self-references in either set shouldn't pump the Jaccard.
     neighbor_a = post_neighbors - {post_id, candidate_id}
     neighbor_b = candidate_neighbors - {post_id, candidate_id}

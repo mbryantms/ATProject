@@ -18,7 +18,7 @@ uv run python manage.py createsuperuser           # optional, for admin access
 
 If Docker isn't available on your host (broken daemon, restricted sandbox), run native Postgres + Redis instead — the app only cares that the `DATABASE_URL` and `REDIS_URL` env vars resolve to reachable services.
 
-There is **no CI** — the GitHub Actions workflow was removed. Run tests locally before pushing.
+**CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every push to `main` and every PR — tests (Postgres + Redis services), ruff lint/format, migration-drift check, `check --deploy`, the frontend build, Prettier/ESLint, `pip-audit`/`npm audit`, and a Docker image build. Railway deploys via its native GitHub integration gated on these checks ("Wait for CI" — see [DEPLOYMENT.md](DEPLOYMENT.md) → "CI/CD"). Still run tests locally before pushing for a fast signal.
 
 ## Daily commands
 

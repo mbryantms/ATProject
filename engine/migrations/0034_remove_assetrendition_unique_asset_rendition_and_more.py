@@ -4,18 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0033_schedule_weekly_asset_cleanup'),
+        ("engine", "0033_schedule_weekly_asset_cleanup"),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='assetrendition',
-            name='unique_asset_rendition',
+            model_name="assetrendition",
+            name="unique_asset_rendition",
         ),
         migrations.AddConstraint(
-            model_name='assetrendition',
-            constraint=models.UniqueConstraint(fields=('asset', 'width', 'format', 'quality', 'preset'), name='unique_asset_rendition'),
+            model_name="assetrendition",
+            constraint=models.UniqueConstraint(
+                fields=("asset", "width", "format", "quality", "preset"),
+                name="unique_asset_rendition",
+            ),
         ),
     ]

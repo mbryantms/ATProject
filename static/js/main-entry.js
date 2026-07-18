@@ -1,3 +1,4 @@
+import './reduced-motion-scroll.js';
 import './tooltip.js';
 import './toc.js';
 import './anchor-links.js';

@@ -8,7 +8,7 @@ register = template.Library()
 def _clamp_int(value, lo=1, hi=10) -> int:
     try:
         v = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return lo
     return max(lo, min(hi, v))
 

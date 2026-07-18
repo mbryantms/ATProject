@@ -4,15 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('engine', '0030_improve_postcitation_indexes'),
+        ("engine", "0030_improve_postcitation_indexes"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='asset',
-            name='status',
-            field=models.CharField(choices=[('uploading', 'Uploading'), ('processing', 'Processing'), ('ready', 'Ready for Use'), ('failed', 'Failed'), ('archived', 'Archived')], db_index=True, default='ready', help_text='Asset status workflow', max_length=20),
+            model_name="asset",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("uploading", "Uploading"),
+                    ("processing", "Processing"),
+                    ("ready", "Ready for Use"),
+                    ("failed", "Failed"),
+                    ("archived", "Archived"),
+                ],
+                db_index=True,
+                default="ready",
+                help_text="Asset status workflow",
+                max_length=20,
+            ),
         ),
     ]

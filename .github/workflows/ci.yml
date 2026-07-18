@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch/PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests & Django checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: atproject
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U user -d atproject"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      # Non-secret placeholder — the suite runs with DEBUG=True (which skips the
+      # production SECRET_KEY guard); the deploy-check step only needs it to be
+      # >= 50 chars. This is NOT a production secret.
+      SECRET_KEY: ci-workflow-placeholder-secret-not-for-production-0000000000
+      DATABASE_URL: postgres://user:password@localhost:5432/atproject
+      REDIS_URL: redis://localhost:6379/0
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver,example.com
+      # The CI Postgres service container is plaintext (no TLS), like local dev.
+      # Without this the default sslmode=require rejects the connection.
+      DB_SSL_REQUIRE: "False"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (installs Python 3.14)
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Migration drift check
+        env:
+          DEBUG: "True"
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Run test suite
+        env:
+          DEBUG: "True"
+        run: uv run python manage.py test --noinput
+
+      - name: Django deploy check (production config)
+        env:
+          # DEBUG=False exercises the production security settings and the
+          # SECRET_KEY / REDIS_URL startup guards.
+          DEBUG: "False"
+        run: uv run python manage.py check --deploy
+
+  frontend:
+    name: Frontend build & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build CSS/JS bundles
+        run: npm run build
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: ESLint
+        run: npx eslint "**/*.js"
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+
+      - name: pip-audit (Python dependencies)
+        run: |
+          uv export --no-dev --no-emit-project --format requirements-txt -o audit-reqs.txt
+          uvx pip-audit -r audit-reqs.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build production image (mirrors Railway's build)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+# Deployment is handled by Railway's native GitHub integration, gated on these
+# checks via Railway's "Wait for CI" setting (see DEPLOYMENT.md → CI/CD). There
+# is intentionally no deploy job here — Railway is the single deployer.

@@ -19,7 +19,7 @@ def open_field_file(field_file, mode: str = "rb") -> BinaryIO:
     file_obj = getattr(field_file, "file", field_file)
     try:
         file_obj.seek(0)
-    except (AttributeError, OSError):
+    except AttributeError, OSError:
         pass
     return file_obj
 
@@ -34,7 +34,7 @@ def ensure_local_file(field_file) -> Iterator[str]:
         if path and os.path.exists(path):
             yield path
             return
-    except (AttributeError, NotImplementedError, ValueError, OSError):
+    except AttributeError, NotImplementedError, ValueError, OSError:
         pass
 
     suffix = ""
