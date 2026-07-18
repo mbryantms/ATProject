@@ -1194,13 +1194,15 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     def lint_content_view(self, request):
         """Return CM6-compatible diagnostics for the submitted content.
 
-        Diagnostics carry absolute character offsets (``from`` / ``to``)
-        into the source text plus severity + message, matching the shape
-        of ``@codemirror/lint`` ``Diagnostic``.
+        Diagnostics carry absolute character offsets (``from`` / ``to``) into
+        the source text plus severity + message, matching the shape of
+        ``@codemirror/lint`` ``Diagnostic``. Detection lives in
+        :mod:`engine.markdown.lint`, shared with the preview modal and the
+        save-time warnings so all three stay in sync.
         """
         from django.http import JsonResponse
 
-        from engine.models import Asset, Source
+        from engine.markdown.lint import lint_markdown, to_diagnostics
 
         if request.method != "POST":
             return JsonResponse({"diagnostics": []}, status=405)
@@ -1219,155 +1221,15 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             except ValueError, Post.DoesNotExist:
                 pass
 
-        diagnostics = []
-
-        # Asset references: find every @asset:key / @alias inside a markdown
-        # link/image target, then flag any that don't resolve.
-        if "@" in content:
-            post_assets = (
-                list(post.post_assets.select_related("asset").all()) if post else []
-            )
-            aliases = {pa.alias for pa in post_assets if pa.alias}
-            post_keys = {pa.asset.key for pa in post_assets if pa.asset}
-
-            candidate_keys = set()
-            candidate_globals = set()
-            for m in _ASSET_REF_RE.finditer(content):
-                key = m.group(2)
-                if m.group(1) == "asset:":
-                    candidate_globals.add(key)
-                else:
-                    candidate_keys.add(key)
-            all_candidates = candidate_keys | candidate_globals
-            known_globals = (
-                set(
-                    Asset.objects.filter(
-                        key__in=all_candidates, is_deleted=False, status="ready"
-                    ).values_list("key", flat=True)
-                )
-                if all_candidates
-                else set()
-            )
-
-            for m in _ASSET_REF_RE.finditer(content):
-                is_global = m.group(1) == "asset:"
-                key = m.group(2)
-                if is_global:
-                    if key in post_keys or key in known_globals:
-                        continue
-                    label = f"@asset:{key}"
-                else:
-                    if key in aliases or key in post_keys or key in known_globals:
-                        continue
-                    label = f"@{key}"
-                # Position the diagnostic on just the @...key span, not the
-                # whole image syntax, so the underline lines up with the
-                # broken reference.
-                frag_start = m.start(1) - 1 if is_global else m.start(2) - 1
-                frag_end = m.end(2)
-                diagnostics.append(
-                    {
-                        "from": frag_start,
-                        "to": frag_end,
-                        "severity": "warning",
-                        "message": f"Unresolved asset reference: {label}",
-                    }
-                )
-
-        # Citations — locate each @key with its source position, then
-        # flag anything not present in the Source library.
-        if "@" in content:
-            stripped_ranges = []  # positions to skip (code + asset refs)
-            for pat in (r"```[\s\S]*?```", r"~~~[\s\S]*?~~~", r"`[^`\n]+`"):
-                for m in re.finditer(pat, content):
-                    stripped_ranges.append((m.start(), m.end()))
-            for m in _ASSET_REF_RE.finditer(content):
-                stripped_ranges.append((m.start(), m.end()))
-
-            def _in_stripped(pos):
-                return any(a <= pos < b for a, b in stripped_ranges)
-
-            found = []  # list of (key, from_offset, to_offset)
-
-            # Bracketed citations: walk each @key occurrence inside the
-            # bracket span so multi-cite and locator forms both work.
-            for m in re.finditer(r"\[(-?@[^\]]+)\]", content):
-                if _in_stripped(m.start()):
-                    continue
-                base = m.start(1)
-                for km in re.finditer(
-                    r"-?@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*)",
-                    m.group(1),
-                ):
-                    key = km.group(1).rstrip(".")
-                    key_start = base + km.start(1)
-                    # Include the leading @ so the underline covers the sigil.
-                    found.append((key, key_start - 1, key_start + len(key)))
-
-            # Narrative citations: @key not preceded by another word / [ / @.
-            for m in re.finditer(
-                r"(?<![@\[\\\w])@([a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9])",
-                content,
-            ):
-                if _in_stripped(m.start()):
-                    continue
-                key = m.group(1).rstrip(".")
-                found.append((key, m.start(), m.start(1) + len(key)))
-
-            if found:
-                keys_seen = {k for k, _, _ in found}
-                known = set(
-                    Source.objects.filter(citation_key__in=keys_seen).values_list(
-                        "citation_key", flat=True
-                    )
-                )
-                for key, s, e in found:
-                    if key in known:
-                        continue
-                    diagnostics.append(
-                        {
-                            "from": s,
-                            "to": e,
-                            "severity": "warning",
-                            "message": f"Unknown citation key: @{key}",
-                        }
-                    )
-
-        # Internal links: /posts/<slug>/
-        link_pattern = re.compile(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)")
-        slug_matches = list(link_pattern.finditer(content))
-        if slug_matches:
-            slugs = {m.group(1) for m in slug_matches}
-            known_slugs = set(
-                Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
-            )
-            for m in slug_matches:
-                slug = m.group(1)
-                if slug in known_slugs:
-                    continue
-                diagnostics.append(
-                    {
-                        "from": m.start(1) - len("/posts/"),
-                        "to": m.end(1) + 1,
-                        "severity": "warning",
-                        "message": f"Internal link to unknown slug: /posts/{slug}/",
-                    }
-                )
-
-        # Unclosed admonition fences — flag the final unclosed opener.
-        fence_matches = list(re.finditer(r"^:::+.*$", content, flags=re.MULTILINE))
-        if len(fence_matches) % 2 == 1 and fence_matches:
-            last = fence_matches[-1]
-            diagnostics.append(
-                {
-                    "from": last.start(),
-                    "to": last.end(),
-                    "severity": "warning",
-                    "message": "Unclosed ::: fence — missing matching ::: below.",
-                }
-            )
-
-        return JsonResponse({"diagnostics": diagnostics})
+        post_assets = (
+            list(post.post_assets.select_related("asset").all()) if post else []
+        )
+        findings = lint_markdown(
+            content,
+            post_assets=post_assets,
+            current_post_pk=post.pk if post else None,
+        )
+        return JsonResponse({"diagnostics": to_diagnostics(findings)})
 
     # Site CSS files loaded inside the preview iframe. Matches the set
     # included by templates/base.html so rendered posts look close to the
@@ -1392,6 +1254,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         from django.http import JsonResponse
         from django.templatetags.static import static
 
+        from engine.markdown.lint import lint_markdown, summarize
         from engine.markdown.renderer import render_markdown
 
         if request.method != "POST":
@@ -1413,29 +1276,15 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             except ValueError, Post.DoesNotExist:
                 pass
 
-        lint_items = []
         post_assets = (
             list(post.post_assets.select_related("asset").all()) if post else []
         )
-
-        orphans = self._find_orphan_asset_refs(content, post_assets)
-        if orphans:
-            lint_items.append("Unresolved asset references: " + ", ".join(orphans))
-        missing_cites = self._find_unresolved_citation_keys(content)
-        if missing_cites:
-            lint_items.append(
-                "Unknown citation keys: " + ", ".join(f"@{k}" for k in missing_cites)
-            )
-        broken_links = self._find_broken_internal_links(content)
-        if broken_links:
-            lint_items.append(
-                "Broken internal links: "
-                + ", ".join(f"/posts/{s}/" for s in broken_links)
-            )
-        if self._find_unmatched_admonitions(content):
-            lint_items.append(
-                "Odd number of ::: fences — check for an unclosed admonition."
-            )
+        findings = lint_markdown(
+            content,
+            post_assets=post_assets,
+            current_post_pk=post.pk if post else None,
+        )
+        lint_items = summarize(findings)
 
         try:
             rendered = render_markdown(content, context=context)
@@ -1982,7 +1831,14 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
 
     def _orphan_asset_ref_warning(self, obj, post_assets):
         """Render HTML listing asset references in content that don't resolve."""
-        orphans = self._find_orphan_asset_refs(obj.content_markdown or "", post_assets)
+        from engine.markdown.lint import group_labels, lint_markdown
+
+        findings = lint_markdown(
+            obj.content_markdown or "",
+            post_assets=post_assets,
+            current_post_pk=obj.pk,
+        )
+        orphans = group_labels(findings).get("asset", [])
         if not orphans:
             return ""
 
@@ -2000,181 +1856,26 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             mark_safe(chips),
         )
 
-    @staticmethod
-    def _find_orphan_asset_refs(content, post_assets):
-        """Return the sorted list of unresolved ``@asset:`` / ``@alias`` refs.
-
-        Compares every reference against the PostAsset aliases attached to
-        this post and the global Asset key set.
-        """
-        if not content or "@" not in content:
-            return []
-
-        from engine.models import Asset
-
-        aliases = {pa.alias for pa in post_assets if pa.alias}
-        global_keys = {pa.asset.key for pa in post_assets if pa.asset}
-
-        orphans = []
-        checked = set()
-
-        for match in _ASSET_REF_RE.finditer(content):
-            is_global = match.group(1) == "asset:"
-            key = match.group(2)
-            cache_key = (is_global, key)
-            if cache_key in checked:
-                continue
-            checked.add(cache_key)
-
-            if is_global:
-                if key in global_keys:
-                    continue
-                if Asset.objects.filter(
-                    key=key, is_deleted=False, status="ready"
-                ).exists():
-                    continue
-                orphans.append(f"@asset:{key}")
-            else:
-                if key in aliases or key in global_keys:
-                    continue
-                if Asset.objects.filter(
-                    key=key, is_deleted=False, status="ready"
-                ).exists():
-                    continue
-                orphans.append(f"@{key}")
-
-        return orphans
-
-    @staticmethod
-    def _find_unresolved_citation_keys(content):
-        """Return the sorted list of citation keys not in the Source library.
-
-        Matches Pandoc-style bracketed citations ``[@key]`` / ``[-@key]`` /
-        ``[@a; @b]`` and bare narrative ``@key``. Code spans, fenced code,
-        and asset-reference link targets are stripped first so they don't
-        produce false positives (mirrors the production preprocessor
-        ordering: asset_resolver runs before citation_escaper).
-        """
-        if not content or "@" not in content:
-            return []
-
-        from engine.models import Source
-
-        # Strip fenced and inline code so citations inside examples don't flag.
-        stripped = re.sub(r"```[\s\S]*?```", "", content)
-        stripped = re.sub(r"~~~[\s\S]*?~~~", "", stripped)
-        stripped = re.sub(r"`[^`\n]+`", "", stripped)
-        # Strip markdown link/image targets that contain @ (asset references).
-        stripped = _ASSET_REF_RE.sub("", stripped)
-
-        # Keys end in an alphanumeric character — trailing `.` is sentence
-        # punctuation, not part of the key.
-        key_pat = r"[a-zA-Z0-9][\w:#$%&\-+?<>~/]*[a-zA-Z0-9]|[a-zA-Z0-9]"
-
-        keys = set()
-        # Bracketed: [@key] / [-@key] / [@k1; @k2, pp. 3]
-        for match in re.finditer(r"\[(-?@[^\]]+)\]", stripped):
-            for piece in match.group(1).split(";"):
-                piece = piece.strip().lstrip("-").lstrip("@")
-                head = piece.split(",", 1)[0].strip()
-                m = re.match(r"([a-zA-Z0-9][\w:.#$%&\-+?<>~/]*?)\.?$", head)
-                key = m.group(1) if m else ""
-                if key:
-                    keys.add(key)
-        # Narrative: @key (not already inside brackets, not after a word char)
-        for match in re.finditer(rf"(?<![@\[\\\w])@({key_pat})", stripped):
-            keys.add(match.group(1))
-
-        if not keys:
-            return []
-
-        known = set(
-            Source.objects.filter(citation_key__in=keys).values_list(
-                "citation_key", flat=True
-            )
-        )
-        return sorted(keys - known)
-
-    @staticmethod
-    def _find_broken_internal_links(content, current_post_pk=None):
-        """Return sorted list of ``/posts/<slug>/`` targets not matching a Post."""
-        if not content:
-            return []
-        slugs = set(re.findall(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)", content))
-        if not slugs:
-            return []
-        known = set(
-            Post.all_objects.filter(slug__in=slugs).values_list("slug", flat=True)
-        )
-        return sorted(slugs - known)
-
-    @staticmethod
-    def _find_unmatched_admonitions(content):
-        """Return diagnostic count of unmatched ``:::`` fenced divs.
-
-        Pandoc fenced divs come in matched pairs: an opener like
-        ``::: {.admonition-tip}`` and a bare ``:::`` closer. An odd total
-        almost always means the author forgot to close a block.
-        """
-        if not content:
-            return 0
-        fences = re.findall(r"^:::+.*$", content, flags=re.MULTILINE)
-        return len(fences) % 2
-
     def _collect_content_lint_messages(self, post):
-        """Return a list of (level, message) tuples for save-time lint warnings."""
-        messages_out = []
+        """Return a list of (level, message) tuples for save-time lint warnings.
+
+        Derives from the shared :mod:`engine.markdown.lint` engine so the
+        warnings surfaced on save match the CodeMirror gutter and the preview
+        modal exactly.
+        """
+        from engine.markdown.lint import lint_markdown, summarize
+
         content = post.content_markdown or ""
         if not content:
-            return messages_out
+            return []
 
         post_assets = (
             list(post.post_assets.select_related("asset").all()) if post.pk else []
         )
-
-        orphans = self._find_orphan_asset_refs(content, post_assets)
-        if orphans:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Unresolved asset reference(s): "
-                    + ", ".join(orphans)
-                    + ". Attach the asset or fix the key/alias.",
-                )
-            )
-
-        missing_cites = self._find_unresolved_citation_keys(content)
-        if missing_cites:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Unknown citation key(s) — will render as [??key]: "
-                    + ", ".join(f"@{k}" for k in missing_cites)
-                    + ". Add to the Source library or correct the key.",
-                )
-            )
-
-        broken_links = self._find_broken_internal_links(content, post.pk)
-        if broken_links:
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Internal link(s) to unknown slugs: "
-                    + ", ".join(f"/posts/{s}/" for s in broken_links)
-                    + ".",
-                )
-            )
-
-        if self._find_unmatched_admonitions(content):
-            messages_out.append(
-                (
-                    messages.WARNING,
-                    "Odd number of ::: fences detected — an admonition "
-                    "or fenced div is likely unclosed.",
-                )
-            )
-
-        return messages_out
+        findings = lint_markdown(
+            content, post_assets=post_assets, current_post_pk=post.pk
+        )
+        return [(messages.WARNING, line) for line in summarize(findings)]
 
     def save_model(self, request, obj, form, change):
         # Auto-stamp audit provenance so authors can't forget.
