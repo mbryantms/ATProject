@@ -12,7 +12,15 @@ from django.db.models.signals import m2m_changed, post_delete, post_save, pre_de
 from django.dispatch import receiver
 
 from engine.links.extractor import update_post_links
-from engine.models import InternalLink, Post, PostCitation, Source
+from engine.models import (
+    Asset,
+    InternalLink,
+    Post,
+    PostAsset,
+    PostCitation,
+    Source,
+    Tag,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -169,3 +177,45 @@ def recompute_similarity_on_link_change(sender, instance, **kwargs):
 @receiver(post_delete, sender=PostCitation)
 def recompute_similarity_on_citation_change(sender, instance, **kwargs):
     _enqueue_similarity(instance.post_id)
+
+
+# ---------------------------------------------------------------------------
+# Denormalized usage-count reconciliation
+# ---------------------------------------------------------------------------
+# ``Asset.usage_count`` and ``Tag.usage_count`` are caches. Keep them fresh on
+# the relationship changes that affect them, so the values stay correct without
+# operators running the manual "recompute usage counts" admin actions (which
+# remain as a backstop). Updates use ``.update()`` to avoid triggering model
+# ``save()`` side effects (e.g. Asset file handling).
+
+
+@receiver(post_save, sender=PostAsset)
+@receiver(post_delete, sender=PostAsset)
+def sync_asset_usage_count(sender, instance, **kwargs):
+    """Recompute the affected Asset's usage_count from its PostAsset rows."""
+    asset_id = instance.asset_id
+    if not asset_id:
+        return
+    Asset.all_objects.filter(pk=asset_id).update(
+        usage_count=PostAsset.objects.filter(asset_id=asset_id).count()
+    )
+
+
+@receiver(m2m_changed, sender=Post.tags.through)
+def sync_tag_usage_counts(sender, instance, action, reverse, pk_set, **kwargs):
+    """Recompute usage_count for tags whose post membership just changed."""
+    if action not in {"post_add", "post_remove", "post_clear"}:
+        return
+    if action == "post_clear":
+        # pk_set is None on clear; clears are rare, so recompute all tags.
+        tag_ids = list(Tag.objects.values_list("pk", flat=True))
+    elif reverse:
+        # instance is a Tag; only it changed.
+        tag_ids = [instance.pk]
+    else:
+        # instance is a Post; pk_set holds the changed tag ids.
+        tag_ids = list(pk_set or [])
+    for tag_id in tag_ids:
+        Tag.objects.filter(pk=tag_id).update(
+            usage_count=Post.objects.filter(tags=tag_id).count()
+        )

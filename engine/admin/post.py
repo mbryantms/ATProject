@@ -783,7 +783,11 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     date_hierarchy = "published_at"
 
     class Media:
-        js = ("js/dist/admin-post-editor.js", "js/admin-post-aux.js")
+        js = (
+            "js/dist/admin-post-editor.js",
+            "js/admin-post-aux.js",
+            "js/admin-clipboard.js",
+        )
         css = {"all": ("css/admin-common.css", "css/admin-post.css")}
 
     list_display = (
@@ -2167,15 +2171,10 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
 
     @admin.action(description="Publish selected posts")
     def publish_selected(self, request, queryset):
-        """Publish selected posts."""
-        from django.utils import timezone
-
+        """Publish selected posts (go-live time + publisher via Post.publish)."""
         count = 0
         for post in queryset:
-            post.status = "published"
-            if not post.published_at:
-                post.published_at = timezone.now()
-            post.save()
+            post.publish(by=request.user)
             count += 1
         self.message_user(request, f"Published {count} post(s).")
 

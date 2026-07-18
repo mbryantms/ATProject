@@ -570,6 +570,7 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     inlines = [AssetMetadataInline, AssetRenditionInline, PostAssetInline]
 
     class Media:
+        js = ("js/admin-clipboard.js",)
         css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
     # Default "delete_selected" hard-deletes via queryset.delete() which
@@ -929,16 +930,13 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             " • ".join(info) if info else "—",
         )
 
-    @admin.display(description="📋")
+    @admin.display(description="Copy ref")
     def markdown_key_compact(self, obj):
-        """Compact markdown copy button."""
+        """Compact markdown copy button (handler delegated in admin-clipboard.js)."""
         return format_html(
-            "<button type='button' class='mk-copy-btn mk-copy-btn--ghost' "
-            "onclick=\"navigator.clipboard.writeText('@asset:{}').then(() => {{ "
-            "this.textContent = '✓'; "
-            "setTimeout(() => {{ this.textContent = '📋'; }}, 1500); "
-            '}}); event.stopPropagation();" '
-            "title='Copy markdown reference'>📋</button>",
+            '<button type="button" class="mk-copy-btn mk-copy-btn--ghost" '
+            'data-clipboard-text="@asset:{}" '
+            'title="Copy markdown reference">📋</button>',
             obj.key,
         )
 
@@ -1276,40 +1274,24 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "<p><em>⚠ Enter a title to see auto-generated key preview</em></p>"
             )
 
-        from django.template.defaultfilters import slugify
-
-        base_slug = slugify(obj.title) or "asset"
-
-        # Simulate what _generate_unique_key would create
-        type_prefixes = {
-            "image": "img",
-            "video": "vid",
-            "audio": "aud",
-            "document": "doc",
-            "archive": "arc",
-            "other": "asset",
-        }
-        type_prefix = type_prefixes.get(obj.asset_type, "asset")
-        preview_key = f"{type_prefix}-{base_slug}"
+        # Ask the model what it would generate, so this preview can't drift.
+        preview_key = obj.preview_key()
 
         return format_html(
             "<p>🔮 Auto-generated key will be: <code>{}</code><br>"
-            "<small>Includes: {} + title slug (unique suffix added if needed)</small></p>",
+            "<small>Prefix from asset type + title slug (unique suffix added if "
+            "needed)</small></p>",
             preview_key,
-            f"{type_prefix} prefix",
         )
 
     @admin.display(description="Markdown Reference")
     def markdown_reference_copyable(self, obj):
-        """Copyable markdown reference with copy button."""
+        """Copyable markdown reference (copy handler in admin-clipboard.js)."""
         return format_html(
             '<div class="mk-copy-row">'
             '<code class="mk-code">@asset:{}</code>'
-            "<button type='button' class='mk-copy-btn' "
-            "onclick=\"navigator.clipboard.writeText('@asset:{}').then(() => {{ "
-            "const orig = this.textContent; this.textContent = '✓ Copied'; "
-            "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
-            '}}); event.preventDefault();">Copy</button>'
+            '<button type="button" class="mk-copy-btn" '
+            'data-clipboard-text="@asset:{}">Copy</button>'
             "</div>",
             obj.key,
             obj.key,
@@ -1333,11 +1315,8 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             "<strong>Example usage:</strong><br>"
             '<div class="mk-copy-row" style="margin-top:4px;">'
             '<code class="mk-code">{}</code>'
-            "<button type='button' class='mk-copy-btn' "
-            "onclick=\"navigator.clipboard.writeText('{}').then(() => {{ "
-            "const orig = this.textContent; this.textContent = '✓ Copied'; "
-            "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
-            '}}); event.preventDefault();">Copy</button>'
+            '<button type="button" class="mk-copy-btn" '
+            'data-clipboard-text="{}">Copy</button>'
             "</div></div>",
             example,
             example,

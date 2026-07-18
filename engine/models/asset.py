@@ -84,6 +84,18 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         ("other", "Other"),
     ]
 
+    # Short prefix per asset type, used when auto-generating ``key``. The admin
+    # key-preview reads this too, so the preview can never drift from what
+    # ``_generate_unique_key`` actually produces.
+    TYPE_PREFIXES = {
+        "image": "img",
+        "video": "vid",
+        "audio": "aud",
+        "document": "doc",
+        "archive": "arc",
+        "other": "asset",
+    }
+
     class Status(models.TextChoices):
         UPLOADING = "uploading", "Uploading"
         PROCESSING = "processing", "Processing"
@@ -423,6 +435,15 @@ class Asset(TimeStampedModel, SoftDeleteModel):
                 {"focal_point_y": "Focal point Y must be between 0.0 and 1.0"}
             )
 
+    def preview_key(self):
+        """Base key that auto-generation would produce from the current title
+        and type (without the uniqueness suffix). Used by the admin preview so
+        it stays in sync with ``_generate_unique_key``."""
+        from django.template.defaultfilters import slugify
+
+        prefix = self.TYPE_PREFIXES.get(self.asset_type, "asset")
+        return f"{prefix}-{slugify(self.title) or 'asset'}"
+
     def _generate_unique_key(self, base_slug):
         """
         Generate a unique key with intelligent organization.
@@ -438,15 +459,7 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         parts = []
 
         # Add type prefix for better organization
-        type_prefixes = {
-            "image": "img",
-            "video": "vid",
-            "audio": "aud",
-            "document": "doc",
-            "archive": "arc",
-            "other": "asset",
-        }
-        type_prefix = type_prefixes.get(self.asset_type, "asset")
+        type_prefix = self.TYPE_PREFIXES.get(self.asset_type, "asset")
 
         # Construct base key
         if parts:

@@ -369,6 +369,14 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
                 run_async_tasks = True
                 content_changed = True
 
+        # A published post must always carry a go-live time — the DB
+        # CheckConstraint requires it, and the public `published()` queryset
+        # filters on it. Stamp "now" for any save that sets PUBLISHED without a
+        # time, so this holds regardless of the code path (admin, API, shell,
+        # data import) rather than only when the admin remembers to set it.
+        if self.status == self.Status.PUBLISHED and self.published_at is None:
+            self.published_at = timezone.now()
+
         # --- Update fast-running derived stats synchronously ---
         self.word_count = self._compute_word_count(self.content_markdown or "")
         self.reading_time_minutes = max(1, round(self.word_count / 225.0 + 0.0001))
@@ -425,6 +433,20 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
             raise ValidationError(
                 {"expire_at": "Expiration must be after the publish time."}
             )
+
+    def publish(self, by=None):
+        """Transition this post to published, stamping provenance once.
+
+        Centralizes the publish rule (go-live time + publisher) so every caller
+        — the admin bulk action, the API, a shell session — records the same
+        provenance instead of it living only in the admin. ``save()`` fills in
+        ``published_at`` if unset; ``published_by`` is recorded only the first
+        time it goes live.
+        """
+        self.status = self.Status.PUBLISHED
+        if by is not None and self.published_by is None:
+            self.published_by = by
+        self.save()
 
     # ---------------------------
     # Helpers
