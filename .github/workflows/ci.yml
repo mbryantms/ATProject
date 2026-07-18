@@ -40,6 +40,9 @@ jobs:
       DATABASE_URL: postgres://user:password@localhost:5432/atproject
       REDIS_URL: redis://localhost:6379/0
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver,example.com
+      # The CI Postgres service container is plaintext (no TLS), like local dev.
+      # Without this the default sslmode=require rejects the connection.
+      DB_SSL_REQUIRE: "False"
     steps:
       - uses: actions/checkout@v4
 
