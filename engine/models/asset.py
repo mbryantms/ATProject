@@ -453,7 +453,7 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         the ``renditions`` relation in Python, so prefetch it on changelists.
         Returns ``""`` for a fileless asset.
         """
-        if self.asset_type == "image":
+        if self.asset_type == "image" and self.pk:
             candidates = [
                 r
                 for r in self.renditions.all()

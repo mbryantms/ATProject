@@ -59,6 +59,8 @@ class AdminPagesLoadTests(AdminSetupMixin, TestCase):
         "assetfolder",
         "assettag",
         "assetcollection",
+        "assetmetadata",
+        "assetrendition",
         "sitesettings",
         "internallink",
         "postrevision",
