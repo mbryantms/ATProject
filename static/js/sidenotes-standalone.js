@@ -240,12 +240,10 @@
 
           const elementBoundingRect = element.getBoundingClientRect();
 
-          if (
-            !(
-              elementBoundingRect.left > leftColumnBoundingRect.right ||
-              elementBoundingRect.right < leftColumnBoundingRect.left
-            )
-          ) {
+          if (!(
+            elementBoundingRect.left > leftColumnBoundingRect.right ||
+            elementBoundingRect.right < leftColumnBoundingRect.left
+          )) {
             proscribedVerticalRangesLeft.push({
               top:
                 elementBoundingRect.top -
@@ -259,12 +257,10 @@
             });
           }
 
-          if (
-            !(
-              elementBoundingRect.left > rightColumnBoundingRect.right ||
-              elementBoundingRect.right < rightColumnBoundingRect.left
-            )
-          ) {
+          if (!(
+            elementBoundingRect.left > rightColumnBoundingRect.right ||
+            elementBoundingRect.right < rightColumnBoundingRect.left
+          )) {
             proscribedVerticalRangesRight.push({
               top:
                 elementBoundingRect.top -

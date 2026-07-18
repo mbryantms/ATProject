@@ -47,6 +47,7 @@ from .post import (
     PostQuerySet,
     PostRevision,
     PostSimilarity,
+    PostSlugHistory,
 )
 
 # Settings
@@ -91,6 +92,7 @@ __all__ = [
     "InternalLink",
     "PostRevision",
     "PostSimilarity",
+    "PostSlugHistory",
     # Page
     "Page",
     "PageFeaturedTag",

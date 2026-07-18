@@ -5,7 +5,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from django.db.models import Q
 from django.utils import timezone
@@ -306,7 +306,7 @@ def compute_similar_posts(
     scored.sort(
         key=lambda c: (
             getattr(c, "similarity_score", 0.0),
-            c.published_at or datetime.min.replace(tzinfo=timezone.utc),
+            c.published_at or datetime.min.replace(tzinfo=UTC),
         ),
         reverse=True,
     )

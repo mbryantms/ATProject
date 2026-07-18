@@ -7,7 +7,7 @@
 {% block content %}
 <div class="search-page-input-wrap">
   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-  <input class="search-page-input" type="text" data-search-page-input placeholder="Search posts, tags, categories, series…" value="{{ query|default:'' }}" autofocus>
+  <input class="search-page-input" type="text" data-search-page-input aria-label="Search posts, tags, categories, and series" placeholder="Search posts, tags, categories, series…" value="{{ query|default:'' }}" autofocus>
 </div>
 
 <div data-search-page-results>

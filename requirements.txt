@@ -48,7 +48,7 @@ colorama==0.4.6 ; sys_platform == 'win32'
     # via click
 cron-descriptor==1.4.5
     # via django-celery-beat
-django==6.0.6
+django==6.0.7
     # via
     #   atproject
     #   django-celery-beat
@@ -101,7 +101,7 @@ packaging==26.2
     # via
     #   gunicorn
     #   kombu
-pillow==12.2.0
+pillow==12.3.0
     # via
     #   atproject
     #   pillow-heif

@@ -456,8 +456,14 @@ class Asset(TimeStampedModel, SoftDeleteModel):
             # type-slug format
             base_key = f"{type_prefix}-{base_slug}"
 
+        # Uniqueness must be checked against ``all_objects``: ``key`` is unique
+        # at the database level across every row, including soft-deleted ones,
+        # so checking only the alive-only default manager would hand back a key
+        # already held by a soft-deleted asset and raise IntegrityError on save.
+        existing = Asset.all_objects
+
         # Check if base key is unique
-        if not Asset.objects.filter(key=base_key).exclude(pk=self.pk).exists():
+        if not existing.filter(key=base_key).exclude(pk=self.pk).exists():
             return base_key
 
         # If not unique, add short hash suffix
@@ -465,7 +471,7 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         simple_key = f"{type_prefix}-{base_slug}"
         if (
             not parts
-            and not Asset.objects.filter(key=simple_key).exclude(pk=self.pk).exists()
+            and not existing.filter(key=simple_key).exclude(pk=self.pk).exists()
         ):
             return simple_key
 
@@ -473,7 +479,7 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         for _ in range(10):  # Try up to 10 times
             suffix = secrets.token_hex(2)  # 4 characters
             unique_key = f"{base_key}-{suffix}"
-            if not Asset.objects.filter(key=unique_key).exclude(pk=self.pk).exists():
+            if not existing.filter(key=unique_key).exclude(pk=self.pk).exists():
                 return unique_key
 
         # Fallback: use timestamp-based suffix

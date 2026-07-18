@@ -135,12 +135,20 @@ class SearchAPIView(View):
         return JsonResponse(results)
 
 
+@method_decorator(
+    ratelimit(key="ip", rate="60/m", method="GET", block=True), name="dispatch"
+)
 class SearchPageView(SEOContextMixin, TemplateView):
     """
     GET /search/
 
     Server-renders initial results if ?q= is present.
     JS takes over for live search after page load.
+
+    Rate-limited per IP: the ``?q=`` path runs the full ``build_search_results``
+    pipeline (full-text + trigram fuzzy + facet aggregation) server-side, so an
+    unthrottled endpoint would be an easy DoS lever. Mirrors the 60/m limit on
+    :class:`SearchAPIView`.
     """
 
     template_name = "search.html"

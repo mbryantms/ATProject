@@ -1,4 +1,11 @@
 Admin Authoring Workflow Improvement Plan
+
+> **Status (historical plan):** Most of this plan has since shipped — the content
+> field is now a CodeMirror 6 editor with live preview, citation/asset
+> autocomplete, an inline lint gutter, snippets, and a citation picker. See
+> [ADMIN_EDITOR.md](ADMIN_EDITOR.md) for the current editor. The "Current State
+> Summary" below describes the pre-editor baseline and is kept for context.
+
 Current State Summary
 Strengths: 8 well-organized fieldsets (engine/admin/post.py:482-574), rich asset inline with preview + copy-to-clipboard (engine/admin/post.py:23-182), revision diff viewer with restore (engine/admin/post.py:415-463), comprehensive model-level help_text, 23+ markdown postprocessors.
 

@@ -142,9 +142,11 @@ You can also click the triangle in the fold gutter.
 
 ### Autocomplete popup
 
-No completion sources are wired yet (citation keys and asset aliases are
-stretch items), but the popup infrastructure is live — relevant if you ever
-trigger it manually or a language feature opens it:
+Completion sources are live: citation keys (inside `[@…]` or after a bare `@`,
+backed by `admin:engine_post_autocomplete_citations`) and asset aliases / keys
+(inside a markdown link/image target, backed by
+`admin:engine_post_autocomplete_assets`). Both query staff-only endpoints. The
+popup keys:
 
 | Keys | Action |
 | --- | --- |
@@ -177,24 +179,34 @@ The mount script sets `data-cm-bound="1"` on the textarea after
 initialization. If the admin ever re-renders the form inline (e.g. via a
 future HTMX swap), the editor refuses to double-attach to the same textarea.
 
+## Implemented editor features
+
+The editor ships with more than a plain mount. Active features:
+
+- **Citation-key autocomplete** and **asset alias / key autocomplete** — see
+  "Autocomplete popup" above (`static/js/admin-post-editor/completions.js`).
+- **Token decorations** — colored highlighting for `@asset:*`, `[@cite]`,
+  `::: {.admonition-*}`, and marked-date spans, so bespoke syntax is visually
+  distinct from prose (`admin-post-editor/decorations.js`).
+- **Inline lint gutter** — the same checks as the save-time linter (orphan
+  assets, unknown citations, broken internal links, unclosed `:::` fences)
+  surface as wavy underlines + gutter icons while you type, via
+  `@codemirror/lint` (`admin-post-editor/lint-source.js`, backed by
+  `admin:engine_post_lint_content`).
+- **Snippets** for `:::` fenced divs and `{.class}` hints
+  (`admin-post-editor/snippets.js`).
+- **Preview modal** and **citation picker** (inline scripts wired from
+  `engine/admin/post.py`), coordinating with the editor via
+  `window.__atpPostEditorView`.
+
 ## Not built yet (stretch work)
 
-None of these are active; they'd each need a follow-up pass.
-
-- **Citation-key autocomplete.** A completion source that queries the Source
-  library and suggests keys inside `[@…]` or after a bare `@`.
-- **Asset alias / key autocomplete.** Completion source reading the Post's
-  attached `PostAsset` set (for `@alias`) and the global `Asset.key` set
-  (for `@asset:…`) while inside a markdown link/image target.
-- **Token decorations** — colored highlighting for `@asset:*`, `[@cite]`,
-  `::: {.admonition-*}`, marked-date spans, so bespoke syntax is visually
-  distinct from prose.
-- **Inline lint gutter.** Pipe the Phase 2 lint warnings (orphan assets,
-  unknown citations, broken internal links, unclosed admonition fences) into
-  `@codemirror/lint` so they show as wavy underlines + gutter icons while
-  you type instead of only after save.
-- **MathJax in the Phase 2 preview iframe.** Currently the preview shows
-  rendered HTML with site CSS but no MathJax evaluation.
+- **MathJax in the preview iframe.** The preview shows rendered HTML with site
+  CSS but does not evaluate MathJax (the iframe is intentionally
+  `sandbox="allow-same-origin"` without `allow-scripts`).
+- **Autosave / local draft persistence.** The editor mirrors to the hidden
+  textarea on every change and on submit, but nothing is persisted until you
+  Save — closing the tab loses unsaved edits.
 
 ## Troubleshooting
 

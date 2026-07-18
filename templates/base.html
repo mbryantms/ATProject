@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
-<html lang="en-us">
+<html lang="{{ seo_language|default:'en-us' }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,20 +67,23 @@
     </title>
   </head>
   <body{% block body_class %}{% endblock %}>
+    <a class="skip-to-content" href="#content">Skip to content</a>
     <main>
-      <nav id="sidebar">
+      <nav id="sidebar" aria-label="Primary">
         {% block sidebar %}
           {% include "sidebar.html" %}
         {% endblock sidebar %}
       </nav>
-      <article>
+      <article id="content">
+        {% block page_header %}
         <header>
           <h1>
             {% block page_title %}
-              {{ page_title|default:"Lorem Ipsum" }}
+              {{ page_title|default:site_settings.site_name|default:"Architextual" }}
             {% endblock page_title %}
           </h1>
         </header>
+        {% endblock page_header %}
         {% block page-metadata %}
         {% endblock page-metadata %}
         {% block content %}

@@ -4,7 +4,12 @@
 
 {% block body_class %} class="page-index"{% endblock %}
 
-{% block page_title %}{% endblock %}
+{# The homepage has no visible page title by design, but the document still
+   needs a top-level heading. Provide a visually-hidden h1 instead of the
+   empty <h1> the base header would otherwise render. #}
+{% block page_header %}
+  <h1 class="visually-hidden">{{ site_settings.site_name|default:"Architextual" }}</h1>
+{% endblock page_header %}
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">

@@ -127,4 +127,21 @@ def custom_404(request, exception):
     return render(request, "404.html", status=404)
 
 
+def custom_500(request):
+    # Render the styled 500 page with request context so it matches the rest
+    # of the site. Guard against a secondary failure during error rendering
+    # (e.g. the template itself, or a context processor, is what broke) by
+    # falling back to a minimal plain-text response — an error page must never
+    # raise.
+    try:
+        return render(request, "500.html", status=500)
+    except Exception:
+        return HttpResponse(
+            "An unexpected error occurred. Please try again later.",
+            status=500,
+            content_type="text/plain",
+        )
+
+
 handler404 = custom_404
+handler500 = custom_500

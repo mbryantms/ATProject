@@ -54,7 +54,7 @@ function loadFile(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
-function buildSys(items, localePath, lang) {
+function buildSys(items, localePath, _lang) {
   const itemMap = {};
   for (const item of items) {
     itemMap[item.id] = item;
@@ -188,7 +188,7 @@ async function main() {
         bibliography.push([id, bibEntries[i].trim()]);
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // Bibliography generation can fail for some styles (e.g., note-only styles)
     // This is not fatal — we still have inline citations
   }

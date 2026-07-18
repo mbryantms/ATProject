@@ -11,6 +11,7 @@ only changing this module.
 """
 
 import hashlib
+import html
 import json
 import logging
 import subprocess
@@ -283,12 +284,20 @@ def _extract_year(item: dict) -> str:
 
 
 def _format_fallback_entry(item: dict) -> str:
-    """Format a single bibliography entry as plain text."""
+    """Format a single bibliography entry as plain text.
+
+    CSL-JSON fields (title, container, volume, …) originate from admin input,
+    Zotero sync, and DOI/URL resolvers, so they are untrusted. Every value is
+    HTML-escaped before interpolation; only the structural markup this function
+    emits (``<div>``, ``<i>``) is literal. Without this, a source title such as
+    ``<img src=x onerror=…>`` would render as a live element on every citing
+    page (the fallback runs whenever the citeproc-js subprocess is unavailable).
+    """
     authors = item.get("author", [])
     author_str = _format_authors_plain(authors) if authors else ""
-    year = _extract_year(item)
-    title = item.get("title", "")
-    container = item.get("container-title", "")
+    year = html.escape(_extract_year(item))
+    title = html.escape(item.get("title", ""))
+    container = html.escape(item.get("container-title", ""))
 
     parts = []
     if author_str:
@@ -300,9 +309,9 @@ def _format_fallback_entry(item: dict) -> str:
     if container:
         parts.append(f"<i>{container}</i>.")
 
-    volume = item.get("volume", "")
-    issue = item.get("issue", "")
-    page = item.get("page", "")
+    volume = html.escape(str(item.get("volume", "")))
+    issue = html.escape(str(item.get("issue", "")))
+    page = html.escape(str(item.get("page", "")))
     if volume:
         vol_str = f"<i>{volume}</i>"
         if issue:
@@ -315,17 +324,22 @@ def _format_fallback_entry(item: dict) -> str:
 
 
 def _format_authors_plain(authors: list[dict]) -> str:
-    """Format a list of CSL-JSON authors as plain text."""
+    """Format a list of CSL-JSON authors as plain text.
+
+    Author names are untrusted (see :func:`_format_fallback_entry`) and are
+    HTML-escaped before being joined into markup.
+    """
     names = []
     for a in authors:
         if "literal" in a:
-            names.append(a["literal"])
+            names.append(html.escape(a["literal"]))
         elif "family" in a:
             given = a.get("given", "")
             initials = (
                 ". ".join(g[0] for g in given.split() if g) + "." if given else ""
             )
-            names.append(f"{a['family']}, {initials}" if initials else a["family"])
+            family = html.escape(a["family"])
+            names.append(f"{family}, {html.escape(initials)}" if initials else family)
 
     if len(names) == 0:
         return ""

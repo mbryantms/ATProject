@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Min, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -17,6 +18,27 @@ from .models import (
     Tag,
     TagAlias,
 )
+
+# Archive pages group posts by year. The page size is generous so a small blog
+# renders every post on one page (no pager shown, unchanged UX); it only bounds
+# page weight and query result size once the archive grows large.
+ARCHIVE_PAGE_SIZE = 50
+
+
+def _paginate_posts_by_year(request, posts):
+    """Paginate an ordered post queryset and group the current page by year.
+
+    Returns ``(page_obj, posts_by_year, total_count)``. Year grouping is applied
+    to the current page only, so a year that straddles a page boundary simply
+    appears (as its own heading) on both pages — standard for paged archives.
+    """
+    paginator = Paginator(posts, ARCHIVE_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    posts_by_year = OrderedDict()
+    for post in page_obj.object_list:
+        if post.published_at:
+            posts_by_year.setdefault(post.published_at.year, []).append(post)
+    return page_obj, posts_by_year, paginator.count
 
 
 class IndexView(SEOContextMixin, TemplateView):
@@ -180,17 +202,10 @@ class PostArchiveView(SEOContextMixin, TemplateView):
         else:
             posts = posts.order_by("-published_at")
 
-        # Group posts by year
-        posts_by_year = OrderedDict()
-        for post in posts:
-            if post.published_at:
-                year = post.published_at.year
-                if year not in posts_by_year:
-                    posts_by_year[year] = []
-                posts_by_year[year].append(post)
-
+        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
+        context["page_obj"] = page_obj
         context["posts_by_year"] = posts_by_year
-        context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        context["total_posts"] = total
         context["current_sort"] = current_sort
         return context
 
@@ -254,14 +269,7 @@ class TagArchiveView(SEOContextMixin, TemplateView):
                 .order_by("-published_at")
             )
 
-        # Group posts by year
-        posts_by_year = OrderedDict()
-        for post in posts:
-            if post.published_at:
-                year = post.published_at.year
-                if year not in posts_by_year:
-                    posts_by_year[year] = []
-                posts_by_year[year].append(post)
+        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
 
         # Get hierarchical navigation
         ancestors = tag.get_ancestors()
@@ -283,8 +291,9 @@ class TagArchiveView(SEOContextMixin, TemplateView):
             )
 
         context["tag"] = tag
+        context["page_obj"] = page_obj
         context["posts_by_year"] = posts_by_year
-        context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        context["total_posts"] = total
         context["ancestors"] = ancestors
         context["children"] = children
         context["siblings"] = siblings
@@ -328,14 +337,14 @@ class TagListView(SEOContextMixin, TemplateView):
             # Staff sees all non-deleted posts
             post_filter = Q(posts__is_deleted=False)
         else:
-            # Public sees only published, public posts
+            # Public counts must match what the tag archive actually lists:
+            # PUBLIC only. Counting UNLISTED here would advertise the number of
+            # hidden posts and make the badge disagree with the archive page.
             post_filter = Q(
+                Q(posts__expire_at__isnull=True) | Q(posts__expire_at__gt=now),
                 posts__is_deleted=False,
                 posts__status=Post.Status.PUBLISHED,
-                posts__visibility__in=[
-                    Post.Visibility.PUBLIC,
-                    Post.Visibility.UNLISTED,
-                ],
+                posts__visibility=Post.Visibility.PUBLIC,
                 posts__published_at__isnull=False,
                 posts__published_at__lte=now,
             )
@@ -434,14 +443,7 @@ class CategoryArchiveView(SEOContextMixin, TemplateView):
                 .order_by("-published_at")
             )
 
-        # Group posts by year
-        posts_by_year = OrderedDict()
-        for post in posts:
-            if post.published_at:
-                year = post.published_at.year
-                if year not in posts_by_year:
-                    posts_by_year[year] = []
-                posts_by_year[year].append(post)
+        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
 
         # Hierarchical navigation
         ancestors = category.get_ancestors()
@@ -457,8 +459,9 @@ class CategoryArchiveView(SEOContextMixin, TemplateView):
             )
 
         context["category"] = category
+        context["page_obj"] = page_obj
         context["posts_by_year"] = posts_by_year
-        context["total_posts"] = sum(len(posts) for posts in posts_by_year.values())
+        context["total_posts"] = total
         context["ancestors"] = ancestors
         context["children"] = children
         context["siblings"] = siblings
@@ -496,13 +499,12 @@ class CategoryListView(SEOContextMixin, TemplateView):
         if user.is_authenticated and (user.is_staff or user.is_superuser):
             post_filter = Q(posts__is_deleted=False)
         else:
+            # PUBLIC only — see the note in TagListView.get_context_data.
             post_filter = Q(
+                Q(posts__expire_at__isnull=True) | Q(posts__expire_at__gt=now),
                 posts__is_deleted=False,
                 posts__status=Post.Status.PUBLISHED,
-                posts__visibility__in=[
-                    Post.Visibility.PUBLIC,
-                    Post.Visibility.UNLISTED,
-                ],
+                posts__visibility=Post.Visibility.PUBLIC,
                 posts__published_at__isnull=False,
                 posts__published_at__lte=now,
             )
@@ -642,6 +644,24 @@ class PostDetailView(SEOContextMixin, DetailView):
     context_object_name = "post"
     seo_og_type = "article"
 
+    def get(self, request, *args, **kwargs):
+        try:
+            return super().get(request, *args, **kwargs)
+        except Http404:
+            # Fall back to the slug-history table: if this slug is a former
+            # slug of a post the visitor is allowed to see, 301 to its current
+            # URL so renamed posts don't break inbound links.
+            from .models import PostSlugHistory
+
+            history = (
+                PostSlugHistory.objects.select_related("post")
+                .filter(old_slug=self.kwargs.get(self.slug_url_kwarg))
+                .first()
+            )
+            if history and self.get_queryset().filter(pk=history.post_id).exists():
+                return redirect("post-detail", slug=history.post.slug, permanent=True)
+            raise
+
     def get_queryset(self):
         qs = Post.all_objects.select_related("author", "series").prefetch_related(
             "categories",
@@ -654,8 +674,9 @@ class PostDetailView(SEOContextMixin, DetailView):
         if user.is_authenticated and (user.is_staff or user.is_superuser):
             # Staff can view anything (including soft-deleted for diagnostics)
             return qs
-        # Public visitors: published, visible, not soft-deleted
+        # Public visitors: published, visible, not soft-deleted, not expired.
         return qs.filter(
+            Q(expire_at__isnull=True) | Q(expire_at__gt=now),
             is_deleted=False,
             status=Post.Status.PUBLISHED,
             visibility__in=[Post.Visibility.PUBLIC, Post.Visibility.UNLISTED],

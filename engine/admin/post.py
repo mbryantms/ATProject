@@ -23,6 +23,7 @@ from engine.models import (
     PostCitation,
     PostRevision,
     PostSimilarity,
+    PostSlugHistory,
 )
 
 from .mixins import SoftDeleteAdminMixin
@@ -1253,6 +1254,7 @@ class PostRevisionInline(admin.TabularInline):
     extra = 0
     can_delete = False
     max_num = 0
+    ordering = ["-version"]
     verbose_name = "Revision"
     verbose_name_plural = "Revision History"
 
@@ -1261,6 +1263,20 @@ class PostRevisionInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         return False
+
+    def get_queryset(self, request):
+        # Defer the (potentially large) markdown body and compute its length in
+        # the database instead. size_display previously called
+        # len(obj.content_markdown), which loaded the full body of every
+        # historical revision on each change-form open.
+        from django.db.models.functions import Length
+
+        return (
+            super()
+            .get_queryset(request)
+            .defer("content_markdown")
+            .annotate(_md_len=Length("content_markdown"))
+        )
 
     @admin.display(description="Version")
     def version_link(self, obj):
@@ -1275,7 +1291,9 @@ class PostRevisionInline(admin.TabularInline):
     def size_display(self, obj):
         if not obj or not obj.pk:
             return "-"
-        size = len(obj.content_markdown)
+        size = getattr(obj, "_md_len", None)
+        if size is None:
+            size = len(obj.content_markdown)
         if size < 1024:
             return f"{size} B"
         return f"{size / 1024:.1f} KB"
@@ -3142,6 +3160,23 @@ class PostSimilarityAdmin(admin.ModelAdmin):
         "components",
         "computed_at",
     )
+    list_per_page = 100
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(PostSlugHistory)
+class PostSlugHistoryAdmin(admin.ModelAdmin):
+    """Read-only view of former slugs that 301-redirect to their post."""
+
+    list_display = ("old_slug", "post", "created_at")
+    search_fields = ("old_slug", "post__title", "post__slug")
+    list_select_related = ("post",)
+    readonly_fields = ("old_slug", "post", "created_at")
     list_per_page = 100
 
     def has_add_permission(self, request):
