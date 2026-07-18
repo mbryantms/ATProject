@@ -99,6 +99,9 @@ def _build_citation_style_help_html():
             f'<div class="mk-cs-sample">Bibliography: {bib}</div>'
             f"</div>"
         )
+    # The toggle behavior lives in static/js/admin-post-aux.js (loaded via
+    # PostAdmin.Media) — an external file so the site's nonce CSP doesn't block
+    # it, and so the JS is linted/cached in one place.
     return (
         '<span class="mk-citestyle-help">'
         "<button type='button' class='mk-citestyle-help-btn' "
@@ -108,24 +111,6 @@ def _build_citation_style_help_html():
         '<div style="margin-top:6px;">' + "".join(rows) + "</div>"
         "</div>"
         "</span>"
-        "<script>(function(){"
-        "if(window.__mkCsHelpBound)return;window.__mkCsHelpBound=true;"
-        "document.addEventListener('click',function(e){"
-        "if(e.target&&e.target.classList.contains('mk-citestyle-help-btn')){"
-        "e.preventDefault();"
-        "var p=e.target.nextElementSibling;"
-        "var shown=p.style.display==='block';"
-        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
-        "function(el){el.style.display='none';});"
-        "if(!shown){p.style.display='block';"
-        "var r=e.target.getBoundingClientRect();"
-        "p.style.left=(window.scrollX+r.left)+'px';"
-        "p.style.top=(window.scrollY+r.bottom+6)+'px';}"
-        "}else if(!(e.target.closest&&e.target.closest('.mk-citestyle-help-panel'))){"
-        "document.querySelectorAll('.mk-citestyle-help-panel').forEach("
-        "function(el){el.style.display='none';});"
-        "}});"
-        "})();</script>"
     )
 
 
@@ -135,245 +120,6 @@ CITATION_STYLE_HELP_HTML = _build_citation_style_help_html()
 # inside a markdown link/image target. Mirrors the production
 # asset_resolver preprocessor pattern so orphan warnings stay in sync.
 _ASSET_REF_RE = re.compile(r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)")
-
-
-_CITE_PICKER_JS = """
-<script>
-(function() {
-    if (window.__mkCitePickerBound) return;
-    window.__mkCitePickerBound = true;
-
-    var state = { results: [], selected: 0, savedCursor: null };
-
-    function escapeHtml(s) {
-        return String(s == null ? '' : s).replace(/[&<>\"']/g, function(c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
-        });
-    }
-
-    function openModal() {
-        var m = document.getElementById('mk-cite-modal');
-        if (!m) return;
-        // Remember cursor position before focus is stolen.
-        var view = window.__atpPostEditorView;
-        if (view) state.savedCursor = view.state.selection.main.head;
-        m.style.display = 'flex';
-        var input = document.getElementById('mk-cite-search');
-        if (input) { input.value = ''; setTimeout(function(){ input.focus(); }, 0); }
-        renderResults([]);
-        fetchResults('');
-    }
-
-    function closeModal() {
-        var m = document.getElementById('mk-cite-modal');
-        if (m) m.style.display = 'none';
-    }
-
-    function renderResults(rows) {
-        var out = document.getElementById('mk-cite-results');
-        if (!out) return;
-        state.results = rows;
-        if (state.selected >= rows.length) state.selected = 0;
-        if (!rows.length) {
-            out.innerHTML = '<div style=\"padding:14px 16px;color:var(--body-quiet-color);\">No matches.</div>';
-            return;
-        }
-        out.innerHTML = rows.map(function(r, i) {
-            var meta = [r.author, r.year].filter(Boolean).join(' ');
-            return '<div class=\"mk-cite-row' + (i === state.selected ? ' mk-active' : '') +
-                '\" data-idx=\"' + i + '\">' +
-                '<code>' + escapeHtml(r.key) + '</code>' +
-                '<div class=\"mk-cite-title\" title=\"' + escapeHtml(r.title) + '\">' +
-                escapeHtml(r.title) + '</div>' +
-                '<div class=\"mk-cite-meta\">' + escapeHtml(meta) + '</div>' +
-                '</div>';
-        }).join('');
-    }
-
-    var fetchTimer = null;
-    function fetchResults(q) {
-        var wrap = document.querySelector('.mk-cite-controls');
-        if (!wrap) return;
-        var url = wrap.getAttribute('data-cite-url');
-        if (fetchTimer) clearTimeout(fetchTimer);
-        fetchTimer = setTimeout(function() {
-            fetch(url + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
-                .then(function(r) { return r.ok ? r.json() : { results: [] }; })
-                .then(function(data) { renderResults(data.results || []); })
-                .catch(function() { renderResults([]); });
-        }, 180);
-    }
-
-    function insertAt(key) {
-        if (!key) return;
-        var view = window.__atpPostEditorView;
-        var insertText = '[@' + key + ']';
-        if (!view) {
-            // Fall back to textarea for authors without CM6 (just in case).
-            var ta = document.getElementById('id_content_markdown');
-            if (!ta) { closeModal(); return; }
-            var p = ta.selectionStart || 0;
-            ta.value = ta.value.slice(0, p) + insertText + ta.value.slice(p);
-            ta.selectionStart = ta.selectionEnd = p + insertText.length;
-            closeModal();
-            return;
-        }
-        var pos = state.savedCursor != null ? state.savedCursor : view.state.selection.main.head;
-        pos = Math.max(0, Math.min(pos, view.state.doc.length));
-        view.dispatch({
-            changes: { from: pos, insert: insertText },
-            selection: { anchor: pos + insertText.length },
-        });
-        view.focus();
-        closeModal();
-    }
-
-    function moveSelection(delta) {
-        if (!state.results.length) return;
-        state.selected = Math.max(0, Math.min(state.results.length - 1, state.selected + delta));
-        renderResults(state.results);
-        var active = document.querySelector('.mk-cite-row.mk-active');
-        if (active) active.scrollIntoView({ block: 'nearest' });
-    }
-
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('mk-cite-picker-btn')) {
-            e.preventDefault();
-            openModal();
-            return;
-        }
-        if (e.target && e.target.id === 'mk-cite-close') { closeModal(); return; }
-        if (e.target && e.target.id === 'mk-cite-modal') { closeModal(); return; }
-        var row = e.target && e.target.closest && e.target.closest('.mk-cite-row');
-        if (row) {
-            var idx = parseInt(row.getAttribute('data-idx'), 10);
-            if (!isNaN(idx) && state.results[idx]) insertAt(state.results[idx].key);
-        }
-    });
-
-    document.addEventListener('input', function(e) {
-        if (e.target && e.target.id === 'mk-cite-search') {
-            fetchResults(e.target.value || '');
-            state.selected = 0;
-        }
-    });
-
-    document.addEventListener('keydown', function(e) {
-        var modal = document.getElementById('mk-cite-modal');
-        if (!modal || modal.style.display !== 'flex') return;
-        if (e.key === 'Escape') { closeModal(); }
-        else if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1); }
-        else if (e.key === 'Enter') {
-            e.preventDefault();
-            var r = state.results[state.selected];
-            if (r) insertAt(r.key);
-        }
-    });
-})();
-</script>
-"""
-
-
-_PREVIEW_MODAL_JS = """
-<script>
-(function() {
-    if (window.__markdownPreviewBound) return;
-    window.__markdownPreviewBound = true;
-
-    function getCookie(name) {
-        var cookies = document.cookie ? document.cookie.split('; ') : [];
-        for (var i = 0; i < cookies.length; i++) {
-            var parts = cookies[i].split('=');
-            if (parts[0] === name) return decodeURIComponent(parts.slice(1).join('='));
-        }
-        return '';
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>]/g, function(c) {
-            return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];
-        });
-    }
-
-    function openModal() {
-        document.getElementById('markdown-preview-modal').style.display = 'flex';
-    }
-    function closeModal() {
-        document.getElementById('markdown-preview-modal').style.display = 'none';
-    }
-
-    function renderLint(items) {
-        var box = document.getElementById('markdown-preview-lint');
-        if (!items || !items.length) { box.innerHTML = ''; return; }
-        var html = '<div class="mk-lint-box"><strong>⚠️ Lint warnings:</strong><ul>';
-        items.forEach(function(m) { html += '<li>' + escapeHtml(m) + '</li>'; });
-        html += '</ul></div>';
-        box.innerHTML = html;
-    }
-
-    function setIframeDoc(doc) {
-        var iframe = document.getElementById('markdown-preview-iframe');
-        iframe.srcdoc = doc;
-    }
-
-    function errorDoc(msg) {
-        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
-            'padding:20px;color:#b00;">' + escapeHtml(msg) + '</body></html>';
-    }
-
-    function loadingDoc() {
-        return '<!DOCTYPE html><html><body style="font-family:system-ui;' +
-            'padding:20px;color:#888;"><em>Rendering…</em></body></html>';
-    }
-
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('markdown-preview-btn')) {
-            e.preventDefault();
-            var wrap = e.target.closest('.markdown-preview-controls');
-            var url = wrap.getAttribute('data-preview-url');
-            var postId = wrap.getAttribute('data-post-id');
-            var textarea = document.getElementById('id_content_markdown');
-            if (!textarea) { alert('Content textarea not found.'); return; }
-
-            setIframeDoc(loadingDoc());
-            renderLint([]);
-            openModal();
-
-            var form = new FormData();
-            form.append('content', textarea.value || '');
-            if (postId) form.append('post_id', postId);
-
-            fetch(url, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                body: form,
-                credentials: 'same-origin'
-            }).then(function(r) { return r.json(); })
-              .then(function(json) {
-                  renderLint(json.lint || []);
-                  if (json.ok) {
-                      setIframeDoc(json.html);
-                  } else {
-                      setIframeDoc(errorDoc(json.error || 'Preview failed.'));
-                  }
-              }).catch(function(err) {
-                  setIframeDoc(errorDoc('Preview failed: ' + err));
-              });
-        }
-        if (e.target && e.target.id === 'markdown-preview-close') { closeModal(); }
-        if (e.target && e.target.id === 'markdown-preview-modal') { closeModal(); }
-    });
-
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            var modal = document.getElementById('markdown-preview-modal');
-            if (modal && modal.style.display !== 'none') closeModal();
-        }
-    });
-})();
-</script>
-"""
 
 
 # Fenced-div snippets surfaced in the CM6 editor when a line starts with ``:::``.
@@ -484,308 +230,7 @@ EDITOR_INLINE_CLASSES = [
 ]
 
 
-_ADMIN_AUX_STYLE = """
-<style>
-/* --- Markdown cheatsheet (Phase 1) --- */
-.markdown-cheatsheet {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--darkened-bg);
-  margin: 0 0 12px 0;
-  color: var(--body-fg);
-}
-.markdown-cheatsheet > summary {
-  cursor: pointer; padding: 10px 14px; font-weight: 600;
-  color: var(--body-fg); user-select: none;
-}
-.markdown-cheatsheet details { margin-bottom: 10px; }
-.markdown-cheatsheet details > summary {
-  cursor: pointer; font-weight: 600; color: var(--link-fg, var(--body-fg));
-}
-.markdown-cheatsheet .mc-body { padding: 10px 16px 16px 16px; font-size: 13px; line-height: 1.5; }
-.markdown-cheatsheet .mc-lead, .markdown-cheatsheet .mc-note {
-  color: var(--body-quiet-color); margin: 0 0 10px 0;
-}
-.markdown-cheatsheet .mc-note { font-size: 12px; margin: 6px 0 0 0; }
-.markdown-cheatsheet table { border-collapse: collapse; margin-top: 6px; width: 100%; }
-.markdown-cheatsheet td { padding: 4px 8px; vertical-align: top; }
-.markdown-cheatsheet td.mc-syntax { width: 50%; }
-.markdown-cheatsheet td.mc-desc { color: var(--body-quiet-color); }
-.markdown-cheatsheet code {
-  background: var(--body-bg); color: var(--body-fg);
-  padding: 2px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
-}
-.markdown-cheatsheet pre {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 8px 10px; border-radius: 4px; margin: 6px 0;
-  font-size: 12px; overflow-x: auto;
-}
-.markdown-cheatsheet a { color: var(--link-fg); }
-
-/* --- Asset reference helper --- */
-.mk-asset-info, .mk-asset-none, .mk-asset-orphan {
-  padding: 10px 12px; border-radius: 4px; margin-bottom: 10px;
-  border: 1px solid var(--border-color); background: var(--darkened-bg);
-  color: var(--body-fg); font-size: 13px;
-}
-.mk-asset-info code, .mk-asset-none code {
-  background: var(--body-bg); color: var(--body-fg);
-  padding: 1px 5px; border-radius: 3px; border: 1px solid var(--hairline-color);
-}
-.mk-asset-orphan { border-color: var(--error-fg, #ba2121); }
-.mk-asset-orphan strong { color: var(--error-fg, #ba2121); }
-.mk-asset-orphan .mk-orphan-chip {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color);
-  padding: 2px 6px; border-radius: 3px; margin-right: 6px;
-  display: inline-block;
-}
-.mk-asset-orphan .mk-hint { font-size: 11px; margin-top: 4px; color: var(--body-quiet-color); }
-
-.mk-asset-list {
-  max-height: 400px; overflow-y: auto;
-  border: 1px solid var(--border-color); border-radius: 4px;
-  padding: 12px; background: var(--darkened-bg);
-}
-.mk-asset-list .mk-asset-header {
-  margin-bottom: 8px; font-weight: 600; color: var(--body-fg);
-}
-.mk-asset-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 8px;
-}
-.mk-asset-card {
-  background: var(--body-bg); border: 1px solid var(--border-color);
-  border-radius: 3px; padding: 8px; cursor: pointer; color: var(--body-fg);
-}
-.mk-asset-card:hover { border-color: var(--link-fg); background: var(--selected-bg, var(--body-bg)); }
-.mk-asset-card.mk-copied { border-color: #28a745; }
-.mk-asset-card .mk-meta { font-size: 11px; color: var(--body-quiet-color); margin-bottom: 3px; }
-.mk-asset-card .mk-title {
-  font-weight: 500; font-size: 13px; margin-bottom: 4px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mk-asset-card code {
-  font-size: 10px; background: var(--darkened-bg); color: var(--body-fg);
-  padding: 2px 4px; border-radius: 2px; display: block;
-  font-family: monospace; border: 1px solid var(--hairline-color);
-}
-.mk-asset-order-badge {
-  background: var(--border-color); color: var(--body-fg);
-  padding: 2px 6px; border-radius: 2px; font-size: 9px;
-  font-weight: 600; margin-right: 4px;
-}
-.mk-asset-tip {
-  margin-top: 8px; padding: 8px; border-radius: 3px;
-  background: var(--darkened-bg); border: 1px solid var(--hairline-color);
-  font-size: 11px; color: var(--body-quiet-color);
-}
-
-/* --- Preview button + modal --- */
-.markdown-preview-controls { margin: 4px 0 10px 0; }
-.markdown-preview-btn {
-  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
-  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
-}
-.markdown-preview-btn:hover { background: var(--button-hover-bg); }
-.markdown-preview-hint {
-  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
-}
-.markdown-preview-modal {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.55); z-index: 9999;
-  align-items: stretch; justify-content: center; padding: 16px;
-}
-.markdown-preview-modal .mk-panel {
-  background: var(--body-bg); color: var(--body-fg);
-  width: min(1400px, 96vw); height: calc(100vh - 32px);
-  border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: column;
-  border: 1px solid var(--border-color);
-}
-.markdown-preview-modal .mk-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: var(--darkened-bg);
-  border-bottom: 1px solid var(--border-color);
-}
-.markdown-preview-modal .mk-header strong { color: var(--body-fg); }
-.markdown-preview-modal .mk-close {
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 20px; color: var(--body-quiet-color);
-}
-.markdown-preview-modal .mk-lint { padding: 0 16px; }
-.markdown-preview-modal .mk-lint-box {
-  background: var(--message-warning-bg, #ffc); color: var(--body-fg);
-  border: 1px solid var(--border-color);
-  padding: 8px 12px; margin: 10px 0; border-radius: 4px; font-size: 12px;
-}
-.markdown-preview-modal .mk-lint-box ul { margin: 4px 0 0 18px; padding: 0; }
-.markdown-preview-modal .mk-iframe {
-  flex: 1; min-height: 600px; width: 100%; border: 0;
-  background: #ffffff;
-}
-
-/* --- Inline asset preview card (PostAssetInline) --- */
-.mk-ap-card, .mk-ap-img {
-  width: 120px; text-align: center;
-}
-.mk-ap-card {
-  height: 90px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  background: var(--darkened-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px; color: var(--body-fg);
-}
-.mk-ap-empty {
-  border: 2px dashed var(--border-color);
-  color: var(--body-quiet-color);
-}
-.mk-ap-icon { font-size: 40px; margin-bottom: 4px; opacity: 0.9; }
-.mk-ap-empty .mk-ap-icon { font-size: 32px; }
-.mk-ap-label { font-size: 11px; font-weight: 500; }
-.mk-ap-empty .mk-ap-label { opacity: 0.7; }
-.mk-ap-img-thumb {
-  max-width: 120px; max-height: 90px; border-radius: 6px;
-  border: 1px solid var(--border-color);
-  display: block; margin: 0 auto 4px;
-}
-.mk-ap-dims { font-size: 10px; color: var(--body-quiet-color); }
-
-/* --- Inline reference copy button (PostAssetInline) --- */
-.mk-inline-ref { display: flex; align-items: center; gap: 8px; }
-.mk-inline-ref-code {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 4px 8px; border-radius: 3px; font-family: monospace;
-}
-.mk-inline-ref-copy {
-  background: var(--button-bg); color: var(--button-fg);
-  border: 1px solid var(--border-color); border-radius: 3px;
-  padding: 4px 12px; cursor: pointer; font-size: 12px;
-}
-.mk-inline-ref-copy:hover { background: var(--button-hover-bg); }
-
-/* --- Override fallback previews (Phase 5.3) --- */
-.mk-override-fallback {
-  display: block; margin-top: 4px; padding: 6px 8px;
-  background: var(--darkened-bg); color: var(--body-quiet-color);
-  border: 1px dashed var(--hairline-color); border-radius: 3px;
-  font-size: 11px; line-height: 1.4;
-}
-.mk-override-fallback .mk-of-label {
-  color: var(--body-fg); font-weight: 600; margin-right: 4px;
-}
-.mk-override-fallback code {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 1px 4px; border-radius: 2px;
-}
-
-/* --- Citation style help popover (Phase 4.2) --- */
-.mk-citestyle-help {
-  display: inline-flex; align-items: center; margin-left: 8px;
-  vertical-align: middle;
-}
-.mk-citestyle-help-btn {
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 50%;
-  width: 20px; height: 20px; line-height: 0; padding: 0;
-  font-size: 12px; cursor: pointer;
-}
-.mk-citestyle-help-btn:hover { background: var(--darkened-bg); }
-.mk-citestyle-help-panel {
-  display: none; position: absolute; z-index: 200;
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  padding: 10px 12px; max-width: 480px; font-size: 12px; line-height: 1.45;
-}
-.mk-citestyle-help-panel h5 {
-  margin: 0 0 4px 0; font-size: 12px; color: var(--link-fg, var(--body-fg));
-}
-.mk-citestyle-help-panel .mk-cs-sample {
-  padding: 4px 6px; margin-bottom: 8px;
-  background: var(--darkened-bg); border-left: 2px solid var(--border-color);
-  font-family: Georgia, serif;
-}
-
-/* --- Citation picker modal (Phase 4.1) --- */
-.mk-cite-controls { margin: 4px 0 10px 0; }
-.mk-cite-picker-btn {
-  padding: 6px 14px; background: var(--button-bg); color: var(--button-fg);
-  border: 0; border-radius: 4px; cursor: pointer; font-weight: 500;
-}
-.mk-cite-picker-btn:hover { background: var(--button-hover-bg); }
-.mk-cite-picker-hint {
-  margin-left: 10px; color: var(--body-quiet-color); font-size: 12px;
-}
-.mk-cite-modal {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.55); z-index: 9999;
-  align-items: center; justify-content: center; padding: 16px;
-}
-.mk-cite-modal .mk-panel {
-  background: var(--body-bg); color: var(--body-fg);
-  width: min(820px, 96vw); max-height: 85vh;
-  border-radius: 8px; overflow: hidden;
-  display: flex; flex-direction: column;
-  border: 1px solid var(--border-color);
-}
-.mk-cite-modal .mk-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: var(--darkened-bg);
-  border-bottom: 1px solid var(--border-color);
-}
-.mk-cite-modal .mk-close {
-  background: transparent; border: 0; cursor: pointer;
-  font-size: 20px; color: var(--body-quiet-color);
-}
-.mk-cite-modal .mk-search-row {
-  display: flex; gap: 8px; padding: 10px 16px;
-  border-bottom: 1px solid var(--hairline-color);
-}
-.mk-cite-modal .mk-search-row input {
-  flex: 1; padding: 6px 10px;
-  background: var(--body-bg); color: var(--body-fg);
-  border: 1px solid var(--border-color); border-radius: 3px;
-}
-.mk-cite-modal .mk-results {
-  flex: 1; overflow-y: auto; padding: 4px 0;
-}
-.mk-cite-row {
-  padding: 8px 16px; border-bottom: 1px solid var(--hairline-color);
-  cursor: pointer; display: grid;
-  grid-template-columns: minmax(140px, auto) 1fr auto;
-  gap: 12px; align-items: baseline;
-}
-.mk-cite-row:hover, .mk-cite-row.mk-active {
-  background: var(--selected-row, rgba(127,127,127,0.1));
-}
-.mk-cite-row code {
-  background: var(--darkened-bg); color: var(--body-fg);
-  border: 1px solid var(--hairline-color);
-  padding: 1px 6px; border-radius: 2px; font-size: 12px;
-}
-.mk-cite-row .mk-cite-title {
-  color: var(--body-fg); font-size: 13px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-.mk-cite-row .mk-cite-meta {
-  color: var(--body-quiet-color); font-size: 11px; white-space: nowrap;
-}
-.mk-cite-footer {
-  padding: 8px 16px; font-size: 11px; color: var(--body-quiet-color);
-  border-top: 1px solid var(--hairline-color);
-  background: var(--darkened-bg);
-}
-</style>
-"""
-
-
-MARKDOWN_CHEATSHEET_HTML = (
-    _ADMIN_AUX_STYLE
-    + """
+MARKDOWN_CHEATSHEET_HTML = """
 <details class="markdown-cheatsheet">
 <summary>📖 Markdown reference — click to expand</summary>
 <div class="mc-body">
@@ -972,7 +417,6 @@ Body without a title still works.
 </div>
 </details>
 """
-)
 
 
 class PostAssetInline(admin.StackedInline):
@@ -1148,32 +592,22 @@ class PostAssetInline(admin.StackedInline):
 
     @admin.display(description="Reference")
     def markdown_ref_display(self, obj):
-        """Show the markdown reference with copy button (theme-aware)."""
-        if obj and obj.pk and obj.asset:
-            if obj.alias:
-                ref = f"@{obj.alias}"
-            else:
-                ref = f"@asset:{obj.asset.key}"
-        else:
-            ref = "-"
+        """Show the markdown reference with a copy button (theme-aware).
 
+        The copy button carries the text in ``data-clipboard-text``; the click
+        handler is delegated in static/js/admin-post-aux.js (no inline onclick,
+        which the site's nonce CSP would block).
+        """
+        if not (obj and obj.pk and obj.asset):
+            return mark_safe('<code class="mk-inline-ref-code">-</code>')
+        ref = f"@{obj.alias}" if obj.alias else f"@asset:{obj.asset.key}"
         return format_html(
             '<div class="mk-inline-ref">'
             '<code class="mk-inline-ref-code">{}</code>'
-            "<button type='button' class='mk-inline-ref-copy' "
-            'onclick="'
-            "const code = this.previousElementSibling.textContent; "
-            "if (code !== '-') {{ "
-            "navigator.clipboard.writeText(code).then(() => {{ "
-            "const orig = this.textContent; this.textContent = '✓ Copied'; "
-            "setTimeout(() => {{ this.textContent = orig; }}, 2000); "
-            "}}); "
-            "}} else {{ "
-            "alert('Please select an asset and save first'); "
-            "}} "
-            "event.preventDefault();"
-            '">Copy</button>'
+            '<button type="button" class="mk-inline-ref-copy mk-copy-btn" '
+            'data-clipboard-text="{}">Copy</button>'
             "</div>",
+            ref,
             ref,
         )
 
@@ -1349,7 +783,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     date_hierarchy = "published_at"
 
     class Media:
-        js = ("js/dist/admin-post-editor.js",)
+        js = ("js/dist/admin-post-editor.js", "js/admin-post-aux.js")
         css = {"all": ("css/admin-common.css", "css/admin-post.css")}
 
     list_display = (
@@ -2400,11 +1834,9 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             '<div id="markdown-preview-lint" class="mk-lint"></div>'
             '<iframe id="markdown-preview-iframe" class="mk-iframe" '
             'sandbox="allow-same-origin"></iframe>'
-            "</div></div>"
-            "{}",
+            "</div></div>",
             preview_url,
             post_id,
-            mark_safe(_PREVIEW_MODAL_JS),
         )
 
     @admin.display(description="Insert citation")
@@ -2436,10 +1868,8 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             '<div id="mk-cite-results" class="mk-results"></div>'
             '<div class="mk-cite-footer">'
             "Inserts <code>[@key]</code> at the current cursor position in the markdown editor."
-            "</div></div></div>"
-            "{}",
+            "</div></div></div>",
             citations_url,
-            mark_safe(_CITE_PICKER_JS),
         )
 
     @admin.display(description="Asset Markdown References")
@@ -2525,28 +1955,8 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         parts.append(
             '<div class="mk-asset-tip">💡 <strong>Tip:</strong> Click any asset card above to copy its markdown reference.</div>'
         )
-        parts.append(
-            """
-<script>
-(function() {
-    setTimeout(function() {
-        document.querySelectorAll('.mk-asset-card').forEach(function(card) {
-            if (card.hasAttribute('data-listener')) return;
-            card.setAttribute('data-listener', 'true');
-            card.addEventListener('click', function() {
-                var ref = this.getAttribute('data-ref');
-                navigator.clipboard.writeText(ref).then(function() {
-                    card.classList.add('mk-copied');
-                    setTimeout(function() { card.classList.remove('mk-copied'); }, 2000);
-                });
-            });
-        });
-    }, 500);
-})();
-</script>
-"""
-        )
-
+        # Click-to-copy on the cards (data-ref) is handled by delegation in
+        # static/js/admin-post-aux.js — no inline <script> (nonce CSP).
         return mark_safe(orphan_html + "".join(parts))
 
     def _orphan_asset_ref_warning(self, obj, post_assets):

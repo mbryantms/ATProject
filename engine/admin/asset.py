@@ -1055,7 +1055,7 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         if not obj.file:
             # A presigned-upload placeholder or any fileless asset — accessing
             # obj.file.url would raise ValueError and break the change page.
-            return format_html('<span class="mk-muted">No file</span>')
+            return mark_safe('<span class="mk-muted">No file</span>')
         return format_html(
             '<a href="{}" target="_blank" class="mk-btn">Download file</a>',
             obj.file.url,
@@ -2385,7 +2385,7 @@ class AssetCollectionAdmin(admin.ModelAdmin):
         if count is None:
             count = obj.asset_count()
         if count == 0:
-            return format_html('<em class="mk-muted">No assets yet</em>')
+            return mark_safe('<em class="mk-muted">No assets yet</em>')
         return format_html(
             '<span class="mk-pill mk-pill--info">{} asset{}</span>',
             count,
