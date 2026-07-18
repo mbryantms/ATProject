@@ -1580,14 +1580,31 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             "Publishing",
             {
                 "fields": (
-                    ("status", "completion_status"),
-                    ("visibility",),
+                    ("status", "visibility"),
                     ("published_at", "expire_at"),
                     ("is_featured", "is_pinned", "pin_order"),
                 ),
                 "description": (
-                    "Lifecycle state, who can see the post, and scheduled "
-                    "go-live / expiry times."
+                    "<strong>Status</strong> is the publication lifecycle "
+                    "(draft → scheduled → published → archived) and, with "
+                    "<strong>Visibility</strong>, controls whether the post is "
+                    "live and who can see it. Scheduled/published posts go live "
+                    "at <em>Published at</em>. (Not to be confused with the "
+                    "editorial <em>Completion</em> field under Editorial notes, "
+                    "which is only a label shown on the page.)"
+                ),
+            },
+        ),
+        (
+            "Editorial notes",
+            {
+                "fields": ("completion_status",),
+                "classes": ["collapse"],
+                "description": (
+                    "<strong>Completion</strong> is an editorial label shown in "
+                    "the page metadata (Notes / Draft / In Progress / Finished / "
+                    "Abandoned). It does <strong>not</strong> affect visibility "
+                    "or publication — that's <em>Status</em> above."
                 ),
             },
         ),

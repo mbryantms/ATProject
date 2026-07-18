@@ -444,6 +444,31 @@ class Asset(TimeStampedModel, SoftDeleteModel):
         prefix = self.TYPE_PREFIXES.get(self.asset_type, "asset")
         return f"{prefix}-{slugify(self.title) or 'asset'}"
 
+    def thumbnail_url(self, prefer_width=400):
+        """Return a small image-rendition URL for admin previews.
+
+        Picks the smallest completed rendition at least ``prefer_width`` wide
+        (or the largest available if none reach it), so admin list pages don't
+        download full-size originals. Falls back to the original file. Iterates
+        the ``renditions`` relation in Python, so prefetch it on changelists.
+        Returns ``""`` for a fileless asset.
+        """
+        if self.asset_type == "image":
+            candidates = [
+                r
+                for r in self.renditions.all()
+                if r.status == "completed" and r.width and r.file
+            ]
+            if candidates:
+                at_or_above = [r for r in candidates if r.width >= prefer_width]
+                chosen = (
+                    min(at_or_above, key=lambda r: r.width)
+                    if at_or_above
+                    else max(candidates, key=lambda r: r.width)
+                )
+                return chosen.url
+        return self.file.url if self.file else ""
+
     def _generate_unique_key(self, base_slug):
         """
         Generate a unique key with intelligent organization.

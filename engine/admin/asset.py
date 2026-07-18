@@ -597,10 +597,18 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Optimize queryset for list view."""
+        from django.db.models import Prefetch
+
         qs = super().get_queryset(request)
-        # Prefetch related objects to avoid N+1 queries
-        qs = qs.prefetch_related("asset_tags", "collections").select_related(
-            "asset_folder"
+        # Prefetch related objects to avoid N+1 queries. Renditions are
+        # prefetched (completed only) so thumbnail_url() can pick a small image
+        # for the row preview without a query per row.
+        qs = qs.select_related("asset_folder").prefetch_related(
+            "collections",
+            Prefetch(
+                "renditions",
+                queryset=AssetRendition.objects.filter(status="completed"),
+            ),
         )
         return qs
 
@@ -881,12 +889,14 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         if obj.asset_type == "image" and obj.file:
             return format_html(
                 '<div class="mk-asset-row">'
-                '<img src="{}" class="mk-asset-row__thumb" alt="" />'
+                '<img src="{}" class="mk-asset-row__thumb" alt="" '
+                'loading="lazy" />'
                 "<div>"
                 '<div class="mk-asset-row__title">{}</div>'
                 '<div class="mk-asset-row__meta">{} × {}</div>'
                 "</div></div>",
-                obj.file.url,
+                # Small rendition, not the full original (up to 50/page here).
+                obj.thumbnail_url(),
                 obj.title,
                 obj.width or "?",
                 obj.height or "?",
