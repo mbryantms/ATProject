@@ -107,8 +107,13 @@ a.citation:visited {
   opacity: 0.85;
 }
 
-/*  Copy-reference button — subdued until the entry is hovered. */
+/*  Copy-reference button — subdued until the entry is hovered.
+    display must be inline-flex: base.css sets a global
+    `button { display: flex }`, which is block-level and pushes the button
+    onto its own line below the reference. */
 .copy-citation-button {
+  display: inline-flex;
+  align-items: center;
   background: transparent;
   border: 0;
   padding: 0 0.2em;
@@ -116,7 +121,7 @@ a.citation:visited {
   color: var(--AT-citation-color);
   opacity: 0;
   transition: opacity 0.15s ease;
-  vertical-align: baseline;
+  vertical-align: text-bottom;
 }
 .copy-citation-button svg {
   width: 0.85em;

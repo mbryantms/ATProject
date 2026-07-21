@@ -235,6 +235,42 @@ def refresh_source_vector_on_file_delete(sender, instance, **kwargs):
     )
 
 
+@receiver(post_save, sender=SourceFile)
+@receiver(post_delete, sender=SourceFile)
+def rerender_citing_posts_on_file_change(sender, instance, **kwargs):
+    """
+    Re-render posts citing this file's source.
+
+    The [PDF]/[DOC]-style file links are baked into each citing post's cached
+    bibliography HTML at render time, so uploading, replacing, deleting, or
+    un-publicizing an archive file must queue a derived-content re-render —
+    otherwise the change never reaches readers (the same gap the annotation
+    flow closes via the post admin's save_related hook). Enqueued on commit
+    so the worker can't race the uncommitted file row.
+    """
+    from django.db import transaction
+
+    source_id = instance.source_id
+    if not source_id:
+        return
+
+    def _enqueue():
+        from engine.tasks import update_post_derived_content
+
+        post_ids = PostCitation.objects.filter(source_id=source_id).values_list(
+            "post_id", flat=True
+        )
+        for pk in post_ids:
+            try:
+                update_post_derived_content.delay(pk)
+            except Exception as exc:  # broker unreachable, etc.
+                logger.warning(
+                    "Could not enqueue bibliography re-render for post %s: %s", pk, exc
+                )
+
+    transaction.on_commit(_enqueue)
+
+
 # NOTE: Previous handlers update_backlinks_when_slug_changes and
 # rebuild_links_on_publish were removed — they re-queried the database inside
 # post_save (after the row was already written), so the "old vs new" comparison

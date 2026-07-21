@@ -61,6 +61,7 @@ Presentation            Inline citations, bibliography section, tooltips
 - Full-text extraction from archived files (async, on upload; feeds search)
 - Proactive Wayback Machine submission (on Source create / URL change)
 - Source search vector refresh (on Source/SourceFile save; sources appear in site search)
+- Citing-post re-render (on SourceFile upload/replace/delete/visibility change — the `[PDF]`-style links in cached bibliographies stay current)
 
 ---
 
@@ -287,6 +288,8 @@ Each Source can hold **multiple archived files** (`SourceFile` rows, `source.fil
 ### Uploading Files
 
 In the Source admin, use the **Source files** inline — upload, label, and toggle visibility per file. Each row shows a download link, detected kind, size, and hash prefix.
+
+Uploading, replacing, deleting, or toggling visibility on a file automatically queues a re-render of every post citing the source, so the `[PDF]`-style links appear in (or vanish from) published bibliographies without re-saving the post.
 
 **Accepted formats:** PDF, DOC/DOCX, and HTML — these cover the overwhelming majority of research papers and primary literature. Enforced by extension validation plus a magic-byte sniff (a `.pdf` that isn't a PDF is rejected).
 
