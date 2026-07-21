@@ -7,6 +7,7 @@ internal links (backlinks), post-asset relationships, and revision history.
 
 import csv
 import difflib
+import logging
 import re
 
 from django.contrib import admin, messages
@@ -29,6 +30,7 @@ from engine.models import (
     Post,
     PostAsset,
     PostCitation,
+    PostFurtherReading,
     PostRevision,
     PostSimilarity,
     PostSlugHistory,
@@ -36,6 +38,8 @@ from engine.models import (
 
 from .display import admin_change_link
 from .mixins import ReadOnlyAdminMixin, SoftDeleteAdminMixin
+
+logger = logging.getLogger(__name__)
 
 # Curated list of CSL styles supported by the citeproc-js bridge.
 # Leaving blank uses the site-wide default.
@@ -580,8 +584,24 @@ class PostCitationInline(admin.TabularInline):
         # Citations are auto-managed from content — don't allow manual deletes
         return False
 
-    def has_change_permission(self, request, obj=None):
-        return False
+    # Change permission stays enabled so the per-post ``annotation`` field is
+    # editable (annotated bibliographies); source/position remain readonly
+    # because the rows themselves are auto-managed from content.
+
+
+class PostFurtherReadingInline(admin.TabularInline):
+    """Curated Further Reading list — fully editable, unlike Cited Sources."""
+
+    model = PostFurtherReading
+    extra = 0
+    fields = ("source", "position", "note")
+    autocomplete_fields = ("source",)
+    ordering = ["position"]
+    verbose_name = "Further Reading entry"
+    verbose_name_plural = "Further Reading (curated)"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("source")
 
 
 # --------------------------
@@ -592,6 +612,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
     inlines = [
         PostAssetInline,
         PostCitationInline,
+        PostFurtherReadingInline,
         IncomingLinksInline,
         PostSimilarityInline,
         PostRevisionInline,
@@ -869,6 +890,11 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 name="engine_post_autocomplete_citations",
             ),
             path(
+                "create-source/",
+                self.admin_site.admin_view(self.create_source_view),
+                name="engine_post_create_source",
+            ),
+            path(
                 "autocomplete-assets/",
                 self.admin_site.admin_view(self.autocomplete_assets_view),
                 name="engine_post_autocomplete_assets",
@@ -930,17 +956,99 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             )
 
         qs = qs.order_by("citation_key")[:20]
-        results = []
-        for s in qs:
-            results.append(
-                {
-                    "key": s.citation_key,
-                    "title": (s.title or "")[:140],
-                    "author": self._author_label(s.authors or []),
-                    "year": self._issued_year(s.issued_date),
-                }
-            )
+        results = [self._source_payload(s) for s in qs]
         return JsonResponse({"results": results})
+
+    @classmethod
+    def _source_payload(cls, source):
+        """JSON shape shared by the citation autocomplete and create endpoints."""
+        return {
+            "key": source.citation_key,
+            "title": (source.title or "")[:140],
+            "author": cls._author_label(source.authors or []),
+            "year": cls._issued_year(source.issued_date),
+        }
+
+    def create_source_view(self, request):
+        """
+        Create (or find) a Source from a pasted DOI/URL/ISBN/title, for the
+        citation picker's "create & insert" flow. Metadata is resolved
+        synchronously so the returned citation key reflects author/year.
+        """
+        import json
+
+        from django.http import JsonResponse
+
+        from engine.bibliography.metadata_resolvers import (
+            apply_metadata_to_source,
+            classify_identifier,
+            resolve_doi,
+            resolve_isbn,
+            resolve_url,
+        )
+        from engine.models import Source
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+        if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+
+        try:
+            payload = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+        id_type, value = classify_identifier(payload.get("identifier", ""))
+        if not id_type:
+            return JsonResponse(
+                {"error": "Enter a DOI, URL, ISBN, or title."}, status=400
+            )
+
+        # Reuse an existing source rather than creating a duplicate
+        existing = {
+            "doi": lambda: Source.objects.filter(doi__iexact=value).first(),
+            "url": lambda: Source.objects.filter(url=value).first(),
+            "isbn": lambda: Source.objects.filter(isbn__iexact=value).first(),
+            "title": lambda: Source.objects.filter(title__iexact=value).first(),
+        }[id_type]()
+        if existing:
+            return JsonResponse({**self._source_payload(existing), "existing": True})
+
+        source = Source()
+        if id_type == "title":
+            source.title = value
+        else:
+            resolver = {
+                "doi": resolve_doi,
+                "url": resolve_url,
+                "isbn": resolve_isbn,
+            }[id_type]
+            try:
+                csl_data = resolver(value)
+            except Exception:
+                logger.exception("Metadata resolution failed for %s %s", id_type, value)
+                csl_data = None
+            if not csl_data:
+                label = "URL" if id_type == "url" else id_type.upper()
+                return JsonResponse(
+                    {"error": f"Could not fetch metadata for that {label}."},
+                    status=502,
+                )
+            apply_metadata_to_source(source, csl_data)
+            # Record the identifier itself even if the resolver omitted it
+            if id_type == "doi" and not source.doi:
+                source.doi = value
+            elif id_type == "url" and not source.url:
+                source.url = value
+            elif id_type == "isbn" and not source.isbn:
+                source.isbn = value
+            if not source.title:
+                source.title = value  # last resort so the row is valid
+
+        source.save()
+        return JsonResponse(
+            {**self._source_payload(source), "existing": False}, status=201
+        )
 
     def autocomplete_assets_view(self, request):
         """Return asset matches, post-scoped aliases first then global keys.
@@ -1550,8 +1658,9 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         Clicking a row inserts ``[@key]`` at the editor's current cursor.
         """
         citations_url = reverse("admin:engine_post_autocomplete_citations")
+        create_url = reverse("admin:engine_post_create_source")
         return format_html(
-            '<div class="mk-cite-controls" data-cite-url="{}">'
+            '<div class="mk-cite-controls" data-cite-url="{}" data-cite-create-url="{}">'
             "<button type='button' class='mk-cite-picker-btn'>"
             "📚 Browse &amp; insert citation</button>"
             "<span class='mk-cite-picker-hint'>"
@@ -1569,10 +1678,19 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             'placeholder="Search by key, title, or author…" autocomplete="off">'
             "</div>"
             '<div id="mk-cite-results" class="mk-results"></div>'
+            '<div class="mk-cite-create-row">'
+            '<input id="mk-cite-create-input" type="text" '
+            'placeholder="New source: paste a DOI, URL, ISBN, or title…" '
+            'autocomplete="off">'
+            "<button type='button' id='mk-cite-create-btn'>➕ Create &amp; insert</button>"
+            "</div>"
+            '<div id="mk-cite-create-status" class="mk-cite-create-status"></div>'
             '<div class="mk-cite-footer">'
-            "Inserts <code>[@key]</code> at the current cursor position in the markdown editor."
+            "Inserts <code>[@key]</code> at the current cursor position in the markdown editor. "
+            "Creating a source fetches metadata from CrossRef / Open Library / the page itself."
             "</div></div></div>",
             citations_url,
+            create_url,
         )
 
     @admin.display(description="Asset Markdown References")
@@ -1719,6 +1837,42 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         for level, msg in self._collect_content_lint_messages(obj):
             self.message_user(request, msg, level=level)
+
+    def save_related(self, request, form, formsets, change):
+        """
+        After inlines save, re-render cached HTML if citation annotations or
+        Further Reading entries changed. Post.save() only re-renders on
+        content changes, so an inline-only edit would otherwise never reach
+        the rendered bibliography / Further Reading section.
+        """
+        super().save_related(request, form, formsets, change)
+
+        def _formset_touched(fs):
+            if fs.model is PostCitation:
+                return bool(fs.changed_objects)
+            if fs.model is PostFurtherReading:
+                return bool(fs.new_objects or fs.changed_objects or fs.deleted_objects)
+            return False
+
+        if not any(_formset_touched(fs) for fs in formsets):
+            return
+
+        from django.db import transaction
+
+        from engine.tasks import update_post_derived_content
+
+        def _enqueue(pk=form.instance.pk):
+            try:
+                update_post_derived_content.delay(pk)
+            except Exception:
+                messages.warning(
+                    request,
+                    "Annotation saved, but the re-render task could not be "
+                    "queued (broker unreachable?). The bibliography will "
+                    "update on the next content save.",
+                )
+
+        transaction.on_commit(_enqueue)
 
     @admin.action(description="Publish selected posts")
     def publish_selected(self, request, queryset):

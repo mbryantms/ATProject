@@ -55,6 +55,17 @@
           </a>
         {% endfor %}
       {% endif %}
+      {% if search_results.results.sources %}
+        <h2 class="search-page-section-header">Sources</h2>
+        {% for src in search_results.results.sources %}
+          <a class="search-page-result" href="{{ src.url }}">
+            <div class="search-page-result-title">{{ src.title }} <span class="search-result-count">({{ src.cited_count }})</span></div>
+            <div class="search-page-result-meta">
+              {% if src.author %}{{ src.author }}{% endif %}{% if src.year %} ({{ src.year }}){% endif %}{% if src.author or src.year %} — {% endif %}{{ src.type }} — @{{ src.citation_key }}
+            </div>
+          </a>
+        {% endfor %}
+      {% endif %}
       {% if search_results.results.posts %}
         <h2 class="search-page-section-header">Posts</h2>
         {% for post in search_results.results.posts %}

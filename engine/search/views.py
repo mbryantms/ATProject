@@ -39,6 +39,7 @@ class SearchAPIView(View):
                         "tags": [],
                         "categories": [],
                         "series": [],
+                        "sources": [],
                         "pages": [],
                     },
                     "facets": {

@@ -7,12 +7,11 @@ Zotero items are mapped to the universal Source model — no separate Zotero-spe
 Zotero item hierarchy:
 - **Top-level items**: actual sources (articles, books, etc.) — these become Sources.
 - **Child items**: attachments (PDFs, snapshots) and notes — these are NOT separate Sources.
-  PDFs are optionally downloaded and stored as the parent Source's archived_file.
+  PDFs are optionally downloaded and stored as SourceFile rows on the parent Source.
 
 We use zot.top() to fetch only top-level items, not zot.items() which returns everything.
 """
 
-import hashlib
 import logging
 
 from django.core.files.base import ContentFile
@@ -50,7 +49,7 @@ def sync_zotero_library(
 
     Only imports top-level items (actual sources). Child items like PDF
     attachments and notes are handled separately — PDFs are downloaded
-    and stored on the parent Source's archived_file field.
+    and stored as SourceFile rows (provenance "zotero") on the parent Source.
 
     Args:
         full: If True, re-import all items. If False, only fetch items
@@ -210,11 +209,15 @@ def _download_attachments(zot, source, stats: dict) -> None:
     Download PDF attachments from Zotero for a source.
 
     Checks child items of the Zotero item for PDF attachments. If found,
-    downloads the first PDF and stores it as the source's archived_file.
-    Skips if the source already has an archived file.
+    downloads the first PDF and stores it as a SourceFile row (provenance
+    "zotero"). Skips if the source already has any archived files.
+    SourceFile.save() handles SHA-256 hashing and cross-source dedup —
+    identical bytes reuse the stored object instead of uploading a copy.
     """
-    if source.archived_file:
-        return  # Already has a file
+    from engine.models import SourceFile, SourceFileProvenance
+
+    if source.files.exists():
+        return  # Already has archived file(s)
 
     if not source.zotero_key:
         return
@@ -244,35 +247,20 @@ def _download_attachments(zot, source, stats: dict) -> None:
             if not pdf_content:
                 continue
 
-            # Compute SHA-256 for deduplication
-            file_hash = hashlib.sha256(pdf_content).hexdigest()
-
-            # Check for duplicate
-            from engine.models import Source as SourceModel
-
-            if (
-                SourceModel.all_objects.filter(archived_file_hash=file_hash)
-                .exclude(pk=source.pk)
-                .exists()
-            ):
-                logger.info(
-                    "Skipping duplicate file (hash %s) for %s",
-                    file_hash[:12],
-                    source.citation_key,
-                )
-                continue
-
             # Build a filename
             filename = data.get("filename", f"{source.citation_key}.pdf")
             if not filename.lower().endswith(".pdf"):
                 filename += ".pdf"
 
-            # Save to the source's archived_file field
-            source.archived_file.save(filename, ContentFile(pdf_content), save=False)
-            source.archived_file_hash = file_hash
-            source.save(
-                update_fields=["archived_file", "archived_file_hash", "updated_at"]
+            source_file = SourceFile(
+                source=source,
+                provenance=SourceFileProvenance.ZOTERO,
+                original_filename=filename,
+                # Assigned (not .save()d) so the upload happens at model save,
+                # after hashing — a dedup hit skips the upload entirely.
+                file=ContentFile(pdf_content, name=filename),
             )
+            source_file.save()
 
             stats["attachments_downloaded"] += 1
             logger.info(

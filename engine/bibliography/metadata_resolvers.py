@@ -20,6 +20,43 @@ logger = logging.getLogger(__name__)
 _USER_AGENT = "ATProject/1.0 (Bibliography System; mailto:admin@example.com)"
 _TIMEOUT = 15
 
+_DOI_RE = re.compile(r"^10\.\d{4,9}/\S+$")
+_DOI_URL_PREFIXES = (
+    "https://doi.org/",
+    "http://doi.org/",
+    "https://dx.doi.org/",
+    "http://dx.doi.org/",
+    "doi:",
+)
+
+
+def classify_identifier(raw: str) -> tuple[str, str]:
+    """
+    Classify author-entered text as a source identifier.
+
+    Returns ``(type, normalized_value)`` where type is one of "doi", "url",
+    "isbn", "title" — or ``("", "")`` for empty input. DOI resolver-URL
+    prefixes are stripped; ISBNs are compacted to bare digits.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return ("", "")
+
+    lowered = text.lower()
+    for prefix in _DOI_URL_PREFIXES:
+        if lowered.startswith(prefix):
+            text = text[len(prefix) :].strip()
+            break
+
+    if _DOI_RE.match(text):
+        return ("doi", text)
+    if text.lower().startswith(("http://", "https://")):
+        return ("url", text)
+    compact = re.sub(r"[\s\-]", "", text)
+    if re.fullmatch(r"\d{9}[\dXx]|\d{13}", compact):
+        return ("isbn", compact.upper())
+    return ("title", text)
+
 
 def resolve_doi(doi: str) -> dict | None:
     """

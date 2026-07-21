@@ -218,3 +218,36 @@ document.addEventListener('DOMContentLoaded', function () {
 
   initCitations();
 });
+
+// --- Copy-reference buttons (bibliography + further reading) ---
+(function () {
+  function flashCopied(btn) {
+    btn.classList.add('copied');
+    var oldTitle = btn.getAttribute('title');
+    btn.setAttribute('title', 'Copied!');
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      btn.setAttribute('title', oldTitle || 'Copy reference');
+    }, 1500);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest && e.target.closest('.copy-citation-button');
+    if (!btn) return;
+    e.preventDefault();
+    var entry = btn.closest('.reference-entry');
+    if (!entry) return;
+    var textEl = entry.querySelector('.reference-text');
+    if (!textEl) return;
+    var text = (textEl.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () {
+          flashCopied(btn);
+        },
+        function () {},
+      );
+    }
+  });
+})();

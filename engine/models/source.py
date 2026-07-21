@@ -12,7 +12,8 @@ queryable fields and a canonical CSL-JSON representation for citation formatting
 import logging
 
 from django.contrib.postgres.search import SearchVectorField
-from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, RegexValidator
 from django.db import models
 
 from engine.bibliography.citation_keys import (
@@ -116,6 +117,14 @@ class SourceQuerySet(SoftDeleteQuerySet):
         """Sources that are cited in at least one post."""
         return self.filter(post_citations__isnull=False).distinct()
 
+    def cited_publicly(self):
+        """Sources cited in at least one published, public, live post."""
+        return self.filter(
+            post_citations__post__is_deleted=False,
+            post_citations__post__status="published",
+            post_citations__post__visibility="public",
+        ).distinct()
+
 
 class SourceManager(SoftDeleteManager):
     """Manager for Source that uses SourceQuerySet."""
@@ -144,12 +153,60 @@ class SourceManager(SoftDeleteManager):
     def cited(self):
         return self.get_queryset().cited()
 
+    def cited_publicly(self):
+        return self.get_queryset().cited_publicly()
+
 
 citation_key_validator = RegexValidator(
     regex=CITATION_KEY_PATTERN,
     message="Citation key must start with a letter or digit, and contain only "
     "lowercase letters, digits, hyphens, and underscores.",
 )
+
+
+def source_search_vector():
+    """
+    Weighted SearchVector expression for Source rows.
+
+    Shared by the signal handlers (per-row refresh) and the
+    rebuild_search_vectors task (bulk backfill). ``authors`` is a JSONField,
+    so it's cast to text — noisy but sufficient for name lookups. Extracted
+    full text from archived files joins at weight D via a correlated
+    subquery, capped so the combined tsvector stays under Postgres's 1MB
+    limit.
+    """
+    from django.contrib.postgres.aggregates import StringAgg
+    from django.contrib.postgres.search import SearchVector
+    from django.db.models import OuterRef, Subquery, Value
+    from django.db.models.functions import Cast, Coalesce, Left
+
+    file_text = Left(
+        Coalesce(
+            Subquery(
+                SourceFile.objects.filter(source=OuterRef("pk"))
+                .exclude(extracted_text="")
+                .values("source")
+                .annotate(
+                    txt=StringAgg(Left("extracted_text", 150_000), delimiter=Value(" "))
+                )
+                .values("txt")[:1]
+            ),
+            Value(""),
+        ),
+        300_000,
+    )
+
+    return (
+        SearchVector("title", weight="A", config="english")
+        + SearchVector("citation_key", weight="A", config="english")
+        + SearchVector("container_title", weight="B", config="english")
+        + SearchVector(
+            Cast("authors", models.TextField()), weight="B", config="english"
+        )
+        + SearchVector("abstract", weight="C", config="english")
+        + SearchVector("note", weight="C", config="english")
+        + SearchVector(file_text, weight="D", config="english")
+    )
 
 
 class Source(TimeStampedModel, SoftDeleteModel):
@@ -311,17 +368,7 @@ class Source(TimeStampedModel, SoftDeleteModel):
         help_text="Wayback Machine or other archive URL.",
     )
 
-    # -- File storage (Phase 6) --
-    archived_file = models.FileField(
-        upload_to="sources/%Y/%m/",
-        blank=True,
-        help_text="Archived copy of the source (PDF, HTML, EPUB).",
-    )
-    archived_file_hash = models.CharField(
-        max_length=64,
-        blank=True,
-        help_text="SHA-256 hash for deduplication.",
-    )
+    # -- File storage: see SourceFile below (related_name="files") --
 
     # -- Search --
     search_vector = SearchVectorField(null=True, blank=True)
@@ -458,3 +505,210 @@ class Source(TimeStampedModel, SoftDeleteModel):
                 return f"{first['family']}, {given[0]}."
             return first["family"]
         return first.get("literal", "")
+
+
+# ---------------------------------------------------------------------------
+# Source file archive
+# ---------------------------------------------------------------------------
+
+# Accepted formats cover the overwhelming majority of research and primary
+# literature. Candidates for future support: epub, txt, md, rtf, xml/nxml
+# (JATS), tex, odt, djvu, ps, mhtml — see BIBLIOGRAPHY.md.
+ARCHIVE_ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "html", "htm"]
+
+
+class SourceFileKind(models.TextChoices):
+    """File format category, auto-detected from the extension."""
+
+    PDF = "pdf", "PDF"
+    DOC = "doc", "Word document"
+    HTML = "html", "HTML snapshot"
+    OTHER = "other", "Other"
+
+
+class SourceFileProvenance(models.TextChoices):
+    """How the file entered the archive."""
+
+    MANUAL = "manual", "Manual upload"
+    ZOTERO = "zotero", "Zotero attachment"
+
+
+_EXTENSION_KINDS = {
+    "pdf": SourceFileKind.PDF,
+    "doc": SourceFileKind.DOC,
+    "docx": SourceFileKind.DOC,
+    "html": SourceFileKind.HTML,
+    "htm": SourceFileKind.HTML,
+}
+
+# Leading bytes expected per extension (magic-byte sniff; html is checked
+# leniently as "text starting with <" since snapshots vary).
+_MAGIC_SIGNATURES = {
+    "pdf": (b"%PDF",),
+    "docx": (b"PK\x03\x04",),
+    "doc": (b"\xd0\xcf\x11\xe0",),
+}
+
+
+class SourceFile(TimeStampedModel):
+    """
+    An archived file attached to a Source.
+
+    A source may hold several files — the published PDF, an author-manuscript
+    DOCX, an HTML snapshot, supplements. Files are hashed for deduplication
+    (identical bytes are stored once), text-extracted asynchronously for
+    search, and rendered as type-labeled links in bibliographies when public.
+    """
+
+    source = models.ForeignKey(
+        Source,
+        on_delete=models.CASCADE,
+        related_name="files",
+    )
+    file = models.FileField(
+        upload_to="sources/%Y/%m/",
+        validators=[
+            FileExtensionValidator(allowed_extensions=ARCHIVE_ALLOWED_EXTENSIONS)
+        ],
+        help_text="Archived copy of the source (PDF, DOC/DOCX, or HTML).",
+    )
+    kind = models.CharField(
+        max_length=10,
+        choices=SourceFileKind.choices,
+        blank=True,
+        db_index=True,
+        help_text="Auto-detected from the file extension.",
+    )
+    label = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Optional role label, e.g. "Preprint", "Supplement".',
+    )
+    is_public = models.BooleanField(
+        default=True,
+        help_text="Show a link to this file in rendered bibliographies. "
+        "Note: media storage itself is public — this only controls rendering.",
+    )
+    provenance = models.CharField(
+        max_length=10,
+        choices=SourceFileProvenance.choices,
+        default=SourceFileProvenance.MANUAL,
+    )
+    sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="SHA-256 hash for deduplication.",
+    )
+    original_filename = models.CharField(max_length=255, blank=True)
+    size = models.PositiveBigIntegerField(default=0)
+    extracted_text = models.TextField(
+        blank=True,
+        help_text="Full text extracted for search indexing (async).",
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["source", "is_public"]),
+        ]
+
+    def __str__(self):
+        return f"{self.source.citation_key}: {self.original_filename or self.file.name}"
+
+    @property
+    def extension(self) -> str:
+        name = self.original_filename or self.file.name or ""
+        return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+    def clean(self):
+        """Magic-byte sniff: reject files whose content contradicts their extension."""
+        super().clean()
+        if not self.file:
+            return
+        ext = (self.file.name or "").rsplit(".", 1)[-1].lower()
+        try:
+            self.file.seek(0)
+            head = self.file.read(8)
+            self.file.seek(0)
+        except Exception:
+            return  # Stored file not readable here; extension validator already ran
+        if ext in _MAGIC_SIGNATURES:
+            if not any(head.startswith(sig) for sig in _MAGIC_SIGNATURES[ext]):
+                raise ValidationError(
+                    {"file": f"File content does not look like a .{ext} file."}
+                )
+        elif ext in ("html", "htm"):
+            if not head.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<"):
+                raise ValidationError(
+                    {"file": "File content does not look like an HTML document."}
+                )
+
+    def save(self, *args, **kwargs):
+        file_changed = self._sync_file_metadata()
+        # Signal hook: enqueue text extraction for new/replaced files
+        self._needs_extraction = file_changed and not self.extracted_text
+        if file_changed:
+            self._dedupe_against_existing()
+        super().save(*args, **kwargs)
+
+    def _sync_file_metadata(self) -> bool:
+        """Fill original_filename/size/kind/sha256; return True if file is new/changed."""
+        if not self.file:
+            return False
+
+        old_name = ""
+        if self.pk:
+            old_name = (
+                SourceFile.objects.filter(pk=self.pk)
+                .values_list("file", flat=True)
+                .first()
+                or ""
+            )
+        if self.file.name == old_name and self.sha256:
+            return False  # Unchanged file, metadata already recorded
+
+        import os
+
+        if not self.original_filename:
+            self.original_filename = os.path.basename(self.file.name)
+        self.kind = _EXTENSION_KINDS.get(self.extension, SourceFileKind.OTHER)
+
+        import hashlib
+
+        try:
+            digest = hashlib.sha256()
+            self.file.seek(0)
+            size = 0
+            for chunk in self.file.chunks():
+                digest.update(chunk)
+                size += len(chunk)
+            self.file.seek(0)
+            self.sha256 = digest.hexdigest()
+            self.size = size
+        except Exception:
+            logger.warning(
+                "Could not hash archive file for source %s",
+                self.source_id,
+                exc_info=True,
+            )
+        return True
+
+    def _dedupe_against_existing(self):
+        """Reuse an already-stored object when identical bytes exist."""
+        if not self.sha256:
+            return
+        duplicate = (
+            SourceFile.objects.filter(sha256=self.sha256)
+            .exclude(pk=self.pk)
+            .exclude(file="")
+            .first()
+        )
+        if duplicate:
+            self.file = duplicate.file.name
+            logger.info(
+                "Reusing stored file %s for source %s (hash %s)",
+                duplicate.file.name,
+                self.source_id,
+                self.sha256[:12],
+            )

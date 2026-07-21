@@ -134,10 +134,45 @@ def _extract_csl_number(formatted_html: str) -> tuple[str | None, str]:
     return number_text, cleaned
 
 
+# Copy-to-clipboard button appended to every reference entry. Handled by
+# static/js/citation-tooltip.js; copies the entry's .reference-text content.
+_COPY_BUTTON = (
+    '<button type="button" class="copy-citation-button" '
+    'title="Copy reference" aria-label="Copy reference to clipboard" '
+    'tabindex="-1">'
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true">'
+    '<path d="M280 64h40c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64'
+    "c-35.3 0-64-28.7-64-64V128C0 92.7 28.7 64 64 64h40 9.6C121 27.5 153.3 "
+    "0 192 0s71 27.5 78.4 64H280zM64 112c-8.8 0-16 7.2-16 16V448c0 8.8 7.2 "
+    "16 16 16H320c8.8 0 16-7.2 16-16V128c0-8.8-7.2-16-16-16H304v24c0 13.3-"
+    "10.7 24-24 24H192 104c-13.3 0-24-10.7-24-24V112H64zm128-8a24 24 0 1 0 "
+    '0-48 24 24 0 1 0 0 48z"></path></svg></button>'
+)
+
+
+# Label shown on the archived-file link, keyed by file extension.
+_FILE_LINK_LABELS = {
+    "pdf": "PDF",
+    "doc": "DOC",
+    "docx": "DOC",
+    "html": "HTML",
+    "htm": "HTML",
+    "epub": "EPUB",
+}
+
+
+def _file_link_label(file_url: str) -> str:
+    """Derive the bracket label for an archived-file link from its extension."""
+    path = file_url.split("?")[0].split("#")[0]
+    ext = path.rsplit(".", 1)[-1].lower() if "." in path.rsplit("/", 1)[-1] else ""
+    return _FILE_LINK_LABELS.get(ext, "FILE")
+
+
 def render_bibliography_section(
     entries: list[tuple[str, str]],
-    source_files: dict[str, str] | None = None,
+    source_files: dict[str, list[str]] | None = None,
     citation_format: str = "author-date",
+    annotations: dict[str, str] | None = None,
 ) -> str:
     """
     Render the bibliography section HTML.
@@ -145,9 +180,12 @@ def render_bibliography_section(
     Args:
         entries: List of (citation_key, formatted_html) tuples, already sorted
             by the citation formatter according to the active style.
-        source_files: Optional dict mapping citation_key -> file URL for [PDF] links.
+        source_files: Optional dict mapping citation_key -> list of file URLs
+            for archived-file links, each labeled by type ([PDF], [DOC], ...).
         citation_format: CSL citation-format category (``"numeric"``,
             ``"author-date"``, ``"author"``, or ``"note"``).
+        annotations: Optional dict mapping citation_key -> per-post annotation
+            text, rendered below the formatted reference.
 
     Returns:
         Complete HTML for the bibliography section, or empty string if no entries.
@@ -156,6 +194,7 @@ def render_bibliography_section(
         return ""
 
     source_files = source_files or {}
+    annotations = annotations or {}
     is_numeric = citation_format == "numeric"
 
     items_html = []
@@ -188,16 +227,25 @@ def render_bibliography_section(
             )
 
         file_link = ""
-        if key in source_files:
-            file_url = html.escape(source_files[key])
-            file_link = (
+        for raw_url in source_files.get(key, []):
+            file_url = html.escape(raw_url)
+            label = _file_link_label(raw_url)
+            file_link += (
                 f' <a href="{file_url}" class="reference-file-link" '
-                f'target="_blank" rel="noopener">[PDF]</a>'
+                f'target="_blank" rel="noopener">[{label}]</a>'
+            )
+        annotation_html = ""
+        if key in annotations:
+            annotation_html = (
+                f'\n    <div class="reference-annotation">'
+                f"{html.escape(annotations[key])}</div>"
             )
         items_html.append(
             f'  <li id="ref-{escaped_key}" class="reference-entry">\n'
             f"    {anchor}\n"
-            f'    <span class="reference-text">{formatted_html}</span>{file_link}\n'
+            f'    <span class="reference-text">{formatted_html}</span>{file_link}'
+            f" {_COPY_BUTTON}"
+            f"{annotation_html}\n"
             f"  </li>"
         )
 
@@ -233,5 +281,105 @@ def render_bibliography_section(
         f'<ol class="reference-list" data-citation-format="{html.escape(citation_format)}">\n'
         f"{items}\n"
         f"</ol>\n"
+        f"</section>"
+    )
+
+
+def _format_source_entry(source) -> str:
+    """
+    Plain author-date rendering of a source for hand-built sections
+    (Further Reading). Deliberately simple — this is a curated reading
+    list, not a formal bibliography, so no citeproc round-trip.
+    """
+    parts = []
+    author = source.first_author
+    year = source.year
+    if author:
+        lead = html.escape(author)
+        if year:
+            lead += f" ({html.escape(year)})"
+        parts.append(lead + ".")
+    elif year:
+        parts.append(f"({html.escape(year)}).")
+
+    title = html.escape(source.title)
+    link_url = source.url
+    if source.url_archive and source.url_status in ("broken", "archived"):
+        link_url = source.url_archive
+    if link_url:
+        parts.append(
+            f'<a href="{html.escape(link_url)}" rel="noopener"><em>{title}</em></a>.'
+        )
+    else:
+        parts.append(f"<em>{title}</em>.")
+
+    if source.container_title:
+        parts.append(html.escape(source.container_title) + ".")
+    return " ".join(parts)
+
+
+def render_further_reading_section(
+    entries,
+    source_files: dict[str, list[str]] | None = None,
+) -> str:
+    """
+    Render the curated Further Reading section.
+
+    Args:
+        entries: Iterable of PostFurtherReading rows (with .source and .note),
+            already ordered by position.
+        source_files: Optional dict mapping citation_key -> list of public
+            file URLs, as produced for the bibliography.
+
+    Returns:
+        Section HTML, or empty string when there are no entries.
+    """
+    entries = list(entries)
+    if not entries:
+        return ""
+    source_files = source_files or {}
+
+    items_html = []
+    for entry in entries:
+        source = entry.source
+        escaped_key = html.escape(source.citation_key)
+
+        file_link = ""
+        for raw_url in source_files.get(source.citation_key, []):
+            file_url = html.escape(raw_url)
+            label = _file_link_label(raw_url)
+            file_link += (
+                f' <a href="{file_url}" class="reference-file-link" '
+                f'target="_blank" rel="noopener">[{label}]</a>'
+            )
+
+        note_html = ""
+        if entry.note:
+            note_html = (
+                f'\n    <div class="reference-annotation">'
+                f"{html.escape(entry.note)}</div>"
+            )
+
+        items_html.append(
+            f'  <li id="fr-{escaped_key}" class="reference-entry further-reading-entry">\n'
+            f'    <span class="reference-text">{_format_source_entry(source)}</span>'
+            f"{file_link}{note_html}\n"
+            f"  </li>"
+        )
+
+    items = "\n".join(items_html)
+    heading = (
+        '<h1 class="heading">'
+        '<a href="#further-reading" title="Link to section: § \'Further Reading\'">'
+        "Further Reading"
+        "</a>"
+        "</h1>"
+    )
+    return (
+        f'<section id="further-reading" class="further-reading level1 block">\n'
+        f"{heading}\n"
+        f'<ul class="reference-list" data-citation-format="author-date">\n'
+        f"{items}\n"
+        f"</ul>\n"
         f"</section>"
     )

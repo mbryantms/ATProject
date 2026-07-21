@@ -201,6 +201,7 @@
     var tags = (data.results && data.results.tags) || [];
     var categories = (data.results && data.results.categories) || [];
     var series = (data.results && data.results.series) || [];
+    var sources = (data.results && data.results.sources) || [];
     var pages = (data.results && data.results.pages) || [];
 
     if (
@@ -208,6 +209,7 @@
       tags.length === 0 &&
       categories.length === 0 &&
       series.length === 0 &&
+      sources.length === 0 &&
       pages.length === 0
     ) {
       if (data.did_you_mean) {
@@ -339,6 +341,41 @@
         titleEl.appendChild(countEl);
 
         item.appendChild(titleEl);
+        return item;
+      });
+    }
+
+    // Sources (bibliography)
+    if (sources.length > 0) {
+      appendGroup('Sources', sources, function (src) {
+        var item = document.createElement('a');
+        item.href = src.url;
+        item.className = 'search-result-item';
+        item.setAttribute('role', 'option');
+
+        var titleEl = document.createElement('div');
+        titleEl.className = 'search-result-title';
+        titleEl.textContent = src.title;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + src.cited_count + ')';
+        titleEl.appendChild(countEl);
+        item.appendChild(titleEl);
+
+        var metaEl = document.createElement('div');
+        metaEl.className = 'search-result-meta';
+        var metaParts = [];
+        if (src.author) {
+          metaParts.push(src.author + (src.year ? ' (' + src.year + ')' : ''));
+        } else if (src.year) {
+          metaParts.push(src.year);
+        }
+        metaParts.push(src.type);
+        metaParts.push('@' + src.citation_key);
+        metaEl.textContent = metaParts.join(' — ');
+        item.appendChild(metaEl);
+
         return item;
       });
     }
@@ -487,6 +524,7 @@
     var tags = (data.results && data.results.tags) || [];
     var categories = (data.results && data.results.categories) || [];
     var series = (data.results && data.results.series) || [];
+    var sources = (data.results && data.results.sources) || [];
     container.innerHTML = '';
 
     if (
@@ -494,7 +532,8 @@
       pages.length === 0 &&
       tags.length === 0 &&
       categories.length === 0 &&
-      series.length === 0
+      series.length === 0 &&
+      sources.length === 0
     ) {
       var empty = document.createElement('p');
       empty.className = 'search-page-empty';
@@ -512,7 +551,12 @@
     heading.className = 'search-page-count';
     var totalCount =
       data.total ||
-      posts.length + pages.length + tags.length + categories.length + series.length;
+      posts.length +
+        pages.length +
+        tags.length +
+        categories.length +
+        series.length +
+        sources.length;
     heading.textContent =
       totalCount + ' result' + (totalCount !== 1 ? 's' : '') + ' found';
     container.appendChild(heading);
@@ -635,6 +679,45 @@
           desc.textContent = s.description;
           card.appendChild(desc);
         }
+
+        container.appendChild(card);
+      });
+    }
+
+    // Sources (bibliography)
+    if (sources.length > 0) {
+      var sourcesHeader = document.createElement('h2');
+      sourcesHeader.className = 'search-page-section-header';
+      sourcesHeader.textContent = 'Sources';
+      container.appendChild(sourcesHeader);
+
+      sources.forEach(function (src) {
+        var card = document.createElement('a');
+        card.className = 'search-page-result';
+        card.href = src.url;
+
+        var title = document.createElement('div');
+        title.className = 'search-page-result-title';
+        title.textContent = src.title;
+
+        var countEl = document.createElement('span');
+        countEl.className = 'search-result-count';
+        countEl.textContent = ' (' + src.cited_count + ')';
+        title.appendChild(countEl);
+        card.appendChild(title);
+
+        var meta = document.createElement('div');
+        meta.className = 'search-page-result-meta';
+        var metaParts = [];
+        if (src.author) {
+          metaParts.push(src.author + (src.year ? ' (' + src.year + ')' : ''));
+        } else if (src.year) {
+          metaParts.push(src.year);
+        }
+        metaParts.push(src.type);
+        metaParts.push('@' + src.citation_key);
+        meta.textContent = metaParts.join(' — ');
+        card.appendChild(meta);
 
         container.appendChild(card);
       });

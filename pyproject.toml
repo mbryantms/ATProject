@@ -27,6 +27,7 @@ dependencies = [
     "sentry-sdk[django,celery]>=2.62.0",
     "whitenoise[brotli]>=6.12.0",
     "pyzotero>=1.13.0",
+    "pypdf>=5.0",
 ]
 
 [project.optional-dependencies]
