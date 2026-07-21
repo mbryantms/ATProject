@@ -121,7 +121,10 @@ a.citation:visited {
   color: var(--AT-citation-color);
   opacity: 0;
   transition: opacity 0.15s ease;
-  vertical-align: text-bottom;
+  /* baseline (not text-bottom): the svg's baseline is its bottom edge, so
+     the icon sits on the text baseline like a glyph instead of hanging
+     down at descender depth. */
+  vertical-align: baseline;
 }
 .copy-citation-button svg {
   width: 0.85em;
