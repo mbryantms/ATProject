@@ -7,6 +7,8 @@ Tests for the Tier-2 file archive build-out (SourceFile model):
 - Zotero attachment download creating SourceFile rows
 """
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -206,3 +208,69 @@ class ZoteroAttachmentTests(TestCase):
         _download_attachments(_FakeZotero([], {}), source, stats)
         self.assertEqual(stats["attachments_downloaded"], 0)
         self.assertEqual(source.files.count(), 1)
+
+
+class FileChangeRerenderTests(TestCase):
+    """Archive-file changes queue a re-render of citing posts' cached HTML."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="rerender", password="x")
+        cls.source = _make_source("rerender2026")
+        cls.post = Post.objects.create(
+            title="Citing Post",
+            slug="citing-rerender",
+            author=cls.user,
+            content_markdown="Cited [@rerender2026].",
+        )
+        PostCitation.objects.create(post=cls.post, source=cls.source, position=0)
+
+    def test_upload_queues_rerender_for_citing_post(self):
+        with (
+            patch("engine.tasks.update_post_derived_content") as mock_task,
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            _attach(self.source, "paper.pdf", b"%PDF-1.4 body")
+        mock_task.delay.assert_any_call(self.post.pk)
+
+    def test_delete_queues_rerender(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            source_file = _attach(self.source, "paper.pdf", b"%PDF-1.4 body")
+        with (
+            patch("engine.tasks.update_post_derived_content") as mock_task,
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            source_file.delete()
+        mock_task.delay.assert_any_call(self.post.pk)
+
+    def test_uncited_source_queues_nothing(self):
+        lonely = _make_source("lonely2026")
+        with (
+            patch("engine.tasks.update_post_derived_content") as mock_task,
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            _attach(lonely, "paper.pdf", b"%PDF-1.4 body")
+        mock_task.delay.assert_not_called()
+
+    def test_upload_then_delete_updates_cached_html_end_to_end(self):
+        source = _make_source("e2e2026")
+        with self.captureOnCommitCallbacks(execute=True):
+            post = Post.objects.create(
+                title="E2E Post",
+                slug="e2e-rerender",
+                author=self.user,
+                content_markdown="Cited [@e2e2026].",
+            )
+        post.refresh_from_db()
+        self.assertIn("e2e2026", post.content_html_cached)  # bibliography rendered
+        self.assertNotIn("[PDF]", post.content_html_cached)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            source_file = _attach(source, "paper.pdf", b"%PDF-1.4 body")
+        post.refresh_from_db()
+        self.assertIn("[PDF]", post.content_html_cached)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            source_file.delete()
+        post.refresh_from_db()
+        self.assertNotIn("[PDF]", post.content_html_cached)
