@@ -7,8 +7,15 @@ and cache invalidation for citation formatting.
 
 import logging
 
+from django.conf import settings
 from django.core.cache import cache
-from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
+from django.db.models.signals import (
+    m2m_changed,
+    post_delete,
+    post_save,
+    pre_delete,
+    pre_save,
+)
 from django.dispatch import receiver
 
 from engine.links.extractor import update_post_links
@@ -19,6 +26,7 @@ from engine.models import (
     PostAsset,
     PostCitation,
     Source,
+    SourceFile,
     Tag,
 )
 
@@ -123,6 +131,108 @@ def invalidate_citeproc_cache_on_source_save(sender, instance, **kwargs):
     except AttributeError:
         # LocMemCache doesn't support delete_pattern; skip in dev
         pass
+
+
+@receiver(pre_save, sender=Source)
+def flag_source_url_for_archival(sender, instance, **kwargs):
+    """
+    Stamp the instance when its URL is new or changed, so the post_save
+    handler knows to enqueue proactive Wayback archival. pre_save is the
+    last point where the old row is still readable.
+    """
+    if not instance.url:
+        instance._url_needs_archival = False
+        return
+    if not instance.pk:
+        instance._url_needs_archival = True
+        return
+    old_url = (
+        Source.all_objects.filter(pk=instance.pk).values_list("url", flat=True).first()
+    )
+    instance._url_needs_archival = instance.url != old_url
+
+
+@receiver(post_save, sender=Source)
+def archive_source_url_on_save(sender, instance, created, **kwargs):
+    """
+    Proactively archive a source's URL in the Wayback Machine when the
+    source is created with a URL or its URL changes.
+
+    Disabled under test (WAYBACK_AUTO_SUBMIT) so eager Celery doesn't hit
+    archive.org from the suite. Bulk .update() paths (link checker) don't
+    fire signals, so periodic checks never re-trigger submission.
+    """
+    if not getattr(settings, "WAYBACK_AUTO_SUBMIT", True):
+        return
+    if not getattr(instance, "_url_needs_archival", False):
+        return
+    instance._url_needs_archival = False
+    from engine.bibliography.tasks import archive_source_url
+
+    try:
+        archive_source_url.delay(instance.pk)
+    except Exception as exc:  # broker unreachable, etc.
+        logger.warning(
+            "Could not enqueue Wayback archival for source %s: %s", instance.pk, exc
+        )
+
+
+@receiver(post_save, sender=Source)
+def update_source_search_vector(sender, instance, **kwargs):
+    """
+    Keep Source.search_vector fresh after every save.
+
+    Uses queryset .update() (no signals, no save() side effects). Weighting
+    mirrors posts: identity fields A, provenance B, descriptive text C.
+    """
+    from engine.models.source import source_search_vector
+
+    Source.all_objects.filter(pk=instance.pk).update(
+        search_vector=source_search_vector()
+    )
+
+
+@receiver(post_save, sender=SourceFile)
+def handle_source_file_save(sender, instance, created, **kwargs):
+    """
+    On archive-file changes: refresh the parent Source's search vector and
+    enqueue text extraction for new/replaced files (flag set by
+    SourceFile.save()). Extraction is enqueued on commit so the worker
+    can't race an uncommitted row.
+    """
+    from django.db import transaction
+
+    from engine.models.source import source_search_vector
+
+    Source.all_objects.filter(pk=instance.source_id).update(
+        search_vector=source_search_vector()
+    )
+
+    if not getattr(instance, "_needs_extraction", False):
+        return
+    instance._needs_extraction = False
+
+    def _enqueue(pk=instance.pk):
+        from engine.bibliography.tasks import extract_source_file_text
+
+        try:
+            extract_source_file_text.delay(pk)
+        except Exception as exc:  # broker unreachable, etc.
+            logger.warning(
+                "Could not enqueue text extraction for source file %s: %s", pk, exc
+            )
+
+    transaction.on_commit(_enqueue)
+
+
+@receiver(post_delete, sender=SourceFile)
+def refresh_source_vector_on_file_delete(sender, instance, **kwargs):
+    """Drop deleted file text from the parent Source's search vector."""
+    from engine.models.source import source_search_vector
+
+    Source.all_objects.filter(pk=instance.source_id).update(
+        search_vector=source_search_vector()
+    )
 
 
 # NOTE: Previous handlers update_backlinks_when_slug_changes and

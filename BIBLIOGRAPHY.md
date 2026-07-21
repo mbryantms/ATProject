@@ -14,9 +14,10 @@ A complete guide to the bibliography and citation system — how it works, how t
 6. [Archiving Source Files](#archiving-source-files)
 7. [Link Rot Detection](#link-rot-detection)
 8. [Citation Formatting Engine](#citation-formatting-engine)
-9. [Deployment Notes](#deployment-notes)
-10. [Remaining Steps](#remaining-steps)
-11. [Future Improvements](#future-improvements)
+9. [Public Library, Exports & Further Reading](#public-library-exports--further-reading)
+10. [Deployment Notes](#deployment-notes)
+11. [Remaining Steps](#remaining-steps)
+12. [Future Improvements](#future-improvements)
 
 ---
 
@@ -55,6 +56,11 @@ Presentation            Inline citations, bibliography section, tooltips
 - CSL-JSON rebuild (on Source save, always)
 - Citation rendering + bibliography section (on Post save, via Celery task)
 - PostCitation join table sync (on Post save, via Celery task)
+- Archived-file SHA-256 hashing + deduplication (on SourceFile save)
+- Archived-file kind detection, size/filename capture (on SourceFile save)
+- Full-text extraction from archived files (async, on upload; feeds search)
+- Proactive Wayback Machine submission (on Source create / URL change)
+- Source search vector refresh (on Source/SourceFile save; sources appear in site search)
 
 ---
 
@@ -110,6 +116,15 @@ Citations and footnotes use separate systems and don't conflict. The bibliograph
 
 ## Managing Sources
 
+### Creating Sources While Writing
+
+The fastest path: in the post editor, open **📚 Browse & insert citation** and use the **"New source"** row at the bottom of the modal. Paste a **DOI, URL, ISBN, or plain title** and hit *Create & insert*:
+
+- The identifier is classified automatically (DOI resolver-URL prefixes like `https://doi.org/…` are stripped; ISBNs may include hyphens).
+- Metadata is fetched synchronously — CrossRef for DOIs, Open Library for ISBNs, OpenGraph/meta tags for URLs — and a Source is created with an auto-generated citation key.
+- `[@key]` is inserted at your cursor. If a source with that identifier already exists, its key is inserted instead of creating a duplicate.
+- A plain title creates a bare source you can flesh out later; a failed metadata lookup creates nothing and shows the error in the modal.
+
 ### Adding Sources via Admin
 
 Go to **Admin → Engine → Sources → Add Source**.
@@ -149,9 +164,15 @@ Select sources in the list view, then use the action dropdown:
 | **Soft delete selected** | Marks as deleted (preserves data, hides from queries) |
 | **Restore selected** | Un-deletes soft-deleted sources |
 
+Bulk actions run asynchronously on Celery. For a **single source**, use the buttons at the bottom of its change form instead — **Fetch metadata from DOI**, **Fetch metadata from URL**, and **Check URL health now** run synchronously, so the fields fill in on the page reload. (The buttons appear once the source has a saved DOI/URL.)
+
+### Seeing Where a Source Is Cited
+
+The Source changelist has a sortable **Cited** column and a "cited in posts" filter (cited / uncited — the uncited view doubles as a cleanup report). Each source's change form has a **Citations** section listing every citing post with a link and status badge.
+
 ### Viewing Citations on a Post
 
-In the Post admin, the **Cited Sources** inline shows all sources cited in that post's content, with their citation key and position. The **annotation** field is editable here — use it for per-post notes about a source.
+In the Post admin, the **Cited Sources** inline shows all sources cited in that post's content, with their citation key and position. The **annotation** field is editable here — use it for per-post notes about a source. Saved annotations render below the corresponding reference entry in the post's bibliography (annotated bibliography); saving an annotation queues a re-render of the cached HTML automatically.
 
 ---
 
@@ -211,13 +232,17 @@ Select sources in the Source admin list → action **"Sync selected from Zotero 
 
 ## Auto-Populating Metadata
 
+Metadata can be fetched three ways: the **create-source flow in the post editor** (see [Creating Sources While Writing](#creating-sources-while-writing)), the **per-source buttons** on the change form (synchronous), and the **bulk changelist actions** (async via Celery). All share the same resolvers and fill only empty fields.
+
+Every outbound fetch in the bibliography subsystem — resolvers, link checker, Wayback submission — goes through a shared helper (`engine/bibliography/net.py`) that (a) refuses non-http(s) schemes and hosts resolving to private/internal addresses, and (b) rate-limits to **one request per second per host**, so batch loops don't hammer CrossRef, Open Library, or archive.org. The throttle is per-process (politeness, not a global SLA).
+
 ### From DOI
 
 When a Source has a DOI:
-1. Select it in the Source admin
-2. Action → **"Fetch metadata from DOI"**
-3. The system queries the CrossRef API, which returns CSL-JSON natively
-4. Only **empty** fields are filled (existing data is preserved)
+
+1. Open it and click **"Fetch metadata from DOI"** (or select several in the changelist and use the bulk action)
+2. The system queries the CrossRef API, which returns CSL-JSON natively
+3. Only **empty** fields are filled (existing data is preserved)
 
 Fields populated from DOI: title, authors, container-title, publisher, volume, issue, page, issued date, URL, ISSN, ISBN, abstract.
 
@@ -248,26 +273,46 @@ fetch_metadata_for_source.delay(source_id=42, resolve_type="doi")
 
 ## Archiving Source Files
 
+### The SourceFile Model
+
+Each Source can hold **multiple archived files** (`SourceFile` rows, `source.files`): the published PDF, an author-manuscript DOCX, an HTML snapshot, supplements. Per file:
+
+- **kind** — auto-detected from the extension (pdf / doc / html)
+- **label** — optional role note ("Preprint", "Supplement")
+- **is_public** — whether a link renders in bibliographies (note: media storage itself is public; this only gates rendering)
+- **provenance** — manual upload vs. Zotero attachment
+- **sha256 / size / original_filename** — captured automatically on save
+- **extracted_text** — full text pulled asynchronously for search indexing
+
 ### Uploading Files
 
-In the Source admin, expand the **File Archive** section and use the file upload widget to attach a PDF, HTML, or EPUB file.
+In the Source admin, use the **Source files** inline — upload, label, and toggle visibility per file. Each row shows a download link, detected kind, size, and hash prefix.
+
+**Accepted formats:** PDF, DOC/DOCX, and HTML — these cover the overwhelming majority of research papers and primary literature. Enforced by extension validation plus a magic-byte sniff (a `.pdf` that isn't a PDF is rejected).
+
+**Future formats** (accepted-list candidates, in rough priority order): EPUB, TXT/MD, RTF, JATS XML (`.xml`/`.nxml` — PubMed Central full text), LaTeX source bundles (`.tex`/`.tar.gz`), ODT, PPTX, DjVu, PostScript, MHTML/WARC web archives.
 
 Files are stored in Cloudflare R2 under the `sources/YYYY/MM/` path via the existing django-storages backend.
 
-### [PDF] Links in Bibliography
+### File Links in Bibliography
 
-When a Source has an `archived_file`, the rendered bibliography entry automatically includes a `[PDF]` link:
+Every **public** file on a cited source renders as a type-labeled link after the reference entry — `[PDF]`, `[DOC]`, `[HTML]` — with PDFs listed first:
 
 ```html
 <li id="ref-smith2024" class="reference-entry">
   <span class="reference-text">Smith, J. (2024). Climate Change...</span>
   <a href="/media/sources/2024/01/paper.pdf" class="reference-file-link">[PDF]</a>
+  <a href="/media/sources/2024/01/manuscript.docx" class="reference-file-link">[DOC]</a>
 </li>
 ```
 
 ### File Deduplication
 
-The `archived_file_hash` field exists for SHA-256 deduplication but is **not yet wired up automatically** — see [Remaining Steps](#remaining-steps).
+On save, a new or replaced file gets a SHA-256 hash. If any SourceFile already holds identical bytes, the new row **reuses the existing stored object** instead of uploading a duplicate — including across different sources and for Zotero downloads.
+
+### Full-Text Extraction
+
+New and replaced files are text-extracted in the background (`extract_source_file_text` task): PDF via pypdf, HTML via BeautifulSoup, DOCX via pandoc (legacy binary `.doc` is archived but not extractable). Extracted text feeds the source's search vector at weight D, so library search matches the *content* of archived papers, not just their metadata. Extraction failures are silent by design — a file that can't be extracted is still a valid archive.
 
 ---
 
@@ -286,7 +331,7 @@ For each source with a URL:
 ### Batch URL Checking (Command)
 
 ```bash
-# Check 50 URLs (oldest-checked first, skip recently checked)
+# Check 50 URLs (never-checked first, then oldest-checked; skips recently checked)
 uv run python manage.py check_source_urls
 
 # Larger batch, re-check after 1 day
@@ -313,9 +358,13 @@ The Source list view shows a colored URL status badge:
 
 Filter the list by URL status to find all broken links.
 
+### Proactive Archival
+
+When a Source is created with a URL (or an existing source's URL changes), the `archive_source_url` Celery task submits the URL to the Wayback Machine's Save Page Now API and backfills `url_archive` with an existing snapshot if one is available. Controlled by the `WAYBACK_AUTO_SUBMIT` env var (default on; forced off under test).
+
 ### Rendered Bibliography Behavior
 
-When a source's `url_status` is `broken` or `archived` and it has a `url_archive`, the archive URL is available on the model for future use in rendering. Currently the bibliography renderer uses the primary URL from the CSL-JSON; preferring the archive URL when broken is a planned improvement.
+When a source's `url_status` is `broken` or `archived` and it has a `url_archive`, the bibliography **renders the archive URL instead of the dead primary URL** (the swap happens in the CSL-JSON handed to citeproc, so every citation style picks it up). The stored `csl_json` keeps the primary URL.
 
 ---
 
@@ -358,9 +407,40 @@ Additional styles can be downloaded from the [CSL Style Repository](https://gith
 
 If the Node.js subprocess fails (e.g., node not found, script error), the formatter falls back to simple text-based citations: `(Author, Year)` with a plain-text bibliography. Posts never break.
 
-### Current Limitation
+### Style Resolution
 
-The citation style is currently hardcoded to `apa` in the postprocessor. The `default_citation_style` field exists in SiteSettings but isn't read yet — see [Remaining Steps](#remaining-steps).
+The style used for a post resolves as: **per-post override** (`Post.citation_style`, a curated dropdown in the post admin) → **site default** (`SiteSettings.default_citation_style`) → `apa` as the last-resort fallback.
+
+---
+
+## Public Library, Exports & Further Reading
+
+### The /library/ Page
+
+`/library/` is a public, browsable listing of **every source cited in a published public post** (uncited sources and draft-only citations stay private). Features:
+
+- Search (`?q=`) across title, citation key, container, and authors
+- Type facets and a year filter (`?type=article-journal`, `?year=2024`)
+- Sort by most-cited (default) or A–Z; per-entry cited-count
+- Each entry shows author/year/title (linked to the source URL), its `@key`, type-labeled archived-file links, and "Cited in" links jumping straight to the `#ref-` anchor in each citing post
+- Export links for the whole library
+
+### Bibliography Export
+
+Three formats, generated from the structured Source fields (no citeproc round-trip):
+
+- **Full library**: `/library/export.bib`, `/library/export.ris`, `/library/export.json` — publicly cited sources only
+- **Per post**: `/posts/<slug>/bibliography.bib` (or `.ris` / `.json`) — that post's citations in document order; respects post visibility (staff can export drafts), 404 when a post has no citations
+
+Converters live in `engine/bibliography/export.py`; CSL-JSON is the stored native format, BibTeX/RIS are mapped from the CSL type taxonomy.
+
+### Copy-Reference Buttons
+
+Every bibliography entry carries a clipboard button (visible on hover) that copies the formatted reference as plain text. Handled by `citation-tooltip.js`; entries render the button at post re-render time, so run `regenerate_html_cache` once after deploying to add it to existing posts.
+
+### Further Reading
+
+A curated, manually ordered reading list per post — sources you recommend but don't cite. Managed in the post admin's **Further Reading (curated)** inline (source autocomplete, position, optional note). Rendered as a distinct `#further-reading` section directly after References (or standing alone on posts with no citations), with the same visual treatment: archive-aware links, type-labeled file links, and notes as annotations. Editing the inline queues a re-render automatically.
 
 ---
 
@@ -371,7 +451,7 @@ The citation style is currently hardcoded to `apa` in the postprocessor. The `de
 The Dockerfile uses a multi-stage build:
 
 - **Stage 1** (`node:22-slim`): Builds frontend CSS/JS assets via npm and installs citeproc-js production dependencies
-- **Stage 2** (`python:3.13-slim`): Copies the Node.js binary from stage 1 (for citeproc subprocess), copies built assets and citeproc node_modules, installs Python deps, runs collectstatic
+- **Stage 2** (`python:3.14-slim`): Copies the Node.js binary from stage 1 (for citeproc subprocess), copies built assets and citeproc node_modules, installs Python deps, runs collectstatic
 
 No new Railway services are needed. The Node subprocess runs inside the existing web/worker containers.
 
@@ -389,6 +469,7 @@ npm run build  # One-off production build
 |-----------|---------|-------|
 | `citeproc` (npm) | Citation formatting engine | `engine/bibliography/package.json` |
 | `pyzotero` (pip) | Zotero API client | `pyproject.toml` |
+| `pypdf` (pip) | PDF text extraction for search | `pyproject.toml` |
 
 ### Environment Variables
 
@@ -398,90 +479,40 @@ No new environment variables are required. Zotero credentials are stored in Site
 
 ## Remaining Steps
 
-These are concrete items that should be completed to finish the system as designed.
+**All complete.** The six items originally tracked here have shipped:
 
-### 1. Wire up citation style from SiteSettings
+1. **Citation style from SiteSettings** — done; see [Style Resolution](#style-resolution) (per-post override → site default → `apa`).
+2. **File hash deduplication on upload** — done; `Source.save()` hashes and dedups (see [File Deduplication](#file-deduplication)).
+3. **Proactive Wayback Machine archival** — done; `archive_source_url` task fires on source create / URL change (see [Proactive Archival](#proactive-archival)).
+4. **PostCitation annotations in bibliography** — done; annotations render below their reference entry, and annotation edits queue a re-render.
+5. **Source in search** — done; `search_sources()` runs in the search orchestrator, `search_vector` refreshes on save (and via `rebuild_search_vectors`). Only sources cited in visible posts surface; results link to the citing post's `#ref-` anchor.
+6. **Archive URL preference for broken links** — done; see [Rendered Bibliography Behavior](#rendered-bibliography-behavior).
 
-The `default_citation_style` field exists in SiteSettings but the citation renderer postprocessor hardcodes `style="apa"`. It should read the setting and pass it to the formatter.
+Also fixed along the way: the citation escaper no longer mangles email addresses (`user@example.com` was previously parsed as a narrative citation).
 
-**Files:** `engine/markdown/postprocessors/citation_renderer.py` (line with `style="apa"`)
-
-### 2. File hash deduplication on upload
-
-The `archived_file_hash` field exists on Source but is never populated. On `save()` when `archived_file` changes, compute SHA-256 and check for duplicates.
-
-**Files:** `engine/models/source.py` (add to `save()` or a signal)
-
-### 3. Proactive Wayback Machine archival
-
-`submit_to_wayback()` exists in `link_checker.py` but is never called automatically. Should fire when a Source is created with a URL, or when a URL is added to an existing Source.
-
-**Files:** Add a post_save signal on Source, or call in `save()`
-
-### 4. Render PostCitation annotations in bibliography
-
-The `annotation` field on PostCitation is editable in the admin but not rendered in the bibliography HTML. When present, it should appear below the formatted reference entry.
-
-**Files:** `engine/bibliography/renderer.py`, `engine/markdown/postprocessors/citation_renderer.py`
-
-### 5. Include Source in search
-
-Source has a `search_vector` field but no task updates it and the search service doesn't query it. Add a `search_sources()` function and integrate into the search orchestrator.
-
-**Files:** `engine/search/service.py`, `engine/bibliography/tasks.py` or `engine/tasks.py`
-
-### 6. Prefer archive URL in bibliography when source URL is broken
-
-When `url_status` is "broken" and `url_archive` is set, the bibliography should link to the archive URL instead of the dead primary URL.
-
-**Files:** `engine/markdown/postprocessors/citation_renderer.py`, `engine/bibliography/renderer.py`
+A final hardening pass added: per-host rate limiting on all outbound fetches (see [Auto-Populating Metadata](#auto-populating-metadata)), `soft_time_limit`/`time_limit` on every bibliography Celery task, unit tests for the link checker / Zotero sync / metadata resolver internals, a fix so never-checked URLs are prioritized ahead of stale ones in the batch checker (Postgres sorts NULLs last), and removal of the dead pre-Pandoc citation-extraction path (`extract_citations` — superseded by the escaper → Pandoc → renderer pipeline).
 
 ---
 
 ## Future Improvements
 
-These are enhancements from the original design spec (Section 13 / Phase 8) that would add polish and additional capabilities.
-
-### Bibliography Export
-
-Add an endpoint to export a post's bibliography or the full source library in standard formats:
-- **BibTeX** — universal interchange format
-- **RIS** — used by many reference managers
-- **CSL-JSON** — native format, already stored on each Source
-
-Suggested URL: `/posts/{slug}/bibliography.{format}` or `/api/v1/bibliography/export/`
-
-### Citation Copy Button
-
-Add a small clipboard icon to each bibliography entry. Click copies the formatted reference text. Straightforward JS addition to `citation-tooltip.js`.
-
-### Public Library Page
-
-A browsable, searchable page at `/library/` listing all sources cited in published posts. Filterable by type, year, author. Functions as a reading list and provides SEO value.
+These are enhancements from the original design spec (Section 13 / Phase 8) that would add polish and additional capabilities. (Bibliography export, the copy button, the public library page, public citation metrics, and Further Reading all shipped — see [Public Library, Exports & Further Reading](#public-library-exports--further-reading).)
 
 ### Source Collections
 
 A `SourceCollection` model with M2M to Source for thematic groupings (e.g., "Climate Science", "Philosophy of Mind"). Useful for curated reading lists independent of which posts cite them.
 
-### Citation Metrics
-
-Track and display how many posts cite each source. Surface in admin for library management (`citation_count` as an annotated query) and optionally on the public library page.
-
-### Further Reading Section
-
-A separate `PostFurtherReading` model for sources the author recommends but doesn't directly cite. Rendered as a distinct section after the bibliography.
-
-### Per-Post Citation Style Override
-
-Add a `citation_style` field to the Post model. When set, override the site-wide default for that post. Useful for posts that follow a specific journal's conventions.
-
 ### Enhanced Semantic HTML
 
 Extend ARIA roles: `doc-noteref` on inline citations (already present), `doc-biblioref` on bibliography entries, proper `aria-label` on interactive elements (tooltips, copy buttons), full keyboard navigation support.
 
-### Zotero Attachment Download
+### File Archive — Next Steps
 
-During Zotero sync, download PDF attachments via the Zotero API and store them as the source's `archived_file`. The `pyzotero` client supports attachment download.
+The multi-file `SourceFile` model shipped (see [Archiving Source Files](#archiving-source-files)); still open:
+
+- **Expanded format support**: EPUB, TXT/MD, RTF, JATS XML, LaTeX bundles, ODT, PPTX, DjVu, PostScript, MHTML/WARC (current accepted set: PDF, DOC/DOCX, HTML).
+- **PDF normalization**: convert DOCX/ODT/RTF to a PDF view-rendition (LibreOffice headless in the worker image) so every source has a browser-readable artifact next to the original.
+- **True private files**: `is_public` currently gates rendering only; storage-level privacy needs a non-public bucket or signed-URL storage class.
 
 ### Domain-Specific URL Metadata
 

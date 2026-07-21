@@ -529,7 +529,7 @@ def recompute_similarity_for_post(self, post_id: int):
 @shared_task(soft_time_limit=1800, time_limit=1860)
 def rebuild_search_vectors():
     """
-    Rebuild search vectors for all posts.
+    Rebuild search vectors for all posts and sources.
 
     Useful after migrations or bulk imports. Run via:
         python manage.py shell -c "from engine.tasks import rebuild_search_vectors; rebuild_search_vectors.delay()"
@@ -539,7 +539,8 @@ def rebuild_search_vectors():
     """
     from django.contrib.postgres.search import SearchVector
 
-    from .models import Post
+    from .models import Post, Source
+    from .models.source import source_search_vector
 
     # Build search vector with weighted fields
     search_vector = (
@@ -553,10 +554,16 @@ def rebuild_search_vectors():
     # Update all posts
     updated = Post.all_objects.update(search_vector=search_vector)
 
+    # Update all sources (bibliography library)
+    sources_updated = Source.all_objects.update(search_vector=source_search_vector())
+
     return {
         "success": True,
         "posts_updated": updated,
-        "message": f"Rebuilt search vectors for {updated} posts.",
+        "sources_updated": sources_updated,
+        "message": (
+            f"Rebuilt search vectors for {updated} posts and {sources_updated} sources."
+        ),
     }
 
 

@@ -6,6 +6,7 @@ from .views import (
     CategoryListView,
     FeedIndexView,
     IndexView,
+    LibraryView,
     PageView,
     PostArchiveView,
     PostDetailView,
@@ -13,13 +14,22 @@ from .views import (
     SeriesListView,
     TagArchiveView,
     TagListView,
+    library_export,
+    post_bibliography_export,
 )
 
 urlpatterns = [
     path("search/", SearchPageView.as_view(), name="search"),
     path("", IndexView.as_view(), name="index"),
     path("posts/", PostArchiveView.as_view(), name="post-archive"),
+    path(
+        "posts/<slug:slug>/bibliography.<str:fmt>",
+        post_bibliography_export,
+        name="post-bibliography-export",
+    ),
     path("posts/<slug:slug>/", PostDetailView.as_view(), name="post-detail"),
+    path("library/", LibraryView.as_view(), name="library"),
+    path("library/export.<str:fmt>", library_export, name="library-export"),
     path("series/", SeriesListView.as_view(), name="series-list"),
     path("series/<slug:slug>/", SeriesDetailView.as_view(), name="series-detail"),
     path("tags/", TagListView.as_view(), name="tag-list"),

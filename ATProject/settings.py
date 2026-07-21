@@ -67,6 +67,8 @@ env = environ.Env(
     ),  # e.g., cdn.example.com OR pub-xxxx.r2.dev (leave blank for private)
     # Caching
     R2_CACHE_CONTROL=(str, "public, max-age=31536000, immutable"),
+    # Bibliography
+    WAYBACK_AUTO_SUBMIT=(bool, True),  # auto-archive source URLs on create/change
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -493,6 +495,10 @@ TESTING = (
 
 CELERY_TASK_ALWAYS_EAGER = TESTING
 CELERY_TASK_EAGER_PROPAGATES = TESTING
+
+# Proactive Wayback Machine submission on Source create/URL change. Forced off
+# under test so eager Celery never makes outbound archive.org requests.
+WAYBACK_AUTO_SUBMIT = env("WAYBACK_AUTO_SUBMIT") and not TESTING
 
 if TESTING:
     STORAGES = {

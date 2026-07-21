@@ -607,6 +607,42 @@
   font-size: 11px;
   white-space: nowrap;
 }
+.mk-cite-create-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--hairline-color);
+}
+.mk-cite-create-row input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+.mk-cite-create-row button {
+  padding: 6px 12px;
+  background: var(--button-bg);
+  color: var(--button-fg);
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mk-cite-create-row button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.mk-cite-create-status {
+  padding: 0 16px 8px;
+  font-size: 11px;
+  color: var(--body-quiet-color);
+  min-height: 0;
+}
+.mk-cite-create-status.mk-error {
+  color: var(--error-fg, #ba2121);
+}
 .mk-cite-footer {
   padding: 8px 16px;
   font-size: 11px;

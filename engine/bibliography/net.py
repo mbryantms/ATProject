@@ -15,10 +15,21 @@ out of scope for admin-triggered fetches.
 
 import ipaddress
 import socket
+import threading
+import time
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
 ALLOWED_SCHEMES = {"http", "https"}
+
+# Minimum spacing between requests to the same host. CrossRef, Open Library
+# and archive.org all ask polite clients to self-throttle; the batch callers
+# (link checker, Zotero resync, ISBN author lookups) otherwise fire tight
+# loops at a single API host.
+MIN_REQUEST_INTERVAL = 1.0
+
+_next_slot_at: dict[str, float] = {}
+_throttle_lock = threading.Lock()
 
 
 class UnsafeURLError(ValueError):
@@ -62,12 +73,31 @@ def validate_public_url(url: str) -> None:
         )
 
 
+def throttle_host(hostname: str) -> None:
+    """Keep at least :data:`MIN_REQUEST_INTERVAL` between requests per host.
+
+    Each caller reserves the next available slot for *hostname* under the
+    lock, then sleeps outside it until that slot arrives — concurrent threads
+    queue politely instead of racing. State is per-process, so parallel
+    Celery workers each keep their own window; the goal is to stop tight
+    single-process loops from hammering one API host, not to enforce a
+    global rate.
+    """
+    with _throttle_lock:
+        now = time.monotonic()
+        ready_at = max(now, _next_slot_at.get(hostname, 0.0))
+        _next_slot_at[hostname] = ready_at + MIN_REQUEST_INTERVAL
+    if ready_at > now:
+        time.sleep(ready_at - now)
+
+
 def safe_urlopen(req, *, timeout):
-    """``urlopen`` wrapper that validates the target before connecting.
+    """``urlopen`` wrapper that validates and rate-limits before connecting.
 
     Accepts a ``urllib.request.Request`` (or a URL string) and validates its
     full URL — including the method and headers already set on the Request.
     """
     url = req.full_url if hasattr(req, "full_url") else req
     validate_public_url(url)
+    throttle_host(urlparse(url).hostname.lower())
     return urlopen(req, timeout=timeout)

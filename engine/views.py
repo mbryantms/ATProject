@@ -1,8 +1,8 @@
 from collections import OrderedDict
 
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Max, Min, Q, Sum
-from django.http import Http404
+from django.db.models import Count, F, Max, Min, Prefetch, Q, Sum
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView, TemplateView
@@ -12,9 +12,12 @@ from .models import (
     Category,
     Page,
     Post,
+    PostCitation,
     PostSimilarity,
     Series,
     SiteSettings,
+    Source,
+    SourceFile,
     Tag,
     TagAlias,
 )
@@ -915,3 +918,176 @@ class SeriesDetailView(SEOContextMixin, DetailView):
             context["seo_description"] = series.description[:300]
 
         return context
+
+
+# ---------------------------------------------------------------------------
+# Bibliography: public library page + exports
+# ---------------------------------------------------------------------------
+
+_PUBLIC_CITATION_FILTER = Q(
+    post_citations__post__is_deleted=False,
+    post_citations__post__status="published",
+    post_citations__post__visibility="public",
+)
+
+
+class LibraryView(SEOContextMixin, TemplateView):
+    """
+    GET /library/
+
+    Browsable listing of every source cited in published public posts —
+    a reading list for the whole site. Supports search (?q=), type and
+    year filters, and links each entry to the posts citing it.
+    """
+
+    template_name = "posts/library.html"
+    seo_title = "Library"
+    PAGE_SIZE = 50
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        sources = Source.objects.cited_publicly().annotate(
+            cited_count=Count(
+                "post_citations",
+                filter=_PUBLIC_CITATION_FILTER,
+                distinct=True,
+            )
+        )
+
+        query = self.request.GET.get("q", "").strip()
+        if query:
+            from django.db.models import TextField
+            from django.db.models.functions import Cast
+
+            # authors is a JSONField — "authors__icontains" would be parsed
+            # as a key transform, so cast to text for substring matching.
+            sources = sources.annotate(
+                authors_text=Cast("authors", TextField())
+            ).filter(
+                Q(title__icontains=query)
+                | Q(citation_key__icontains=query)
+                | Q(container_title__icontains=query)
+                | Q(authors_text__icontains=query)
+            )
+
+        source_type = self.request.GET.get("type", "").strip()
+        if source_type:
+            sources = sources.filter(source_type=source_type)
+
+        year = self.request.GET.get("year", "").strip()
+        if year.isdigit():
+            sources = sources.filter(**{"issued_date__date-parts__0__0": int(year)})
+
+        sort = self.request.GET.get("sort", "cited")
+        if sort == "title":
+            sources = sources.order_by("title")
+        else:
+            sort = "cited"
+            sources = sources.order_by("-cited_count", "title")
+
+        sources = sources.prefetch_related(
+            Prefetch(
+                "post_citations",
+                queryset=PostCitation.objects.filter(
+                    post__is_deleted=False,
+                    post__status="published",
+                    post__visibility="public",
+                )
+                .select_related("post")
+                .order_by("-post__published_at"),
+                to_attr="public_citations",
+            ),
+            Prefetch(
+                "files",
+                queryset=SourceFile.objects.filter(is_public=True),
+                to_attr="public_files",
+            ),
+        )
+
+        paginator = Paginator(sources, self.PAGE_SIZE)
+        page = paginator.get_page(self.request.GET.get("page"))
+
+        # Facets: types present in the (unfiltered) public library
+        type_facets = (
+            Source.objects.cited_publicly()
+            .values("source_type")
+            .annotate(count=Count("id", distinct=True))
+            .order_by("-count")
+        )
+        type_labels = dict(Source._meta.get_field("source_type").choices)
+
+        context.update(
+            {
+                "page_obj": page,
+                "total_sources": paginator.count,
+                "query": query,
+                "current_type": source_type,
+                "current_year": year,
+                "current_sort": sort,
+                "type_facets": [
+                    {
+                        "value": t["source_type"],
+                        "label": type_labels.get(t["source_type"], t["source_type"]),
+                        "count": t["count"],
+                    }
+                    for t in type_facets
+                ],
+                "seo_description": "Every source cited across the site — "
+                "a browsable reference library.",
+            }
+        )
+        return context
+
+
+def _visible_posts_for(user):
+    """Post queryset mirroring PostDetailView visibility rules."""
+    now = timezone.now()
+    qs = Post.all_objects.all()
+    if user.is_authenticated and (user.is_staff or user.is_superuser):
+        return qs
+    return qs.filter(
+        Q(expire_at__isnull=True) | Q(expire_at__gt=now),
+        is_deleted=False,
+        status=Post.Status.PUBLISHED,
+        visibility__in=[Post.Visibility.PUBLIC, Post.Visibility.UNLISTED],
+        published_at__isnull=False,
+        published_at__lte=now,
+    )
+
+
+def _export_response(sources, fmt, filename_base):
+    from engine.bibliography.export import EXPORT_FORMATS, export_sources
+
+    if fmt not in EXPORT_FORMATS:
+        raise Http404("Unknown export format")
+    content_type, extension = EXPORT_FORMATS[fmt]
+    response = HttpResponse(
+        export_sources(sources, fmt),
+        content_type=f"{content_type}; charset=utf-8",
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{filename_base}.{extension}"'
+    )
+    return response
+
+
+def library_export(request, fmt):
+    """GET /library/export.<fmt> — the public library in BibTeX/RIS/CSL-JSON."""
+    sources = Source.objects.cited_publicly().order_by("citation_key")
+    return _export_response(sources, fmt, "library")
+
+
+def post_bibliography_export(request, slug, fmt):
+    """GET /posts/<slug>/bibliography.<fmt> — one post's bibliography."""
+    post = _visible_posts_for(request.user).filter(slug=slug).first()
+    if post is None:
+        raise Http404("Post not found")
+    sources = list(
+        Source.objects.filter(post_citations__post=post).order_by(
+            "post_citations__position"
+        )
+    )
+    if not sources:
+        raise Http404("Post has no citations")
+    return _export_response(sources, fmt, f"{slug}-bibliography")

@@ -96,8 +96,9 @@ def citation_renderer(html: str, context: dict) -> str:
     if unresolved_keys:
         logger.warning("Unresolved citation keys: %s", unresolved_keys)
 
-    # Build CSL-JSON items for citeproc
-    csl_items = [sources[key].csl_json for key in resolved_keys]
+    # Build CSL-JSON items for citeproc (archive URL swapped in when the
+    # primary URL is known-broken)
+    csl_items = [_csl_item(sources[key]) for key in resolved_keys]
 
     # Build citation clusters for citeproc (in document order)
     citeproc_clusters = []
@@ -189,20 +190,13 @@ def citation_renderer(html: str, context: dict) -> str:
 
     # 6. Append bibliography section
     if formatted.bibliography:
-        # Build file URL map for [PDF] links
-        source_files = {}
-        for key in resolved_keys:
-            source = sources[key]
-            if source.archived_file:
-                try:
-                    source_files[key] = source.archived_file.url
-                except ValueError:
-                    pass
+        source_files = _public_file_urls(sources, resolved_keys)
 
         bib_html = render_bibliography_section(
             formatted.bibliography,
             source_files=source_files,
             citation_format=formatted.citation_format,
+            annotations=_post_annotations(context.get("post"), resolved_keys),
         )
         # Insert before footnotes section if present, otherwise append
         footnotes_marker = '<section id="footnotes"'
@@ -223,6 +217,68 @@ def citation_renderer(html: str, context: dict) -> str:
     context["resolved_citations"] = resolved_citations
 
     return html
+
+
+def _public_file_urls(sources: dict, resolved_keys: list[str]) -> dict[str, list[str]]:
+    """
+    Map citation_key -> ordered URLs of public archived files, for the
+    type-labeled file links in the bibliography. One batched query; PDFs
+    sort first so the most readable format leads.
+    """
+    if not resolved_keys:
+        return {}
+    from engine.models import SourceFile
+
+    pk_to_key = {sources[key].pk: key for key in resolved_keys}
+    grouped: dict[int, list] = {}
+    for source_file in SourceFile.objects.filter(
+        source_id__in=pk_to_key, is_public=True
+    ).exclude(file=""):
+        grouped.setdefault(source_file.source_id, []).append(source_file)
+
+    source_files: dict[str, list[str]] = {}
+    for source_id, files in grouped.items():
+        files.sort(key=lambda f: (f.kind != "pdf", f.created_at))
+        urls = []
+        for source_file in files:
+            try:
+                urls.append(source_file.file.url)
+            except ValueError:
+                pass
+        if urls:
+            source_files[pk_to_key[source_id]] = urls
+    return source_files
+
+
+def _csl_item(source) -> dict:
+    """
+    Return the source's CSL-JSON for formatting, preferring the archive URL
+    when the primary URL is known-broken (link-rot remediation).
+    """
+    if source.url_archive and source.url_status in ("broken", "archived"):
+        item = dict(source.csl_json)
+        item["URL"] = source.url_archive
+        return item
+    return source.csl_json
+
+
+def _post_annotations(post, keys: list[str]) -> dict[str, str]:
+    """
+    Map citation_key -> per-post annotation for annotated bibliographies.
+
+    Annotations live on PostCitation rows (edited via the post admin inline);
+    unsaved posts (previews) have none.
+    """
+    if not post or not getattr(post, "pk", None):
+        return {}
+    from engine.models import PostCitation
+
+    return {
+        pc.source.citation_key: pc.annotation
+        for pc in PostCitation.objects.filter(post=post, source__citation_key__in=keys)
+        .exclude(annotation="")
+        .select_related("source")
+    }
 
 
 def _parse_placeholder(cluster_type: str, content: str) -> tuple[list[str], list[dict]]:

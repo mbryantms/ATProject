@@ -75,7 +75,8 @@
     if (state.selected >= rows.length) state.selected = 0;
     if (!rows.length) {
       out.innerHTML =
-        '<div style="padding:14px 16px;color:var(--body-quiet-color);">No matches.</div>';
+        '<div style="padding:14px 16px;color:var(--body-quiet-color);">' +
+        'No matches — create a new source below.</div>';
       return;
     }
     out.innerHTML = rows
@@ -163,10 +164,75 @@
     if (active) active.scrollIntoView({ block: 'nearest' });
   }
 
+  // --- Create & insert (new source from DOI/URL/ISBN/title) ---
+
+  function setCreateStatus(text, isError) {
+    var el = document.getElementById('mk-cite-create-status');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('mk-error', !!isError);
+  }
+
+  function getCsrfToken() {
+    var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    return input ? input.value : '';
+  }
+
+  function createAndInsert() {
+    var input = document.getElementById('mk-cite-create-input');
+    var btn = document.getElementById('mk-cite-create-btn');
+    var wrap = document.querySelector('.mk-cite-controls');
+    if (!input || !wrap) return;
+    var identifier = (input.value || '').trim();
+    if (!identifier) {
+      setCreateStatus('Paste a DOI, URL, ISBN, or title first.', true);
+      return;
+    }
+    var url = wrap.getAttribute('data-cite-create-url');
+    if (!url) return;
+
+    if (btn) btn.disabled = true;
+    setCreateStatus('Looking up metadata…', false);
+
+    fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: JSON.stringify({ identifier: identifier }),
+    })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (res) {
+        if (btn) btn.disabled = false;
+        if (!res.ok || !res.data.key) {
+          setCreateStatus(res.data.error || 'Could not create the source.', true);
+          return;
+        }
+        input.value = '';
+        setCreateStatus('', false);
+        insertAt(res.data.key);
+      })
+      .catch(function () {
+        if (btn) btn.disabled = false;
+        setCreateStatus('Network error — try again.', true);
+      });
+  }
+
   document.addEventListener('click', function (e) {
     if (e.target && e.target.classList.contains('mk-cite-picker-btn')) {
       e.preventDefault();
       openModal();
+      return;
+    }
+    if (e.target && e.target.id === 'mk-cite-create-btn') {
+      e.preventDefault();
+      createAndInsert();
       return;
     }
     if (e.target && e.target.id === 'mk-cite-close') {
@@ -196,7 +262,17 @@
     if (!modal || modal.style.display !== 'flex') return;
     if (e.key === 'Escape') {
       closeModal();
-    } else if (e.key === 'ArrowDown') {
+      return;
+    }
+    // Enter inside the create input triggers create, not result insertion.
+    if (e.target && e.target.id === 'mk-cite-create-input') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        createAndInsert();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       moveSelection(1);
     } else if (e.key === 'ArrowUp') {

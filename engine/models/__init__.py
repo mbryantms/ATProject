@@ -27,7 +27,7 @@ from .base import (
 )
 
 # Citation (bibliography)
-from .citation import PostCitation
+from .citation import PostCitation, PostFurtherReading
 
 # Organization models
 from .organization import (
@@ -56,6 +56,9 @@ from .settings import SiteSettings
 # Source (bibliography)
 from .source import (
     Source,
+    SourceFile,
+    SourceFileKind,
+    SourceFileProvenance,
     SourceManager,
     SourceQuerySet,
     SourceType,
@@ -112,8 +115,12 @@ __all__ = [
     "SiteSettings",
     # Citation (bibliography)
     "PostCitation",
+    "PostFurtherReading",
     # Source (bibliography)
     "Source",
+    "SourceFile",
+    "SourceFileKind",
+    "SourceFileProvenance",
     "SourceQuerySet",
     "SourceManager",
     "SourceType",

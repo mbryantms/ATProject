@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Library - Architextual{% endblock %}
+
+{% block page_title %}Library{% endblock %}
+
+{% block content %}
+<div id="markdownBody" class="markdownBody">
+  <div id="page-metadata">
+    <div class="page-metadata-fields">
+      <span class="page-post-count">{{ total_sources }} source{{ total_sources|pluralize }} cited across the site</span>
+      <span class="library-export-links">
+        Export:
+        <a href="{% url 'library-export' fmt='bib' %}">BibTeX</a> ·
+        <a href="{% url 'library-export' fmt='ris' %}">RIS</a> ·
+        <a href="{% url 'library-export' fmt='json' %}">CSL-JSON</a>
+      </span>
+    </div>
+    <div class="tag-list-controls">
+      <span class="control-group">
+        <span class="control-label">Sort:</span>
+        <a href="?sort=cited{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if current_type %}&amp;type={{ current_type|urlencode }}{% endif %}"
+           class="control-option{% if current_sort == 'cited' %} active{% endif %}">Most cited</a>
+        <a href="?sort=title{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if current_type %}&amp;type={{ current_type|urlencode }}{% endif %}"
+           class="control-option{% if current_sort == 'title' %} active{% endif %}">A-Z</a>
+      </span>
+    </div>
+  </div>
+
+  <form class="library-filter-form" method="get" action="{% url 'library' %}">
+    <input type="search" name="q" value="{{ query }}" placeholder="Search title, author, key, or venue…" aria-label="Search the library">
+    {% if current_type %}<input type="hidden" name="type" value="{{ current_type }}">{% endif %}
+    {% if current_sort != 'cited' %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
+    <button type="submit">Search</button>
+    {% if query or current_type or current_year %}
+      <a class="library-filter-clear" href="{% url 'library' %}">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if type_facets %}
+    <div class="library-type-facets">
+      {% for facet in type_facets %}
+        <a href="?type={{ facet.value|urlencode }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}"
+           class="library-type-facet{% if current_type == facet.value %} active{% endif %}">
+          {{ facet.label }} <span class="search-result-count">({{ facet.count }})</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if page_obj.object_list %}
+    <ol class="library-list reference-list" data-citation-format="author-date">
+      {% for source in page_obj.object_list %}
+        <li class="reference-entry library-entry" id="src-{{ source.citation_key }}">
+          <span class="reference-text">
+            {% if source.first_author %}{{ source.first_author }}{% if source.year %} ({{ source.year }}){% endif %}.{% elif source.year %}({{ source.year }}).{% endif %}
+            {% if source.url %}<a href="{{ source.url }}" rel="noopener"><em>{{ source.title }}</em></a>{% else %}<em>{{ source.title }}</em>{% endif %}{% if source.container_title %}. {{ source.container_title }}{% endif %}.
+            <code class="library-key">@{{ source.citation_key }}</code>
+          </span>
+          {% for file in source.public_files %}
+            <a href="{{ file.file.url }}" class="reference-file-link" target="_blank" rel="noopener">[{{ file.kind|upper }}]</a>
+          {% endfor %}
+          {% if source.public_citations %}
+            <div class="library-cited-in">
+              Cited in:
+              {% for pc in source.public_citations %}
+                <a href="{{ pc.post.get_absolute_url }}#ref-{{ source.citation_key }}">{{ pc.post.title }}</a>{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="pagination" aria-label="Library pages">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if current_type %}&amp;type={{ current_type|urlencode }}{% endif %}{% if current_sort != 'cited' %}&amp;sort={{ current_sort }}{% endif %}">&larr; Previous</a>
+        {% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if current_type %}&amp;type={{ current_type|urlencode }}{% endif %}{% if current_sort != 'cited' %}&amp;sort={{ current_sort }}{% endif %}">Next &rarr;</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p>No sources found{% if query %} for “{{ query }}”{% endif %}.</p>
+  {% endif %}
+</div>
+{% endblock content %}

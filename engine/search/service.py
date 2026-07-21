@@ -12,10 +12,10 @@ from django.contrib.postgres.search import (
     SearchRank,
     TrigramSimilarity,
 )
-from django.db.models import Count, Q, Value
+from django.db.models import Count, F, Q, Value
 from django.db.models.functions import Coalesce, ExtractYear, NullIf
 
-from engine.models import Category, Page, Post, Series, Tag
+from engine.models import Category, Page, Post, PostCitation, Series, Source, Tag
 
 from .parser import parse_query, resolve_tag_aliases
 
@@ -267,6 +267,62 @@ def search_series(query_str, limit=5, user=None):
     )
 
 
+def _is_staff(user):
+    return bool(user and user.is_authenticated and (user.is_staff or user.is_superuser))
+
+
+def _visible_source_filter(user=None):
+    """Q filter (on Source) limiting to sources cited in visible posts."""
+    if _is_staff(user):
+        return Q(post_citations__post__is_deleted=False)
+    return Q(
+        post_citations__post__is_deleted=False,
+        post_citations__post__status="published",
+        post_citations__post__visibility="public",
+    )
+
+
+def _visible_citing_post_filter(user=None):
+    """Q filter (on PostCitation) limiting to citations in visible posts."""
+    if _is_staff(user):
+        return Q(post__is_deleted=False)
+    return Q(
+        post__is_deleted=False,
+        post__status="published",
+        post__visibility="public",
+    )
+
+
+def search_sources(query_str, limit=5, user=None):
+    """
+    Search the bibliography source library.
+
+    Only sources cited in at least one visible post are returned — the
+    uncited library is private (admin-only). Full-text search runs against
+    Source.search_vector with an icontains fallback for unindexed rows.
+    """
+    if not query_str or not query_str.strip():
+        return Source.objects.none()
+
+    visible = _visible_source_filter(user)
+    query = SearchQuery(query_str, search_type="websearch", config="english")
+
+    return (
+        Source.objects.filter(visible)
+        .filter(
+            Q(search_vector=query)
+            | Q(citation_key__icontains=query_str)
+            | Q(title__icontains=query_str)
+            | Q(container_title__icontains=query_str)
+        )
+        .annotate(
+            rank=Coalesce(SearchRank("search_vector", query), Value(0.0)),
+            cited_count=Count("post_citations", filter=visible, distinct=True),
+        )
+        .order_by("-rank", "-cited_count", "-created_at")[:limit]
+    )
+
+
 def search_pages(query_str, limit=3):
     """Search active pages by title and content."""
     if not query_str or not query_str.strip():
@@ -356,6 +412,7 @@ def build_search_results(
                 "tags": [],
                 "categories": [],
                 "series": [],
+                "sources": [],
                 "pages": [],
             },
             "facets": {
@@ -429,6 +486,7 @@ def build_search_results(
     tags_data = []
     categories_data = []
     series_data = []
+    sources_data = []
     pages_data = []
     if offset == 0 and raw_query:
         for tag in search_tags(raw_query, limit=5, user=user):
@@ -464,6 +522,35 @@ def build_search_results(
                 }
             )
 
+        source_hits = list(search_sources(raw_query, limit=5, user=user))
+        if source_hits:
+            # Sources have no public page; link each hit to its bibliography
+            # entry on the most recently published visible citing post.
+            citing_post = {}
+            citations = (
+                PostCitation.objects.filter(source__in=source_hits)
+                .filter(_visible_citing_post_filter(user))
+                .select_related("post")
+                .order_by(F("post__published_at").desc(nulls_last=True))
+            )
+            for pc in citations:
+                citing_post.setdefault(pc.source_id, pc.post)
+            for src in source_hits:
+                post = citing_post.get(src.pk)
+                if not post:
+                    continue
+                sources_data.append(
+                    {
+                        "citation_key": src.citation_key,
+                        "title": src.title,
+                        "author": src.first_author,
+                        "year": src.year,
+                        "type": src.get_source_type_display(),
+                        "url": f"{post.get_absolute_url()}#ref-{src.citation_key}",
+                        "cited_count": getattr(src, "cited_count", 0),
+                    }
+                )
+
         for page in search_pages(raw_query, limit=3):
             pages_data.append(
                 {
@@ -492,6 +579,7 @@ def build_search_results(
             "tags": tags_data,
             "categories": categories_data,
             "series": series_data,
+            "sources": sources_data,
             "pages": pages_data,
         },
         "facets": facets,

@@ -138,19 +138,23 @@ def check_source_urls(batch_size: int = 50, max_age_days: int = 7) -> dict:
     Returns:
         Stats dict with checked, ok, broken, archived counts.
     """
+    from django.db.models import F
+
     from engine.models import Source
 
     stats = {"checked": 0, "ok": 0, "redirect": 0, "broken": 0, "archived": 0}
 
     cutoff = timezone.now() - timezone.timedelta(days=max_age_days)
 
-    # Get URLs to check: unchecked first, then oldest-checked
+    # Get URLs to check: unchecked first, then oldest-checked. Postgres sorts
+    # NULLs last on a bare ascending order_by, which would starve
+    # never-checked sources behind every stale one.
     sources = (
         Source.objects.exclude(url="")
         .filter(
             models_Q_unchecked_or_stale(cutoff),
         )
-        .order_by("url_last_checked")[:batch_size]
+        .order_by(F("url_last_checked").asc(nulls_first=True))[:batch_size]
     )
 
     for source in sources:

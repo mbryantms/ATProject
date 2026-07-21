@@ -22,6 +22,7 @@ from .date_enhancer_v2 import date_enhancer_v2_default
 from .epigraph_enhancer import epigraph_enhancer_default
 from .first_paragraph_marker import first_paragraph_marker_default
 from .footnote_enhancer import footnote_enhancer_default
+from .further_reading import further_reading_renderer_default
 from .horizontal_rule_enhancer import horizontal_rule_enhancer_default
 from .link_decorator import link_decorator_default
 from .list_enhancer import list_enhancer_default
@@ -47,6 +48,7 @@ POSTPROCESSORS = [
     date_enhancer_v2_default,  # Add years-ago subscripts to explicitly marked dates
     footnote_enhancer_default,  # Enhance footnotes with self-links and structure
     citation_renderer_default,  # Resolve citation placeholders and render bibliography
+    further_reading_renderer_default,  # Curated Further Reading section (after references)
     block_marker_default,  # Mark discrete content blocks with "block" class
     first_paragraph_marker_default,  # Mark first paragraph in each section
     link_decorator_default,  # Unified link handling: external attrs + icon decoration
