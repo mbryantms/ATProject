@@ -1,6 +1,7 @@
-# Post editor — CodeMirror 6 reference
+# Markdown editor — CodeMirror 6 reference
 
-The `content_markdown` field on the Post change form uses CodeMirror 6. This
+The `content_markdown` field on Post and the `content` field on Page use
+CodeMirror 6. This
 doc describes what the editor does today, what keybindings are wired, and
 what is deliberately not yet built.
 
@@ -9,11 +10,15 @@ Throughout, `Mod` means **Cmd on macOS** and **Ctrl on Linux / Windows**.
 ## Where it applies
 
 - Django admin → Posts → add/edit → the **Content markdown** textarea.
-- Nowhere else. Description, abstract, and meta fields stay plain textareas.
-- The underlying `<textarea id="id_content_markdown">` stays in the DOM, just
-  hidden. Form submission, Django validation, and revision snapshots all read
-  from the textarea; the editor mirrors its value back on every edit and one
-  more time immediately before the form submits.
+- Django admin → Pages → add/edit → the **Content** textarea.
+- Description, abstract, and meta fields stay plain textareas.
+- The underlying textarea stays in the DOM, marked with
+  `data-cm-markdown-editor="1"` and hidden. Form submission and Django
+  validation still read from it; the editor mirrors its value back on every
+  edit and once more immediately before submission.
+- Pages also expose page-local asset aliases/overrides, curated Further
+  Reading, generated TOC display, and intro-paragraph small caps. Citations use
+  the site-wide style and do not have page-level annotations.
 
 ## Visual features
 
@@ -195,9 +200,8 @@ The editor ships with more than a plain mount. Active features:
   `admin:engine_post_lint_content`).
 - **Snippets** for `:::` fenced divs and `{.class}` hints
   (`admin-post-editor/snippets.js`).
-- **Preview modal** and **citation picker** (inline scripts wired from
-  `engine/admin/post.py`), coordinating with the editor via
-  `window.__atpPostEditorView`.
+- **Preview modal** and **citation picker** (shared by Post and Page admin),
+  coordinating with the editor via `window.__atpMarkdownEditorView`.
 
 ## Not built yet (stretch work)
 
@@ -210,7 +214,7 @@ The editor ships with more than a plain mount. Active features:
 
 ## Troubleshooting
 
-- **Nothing changed on the Post change form.** The bundle lives at
+- **Nothing changed on the Post or Page change form.** The bundle lives at
   `static/js/dist/admin-post-editor.js`. If you just ran `npm install` or
   edited `admin-post-editor-entry.js`, rebuild with
   `npm run build:js:admin-post-editor` (or run `npm run dev` for a watcher)
@@ -229,6 +233,7 @@ The editor ships with more than a plain mount. Active features:
 
 - Editor source: [static/js/admin-post-editor-entry.js](static/js/admin-post-editor-entry.js)
 - Bundle (git-ignored, built locally and in Docker): `static/js/dist/admin-post-editor.js`
-- Admin hookup: [engine/admin/post.py](engine/admin/post.py) `PostAdmin.Media.js`
+- Admin hookups: [engine/admin/post.py](engine/admin/post.py) `PostAdmin.Media.js`
+  and [engine/admin/page.py](engine/admin/page.py) `PageAdmin.Media.js`
 - npm scripts: `build:js:admin-post-editor`, `watch:js:admin-post-editor`
 - npm deps: `@codemirror/{state,view,commands,language,lang-markdown,autocomplete,search,lint}` + `@lezer/highlight`

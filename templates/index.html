@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block mathjax %}
+  <script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+{% endblock mathjax %}
+
 {% block title %}Architextual{% endblock %}
 
 {% block body_class %} class="page-index"{% endblock %}
@@ -17,6 +21,7 @@
   {# Intro Section - editable via Page model with slug 'home-intro' #}
   {% if intro_html %}
   <section class="index-intro">
+    {% include "posts/includes/table_of_contents.html" with toc=intro_toc %}
     {{ intro_html|safe }}
   </section>
   {% endif %}

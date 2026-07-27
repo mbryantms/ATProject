@@ -1,7 +1,7 @@
 /**
- * CodeMirror 6 editor for the Post admin `content_markdown` field.
+ * CodeMirror 6 editor for Markdown fields in the Post and Page admins.
  *
- * Mounts on #id_content_markdown, keeps the original <textarea> hidden
+ * Mounts on the textarea marked with `data-cm-markdown-editor`, keeps it hidden
  * so Django's form handling stays untouched, and mirrors the editor's
  * value back on every update plus immediately before form submit.
  */
@@ -50,10 +50,10 @@ import { makeLintSource } from './admin-post-editor/lint-source.js';
 import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
 import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.js';
 
-const TEXTAREA_ID = 'id_content_markdown';
-
 function initEditor() {
-  const textarea = document.getElementById(TEXTAREA_ID);
+  const textarea =
+    document.querySelector('textarea[data-cm-markdown-editor="1"]') ||
+    document.getElementById('id_content_markdown');
   if (!textarea || textarea.dataset.cmBound === '1') return;
   textarea.dataset.cmBound = '1';
 
@@ -67,20 +67,23 @@ function initEditor() {
     }
   });
 
-  // Endpoint URLs + post id are stamped onto the textarea by
-  // PostAdmin.formfield_for_dbfield.
+  // Endpoint URLs + owning content object are stamped onto the textarea.
   const citationsUrl = textarea.dataset.cmCitationsUrl || '';
   const assetsUrl = textarea.dataset.cmAssetsUrl || '';
   const lintUrl = textarea.dataset.cmLintUrl || '';
-  const postIdValue = textarea.dataset.cmPostId || '';
-  const getPostId = () => postIdValue;
+  const ownerTypeValue = textarea.dataset.cmOwnerType || 'post';
+  const ownerIdValue = textarea.dataset.cmOwnerId || textarea.dataset.cmPostId || '';
+  const getOwnerType = () => ownerTypeValue;
+  const getOwnerId = () => ownerIdValue;
 
   const completionSources = [];
   if (citationsUrl) {
     completionSources.push(makeCitationCompletionSource(citationsUrl));
   }
   if (assetsUrl) {
-    completionSources.push(makeAssetCompletionSource(assetsUrl, getPostId));
+    completionSources.push(
+      makeAssetCompletionSource(assetsUrl, getOwnerId, getOwnerType),
+    );
   }
 
   // Cheatsheet-driven snippets + class-name hints. The data is stamped
@@ -105,7 +108,7 @@ function initEditor() {
   const linterExtensions = [];
   if (lintUrl) {
     linterExtensions.push(
-      linter(makeLintSource(lintUrl, getPostId), {
+      linter(makeLintSource(lintUrl, getOwnerId, getOwnerType), {
         delay: 500,
       }),
     );
@@ -303,7 +306,8 @@ function initEditor() {
   // Expose the view on window so sibling admin widgets (citation picker,
   // preview button, future tooling) can insert at cursor or read state
   // without touching the textarea directly.
-  window.__atpPostEditorView = view;
+  window.__atpMarkdownEditorView = view;
+  window.__atpPostEditorView = view; // Backward compatibility for older helpers.
 
   // Searchable markdown-reference palette (Ctrl/Cmd-/ or the "Markdown helper"
   // button) that inserts snippets at the cursor. Data is the same cheatsheet

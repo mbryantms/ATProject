@@ -88,7 +88,7 @@ export function makeCitationCompletionSource(url) {
   };
 }
 
-export function makeAssetCompletionSource(url, getPostId) {
+export function makeAssetCompletionSource(url, getOwnerId, getOwnerType) {
   return async (context) => {
     // Trigger inside an image or link target: `](...` where the user
     // has typed `@`, optionally with `asset:` prefix.
@@ -105,9 +105,12 @@ export function makeAssetCompletionSource(url, getPostId) {
 
     if (!context.explicit && typedKey.length < 1) return null;
 
+    const ownerId = getOwnerId && getOwnerId();
+    const ownerType = getOwnerType && getOwnerType();
     const qs =
       `?q=${encodeURIComponent(typedKey)}` +
-      (getPostId && getPostId() ? `&post_id=${encodeURIComponent(getPostId())}` : '');
+      (ownerId ? `&object_id=${encodeURIComponent(ownerId)}` : '') +
+      (ownerType ? `&owner_type=${encodeURIComponent(ownerType)}` : '');
     let results = [];
     try {
       const res = await fetch(`${url}${qs}`, { credentials: 'same-origin' });

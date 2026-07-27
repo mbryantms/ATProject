@@ -85,3 +85,36 @@ class PostFurtherReading(TimeStampedModel):
 
     def __str__(self):
         return f"{self.post} recommends {self.source}"
+
+
+class PageFurtherReading(TimeStampedModel):
+    """A curated Further Reading entry rendered on an editable page."""
+
+    page = models.ForeignKey(
+        "engine.Page",
+        on_delete=models.CASCADE,
+        related_name="further_reading",
+    )
+    source = models.ForeignKey(
+        "engine.Source",
+        on_delete=models.CASCADE,
+        related_name="page_further_reading_entries",
+    )
+    position = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order within the Further Reading section.",
+    )
+    note = models.TextField(
+        blank=True,
+        help_text="Optional note shown beneath the entry (why it's recommended).",
+    )
+
+    class Meta:
+        unique_together = [("page", "source")]
+        ordering = ["position"]
+        indexes = [
+            models.Index(fields=["page", "position"], name="pagefr_page_position_idx")
+        ]
+
+    def __str__(self):
+        return f"{self.page} recommends {self.source}"

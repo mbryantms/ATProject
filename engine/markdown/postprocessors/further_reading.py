@@ -12,11 +12,14 @@ from engine.bibliography.renderer import render_further_reading_section
 
 
 def further_reading_renderer(html: str, context: dict) -> str:
-    post = context.get("post")
-    if not post or not getattr(post, "pk", None):
+    owner = context.get("content_object") or context.get("post")
+    if not owner or not getattr(owner, "pk", None):
         return html
 
-    entries = list(post.further_reading.select_related("source").order_by("position"))
+    relation = getattr(owner, "further_reading", None)
+    if relation is None:
+        return html
+    entries = list(relation.select_related("source").order_by("position"))
     if not entries:
         return html
 

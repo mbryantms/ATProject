@@ -15,15 +15,17 @@ function getCookie(name) {
   return '';
 }
 
-export function makeLintSource(url, getPostId) {
+export function makeLintSource(url, getOwnerId, getOwnerType) {
   return async (view) => {
     const content = view.state.doc.toString();
     if (!content) return [];
 
     const form = new FormData();
     form.append('content', content);
-    const pid = getPostId && getPostId();
-    if (pid) form.append('post_id', pid);
+    const ownerId = getOwnerId && getOwnerId();
+    const ownerType = getOwnerType && getOwnerType();
+    if (ownerId) form.append('object_id', ownerId);
+    if (ownerType) form.append('owner_type', ownerType);
 
     try {
       const res = await fetch(url, {

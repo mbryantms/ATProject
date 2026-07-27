@@ -5,8 +5,14 @@ Used for pages like the homepage intro that need editable content
 stored in the database. Can also store configuration like featured tags.
 """
 
+from functools import cached_property
+
 from django.db import models
 
+from engine.markdown.extensions.toc_extractor import (
+    extract_toc_from_html,
+    normalize_toc_structure,
+)
 from engine.markdown.renderer import render_markdown
 
 from .base import TimeStampedModel
@@ -39,6 +45,22 @@ class Page(TimeStampedModel):
         editable=False,
         help_text="Rendered HTML (auto-generated from content)",
     )
+    table_of_contents = models.JSONField(
+        default=list,
+        blank=True,
+        editable=False,
+        help_text="Heading structure extracted from rendered content.",
+    )
+    show_toc = models.BooleanField(
+        default=False,
+        verbose_name="Show Table of Contents",
+        help_text="Display a generated table of contents above the page body.",
+    )
+    first_line_caps = models.BooleanField(
+        default=False,
+        verbose_name="Intro Paragraph Small Caps",
+        help_text="Style the first line of the opening paragraph with small caps.",
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Whether this page content is active",
@@ -66,10 +88,28 @@ class Page(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if self.content:
-            self.content_html = render_markdown(self.content)
+            context = {
+                "content_object": self,
+                "first_line_caps": self.first_line_caps,
+            }
+            self.content_html = render_markdown(self.content, context=context)
+            self.table_of_contents = extract_toc_from_html(self.content_html)
         else:
             self.content_html = ""
+            self.table_of_contents = []
+        self.__dict__.pop("toc_tree", None)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {
+                "content_html",
+                "table_of_contents",
+            }
         super().save(*args, **kwargs)
+
+    @cached_property
+    def toc_tree(self):
+        """Normalized hierarchical TOC derived from the rendered content."""
+        return normalize_toc_structure(self.table_of_contents or [])
 
     @classmethod
     def get_content(cls, slug, default=""):

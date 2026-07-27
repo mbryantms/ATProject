@@ -49,7 +49,7 @@
     var m = document.getElementById('mk-cite-modal');
     if (!m) return;
     // Remember cursor position before focus is stolen.
-    var view = window.__atpPostEditorView;
+    var view = window.__atpMarkdownEditorView || window.__atpPostEditorView;
     if (view) state.savedCursor = view.state.selection.main.head;
     m.style.display = 'flex';
     var input = document.getElementById('mk-cite-search');
@@ -127,11 +127,11 @@
 
   function insertAt(key) {
     if (!key) return;
-    var view = window.__atpPostEditorView;
+    var view = window.__atpMarkdownEditorView || window.__atpPostEditorView;
     var insertText = '[@' + key + ']';
     if (!view) {
       // Fall back to textarea for authors without CM6 (just in case).
-      var ta = document.getElementById('id_content_markdown');
+      var ta = document.querySelector('textarea[data-cm-markdown-editor="1"]');
       if (!ta) {
         closeModal();
         return;
@@ -353,8 +353,12 @@
       e.preventDefault();
       var wrap = e.target.closest('.markdown-preview-controls');
       var url = wrap.getAttribute('data-preview-url');
-      var postId = wrap.getAttribute('data-post-id');
-      var textarea = document.getElementById('id_content_markdown');
+      var ownerId = wrap.getAttribute('data-owner-id') || wrap.getAttribute('data-post-id');
+      var ownerType = wrap.getAttribute('data-owner-type') || 'post';
+      var textareaId = wrap.getAttribute('data-textarea-id');
+      var textarea =
+        (textareaId && document.getElementById(textareaId)) ||
+        document.querySelector('textarea[data-cm-markdown-editor="1"]');
       if (!textarea) {
         alert('Content textarea not found.');
         return;
@@ -366,7 +370,8 @@
 
       var form = new FormData();
       form.append('content', textarea.value || '');
-      if (postId) form.append('post_id', postId);
+      if (ownerId) form.append('object_id', ownerId);
+      if (ownerType) form.append('owner_type', ownerType);
 
       fetch(url, {
         method: 'POST',

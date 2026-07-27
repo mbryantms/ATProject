@@ -17,23 +17,28 @@ def resolve_asset_keys(text: str, context: dict) -> str:
 
     Args:
         text: Markdown text with asset references
-        context: Must contain 'post' key with Post instance
+        context: May contain a ``content_object`` (Page or Post) or legacy
+            ``post`` key. Global asset references work without either.
 
     Returns:
         Markdown with resolved asset URLs
     """
     # Lazy import to avoid circular import
-    from engine.models import Asset, PostAsset
+    from engine.models import Asset
 
-    post = context.get("post")
-    # Note: post can be None for global @asset: references, which still work
+    owner = context.get("content_object") or context.get("post")
+    asset_relation = None
+    if owner is not None and getattr(owner, "pk", None):
+        asset_relation = getattr(owner, "post_assets", None) or getattr(
+            owner, "page_assets", None
+        )
 
-    # Build alias map for this post (if post is available)
+    # Build the owner-local alias map when a saved content object is available.
     alias_map = {}
-    if post:
-        for post_asset in post.post_assets.select_related("asset").all():
-            if post_asset.alias:
-                alias_map[post_asset.alias] = post_asset.asset
+    if asset_relation is not None:
+        for content_asset in asset_relation.select_related("asset").all():
+            if content_asset.alias:
+                alias_map[content_asset.alias] = content_asset.asset
 
     # Pattern for @asset:key or @alias
     # Matches: ![alt](@asset:key) or ![alt](@alias) or [text](@asset:key)
@@ -83,26 +88,17 @@ def resolve_asset_keys(text: str, context: dict) -> str:
         if not asset:
             return match.group(0)
 
-        # Get PostAsset for custom metadata (if post is available)
-        if post:
-            try:
-                # If we matched by alias (not global), use the alias to find the specific PostAsset
-                if not is_global and key in alias_map:
-                    post_asset = post.post_assets.get(alias=key)
-                else:
-                    # For global asset references, there might be multiple PostAssets
-                    # for the same asset (with different aliases or positions)
-                    # Use the first one found
-                    post_asset = post.post_assets.filter(asset=asset).first()
+        # Apply content-local caption/alt overrides when the asset is attached.
+        if asset_relation is not None:
+            if not is_global and key in alias_map:
+                content_asset = asset_relation.filter(alias=key).first()
+            else:
+                content_asset = asset_relation.filter(asset=asset).first()
 
-                if post_asset:
-                    alt_text = post_asset.get_alt_text() or link_text
-                    asset_metadata["caption"] = post_asset.get_caption()
-                else:
-                    # No PostAsset found, use asset defaults
-                    alt_text = asset.alt_text or link_text
-                    asset_metadata["caption"] = asset.caption
-            except PostAsset.DoesNotExist:
+            if content_asset:
+                alt_text = content_asset.get_alt_text() or link_text
+                asset_metadata["caption"] = content_asset.get_caption()
+            else:
                 alt_text = asset.alt_text or link_text
                 asset_metadata["caption"] = asset.caption
         else:

@@ -30,6 +30,7 @@ from engine.models import (
     AssetMetadata,
     AssetRendition,
     AssetTag,
+    PageAsset,
     PostAsset,
 )
 
@@ -303,6 +304,20 @@ class PostAssetInline(admin.TabularInline):
     classes = ["collapse"]
 
 
+class PageAssetInline(admin.TabularInline):
+    """Inline for per-page usage with aliases and metadata overrides."""
+
+    model = PageAsset
+    fk_name = "asset"
+    extra = 0
+    fields = ("page", "alias", "custom_alt_text", "custom_caption", "order")
+    autocomplete_fields = ("page",)
+    verbose_name = "Page usage"
+    verbose_name_plural = "Page usage (per-page aliases / overrides)"
+    ordering = ("page__title",)
+    classes = ["collapse"]
+
+
 # --------------------------
 # Asset Admin
 # --------------------------
@@ -351,7 +366,7 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         "asset_tags__name",
     ]
 
-    # Enable autocomplete for asset selection in PostAsset inline
+    # Enable autocomplete for related asset/content selectors.
     autocomplete_fields = ["uploaded_by", "asset_folder"]
     filter_horizontal = ["asset_tags"]
 
@@ -567,7 +582,12 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         ),
     ]
 
-    inlines = [AssetMetadataInline, AssetRenditionInline, PostAssetInline]
+    inlines = [
+        AssetMetadataInline,
+        AssetRenditionInline,
+        PostAssetInline,
+        PageAssetInline,
+    ]
 
     class Media:
         js = ("js/admin-clipboard.js",)
@@ -1334,16 +1354,19 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
 
     @admin.display(description="Usage")
     def usage_list(self, obj):
-        """Show list of posts using this asset."""
-        usages = obj.post_usages.select_related("post")[:10]
-        if not usages:
-            return mark_safe('<em class="mk-muted">Not used in any posts</em>')
+        """Show posts and pages using this asset."""
+        post_usages = list(obj.post_usages.select_related("post")[:10])
+        page_usages = list(
+            obj.page_usages.select_related("page")[: max(0, 10 - len(post_usages))]
+        )
+        if not post_usages and not page_usages:
+            return mark_safe('<em class="mk-muted">Not used in any content</em>')
 
         from django.urls import reverse
         from django.utils.html import escape
 
         items = []
-        for usage in usages:
+        for usage in post_usages:
             post_url = reverse("admin:engine_post_change", args=[usage.post.pk])
             alias = (
                 f' <code class="mk-code">@{escape(usage.alias)}</code>'
@@ -1354,7 +1377,18 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 f'<li><a href="{post_url}" target="_blank">{escape(usage.post.title)}</a>{alias}</li>'
             )
 
-        total = obj.post_usages.count()
+        for usage in page_usages:
+            page_url = reverse("admin:engine_page_change", args=[usage.page.pk])
+            alias = (
+                f' <code class="mk-code">@{escape(usage.alias)}</code>'
+                if usage.alias
+                else ""
+            )
+            items.append(
+                f'<li><a href="{page_url}" target="_blank">{escape(str(usage.page))}</a>{alias}</li>'
+            )
+
+        total = obj.post_usages.count() + obj.page_usages.count()
         more = ""
         if total > 10:
             more = f'<p class="mk-muted" style="margin:8px 0 0 0;"><em>…and {total - 10} more</em></p>'
@@ -1468,14 +1502,14 @@ class AssetAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
 
     @admin.action(description="Recount asset usage (reconcile cached counter)")
     def update_usage_count(self, request, queryset):
-        """Recompute Asset.usage_count from PostAsset.
+        """Recompute Asset.usage_count from post and page attachments.
 
-        The counter is a denormalized cache; nothing currently keeps it fresh
-        on PostAsset save/delete, so run this if you suspect drift.
+        The counter is a denormalized cache maintained by relationship signals;
+        this action remains a reconciliation backstop.
         """
         touched = 0
         for asset in queryset:
-            real = asset.post_usages.count()
+            real = asset.post_usages.count() + asset.page_usages.count()
             if asset.usage_count != real:
                 asset.usage_count = real
                 asset.save(update_fields=["usage_count"])
