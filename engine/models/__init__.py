@@ -17,6 +17,7 @@ from .asset import (
     AssetMetadata,
     AssetQuerySet,
     AssetRendition,
+    PageAsset,
     PostAsset,
 )
 from .base import (
@@ -27,7 +28,7 @@ from .base import (
 )
 
 # Citation (bibliography)
-from .citation import PostCitation, PostFurtherReading
+from .citation import PageFurtherReading, PostCitation, PostFurtherReading
 
 # Organization models
 from .organization import (
@@ -100,6 +101,7 @@ __all__ = [
     "Page",
     "PageFeaturedTag",
     "PageFeaturedCategory",
+    "PageFurtherReading",
     # Asset
     "Asset",
     "AssetQuerySet",
@@ -107,6 +109,7 @@ __all__ = [
     "AssetMetadata",
     "AssetRendition",
     "PostAsset",
+    "PageAsset",
     # Organization
     "AssetFolder",
     "AssetTag",

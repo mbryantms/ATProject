@@ -8,6 +8,7 @@
 
 {% block content %}
 <div id="markdownBody" class="markdownBody">
+  {% include "posts/includes/table_of_contents.html" with toc=toc_nodes %}
   {{ content_html|safe }}
 </div>
 {% endblock content %}

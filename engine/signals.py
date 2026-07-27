@@ -22,6 +22,7 @@ from engine.links.extractor import update_post_links
 from engine.models import (
     Asset,
     InternalLink,
+    PageAsset,
     Post,
     PostAsset,
     PostCitation,
@@ -337,13 +338,18 @@ def recompute_similarity_on_citation_change(sender, instance, **kwargs):
 
 @receiver(post_save, sender=PostAsset)
 @receiver(post_delete, sender=PostAsset)
+@receiver(post_save, sender=PageAsset)
+@receiver(post_delete, sender=PageAsset)
 def sync_asset_usage_count(sender, instance, **kwargs):
-    """Recompute the affected Asset's usage_count from its PostAsset rows."""
+    """Recompute Asset usage across posts and pages."""
     asset_id = instance.asset_id
     if not asset_id:
         return
     Asset.all_objects.filter(pk=asset_id).update(
-        usage_count=PostAsset.objects.filter(asset_id=asset_id).count()
+        usage_count=(
+            PostAsset.objects.filter(asset_id=asset_id).count()
+            + PageAsset.objects.filter(asset_id=asset_id).count()
+        )
     )
 
 

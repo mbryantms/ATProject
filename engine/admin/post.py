@@ -11,7 +11,7 @@ import logging
 import re
 
 from django.contrib import admin, messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -240,8 +240,9 @@ EDITOR_INLINE_CLASSES = [
 ]
 
 
-class PostAssetInline(admin.StackedInline):
-    model = PostAsset
+class ContentAssetInline(admin.StackedInline):
+    """Shared asset attachment UI for PostAsset and PageAsset."""
+
     extra = 1
     min_num = 0
     max_num = 50
@@ -256,7 +257,7 @@ class PostAssetInline(admin.StackedInline):
 
     # Verbose names for better UX
     verbose_name = "Asset"
-    verbose_name_plural = "Post Assets"
+    verbose_name_plural = "Content Assets"
 
     fieldsets = [
         (
@@ -277,7 +278,7 @@ class PostAssetInline(admin.StackedInline):
                     ("custom_caption", "asset_default_caption"),
                 ),
                 "classes": ["collapse"],
-                "description": "Override default asset metadata for this post only. The right column shows what will appear on the site if you leave the override blank.",
+                "description": "Override default asset metadata for this content item only. The right column shows what will appear on the site if you leave the override blank.",
             },
         ),
     ]
@@ -341,7 +342,7 @@ class PostAssetInline(admin.StackedInline):
             formset.form.base_fields["alias"].required = False
             formset.form.base_fields[
                 "alias"
-            ].help_text = 'Optional: Short name for this post (e.g., "fig1")'
+            ].help_text = 'Optional: Short name for this content item (e.g., "fig1")'
             formset.form.base_fields["alias"].widget.attrs.update(
                 {"placeholder": "Leave blank to use global key"}
             )
@@ -356,7 +357,7 @@ class PostAssetInline(admin.StackedInline):
         if "custom_caption" in formset.form.base_fields:
             formset.form.base_fields[
                 "custom_caption"
-            ].help_text = "Override default caption for this post only"
+            ].help_text = "Override default caption for this content item only"
             formset.form.base_fields["custom_caption"].widget.attrs.update(
                 {"rows": 2, "placeholder": "Leave blank to use asset's default caption"}
             )
@@ -431,6 +432,12 @@ class PostAssetInline(admin.StackedInline):
             ref,
             ref,
         )
+
+
+class PostAssetInline(ContentAssetInline):
+    model = PostAsset
+    verbose_name = "Asset"
+    verbose_name_plural = "Post Assets"
 
 
 class IncomingLinksInline(admin.TabularInline):
@@ -744,6 +751,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "rows": 30,
                     "cols": 120,
                     "style": "width: 100%; font-family: monospace; font-size: 16px;",
+                    "data-cm-markdown-editor": "1",
                     "data-cm-citations-url": reverse(
                         "admin:engine_post_autocomplete_citations"
                     ),
@@ -752,6 +760,12 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     ),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
+                        request.resolver_match.kwargs.get("object_id", "")
+                    )
+                    if getattr(request, "resolver_match", None)
+                    else "",
+                    "data-cm-owner-type": "post",
+                    "data-cm-owner-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
                     )
                     if getattr(request, "resolver_match", None)
@@ -1051,29 +1065,34 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         )
 
     def autocomplete_assets_view(self, request):
-        """Return asset matches, post-scoped aliases first then global keys.
+        """Return asset matches, content-local aliases first then global keys.
 
-        Query params: ``q`` (prefix filter), ``post_id`` (optional; scopes
-        alias lookup to the post's attached PostAssets).
+        Query params: ``q``, ``owner_type`` (post/page), and ``object_id``.
+        ``post_id`` remains accepted for older editor bundles.
         """
         from django.db.models import Q
         from django.http import JsonResponse
 
-        from engine.models import Asset, PostAsset
+        from engine.models import Asset, PageAsset, PostAsset
 
         if not (request.user.is_staff or request.user.is_superuser):
             return JsonResponse({"results": []}, status=403)
 
         q = (request.GET.get("q") or "").strip()
-        post_id = request.GET.get("post_id") or ""
+        owner_type = request.GET.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.GET.get("object_id") or request.GET.get("post_id") or ""
 
         results = []
         seen = set()
 
-        # Post-local aliases first — these are what authors typically want.
-        if post_id:
+        # Content-local aliases first — these are what authors typically want.
+        if object_id:
             try:
-                pa_qs = PostAsset.objects.filter(post_id=int(post_id)).select_related(
+                relation_model = PageAsset if owner_type == "page" else PostAsset
+                owner_filter = {f"{owner_type}_id": int(object_id)}
+                pa_qs = relation_model.objects.filter(**owner_filter).select_related(
                     "asset"
                 )
                 if q:
@@ -1138,24 +1157,39 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             return JsonResponse({"diagnostics": []}, status=403)
 
         content = request.POST.get("content", "")
-        post_id = request.POST.get("post_id") or ""
+        owner_type = request.POST.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.POST.get("object_id") or request.POST.get("post_id") or ""
 
-        post = None
-        if post_id:
+        owner = None
+        if object_id:
             try:
-                post = Post.all_objects.prefetch_related("post_assets__asset").get(
-                    pk=int(post_id)
-                )
-            except ValueError, Post.DoesNotExist:
+                if owner_type == "page":
+                    from engine.models import Page
+
+                    owner = Page.objects.prefetch_related("page_assets__asset").get(
+                        pk=int(object_id)
+                    )
+                else:
+                    owner = Post.all_objects.prefetch_related("post_assets__asset").get(
+                        pk=int(object_id)
+                    )
+            except ValueError, TypeError, ObjectDoesNotExist:
                 pass
 
-        post_assets = (
-            list(post.post_assets.select_related("asset").all()) if post else []
+        relation = None
+        if owner is not None:
+            relation = getattr(owner, "page_assets", None) or getattr(
+                owner, "post_assets", None
+            )
+        content_assets = (
+            list(relation.select_related("asset").all()) if relation else []
         )
         findings = lint_markdown(
             content,
-            post_assets=post_assets,
-            current_post_pk=post.pk if post else None,
+            post_assets=content_assets,
+            current_post_pk=owner.pk if owner else None,
         )
         return JsonResponse({"diagnostics": to_diagnostics(findings)})
 
@@ -1191,26 +1225,44 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
         content = request.POST.get("content", "")
-        post_id = request.POST.get("post_id")
+        owner_type = request.POST.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.POST.get("object_id") or request.POST.get("post_id")
 
         context = {}
-        post = None
-        if post_id:
+        owner = None
+        if object_id:
             try:
-                post = Post.all_objects.prefetch_related("post_assets__asset").get(
-                    pk=int(post_id)
-                )
-                context["post"] = post
-            except ValueError, Post.DoesNotExist:
+                if owner_type == "page":
+                    from engine.models import Page
+
+                    owner = Page.objects.prefetch_related(
+                        "page_assets__asset", "further_reading__source"
+                    ).get(pk=int(object_id))
+                    context["content_object"] = owner
+                    context["first_line_caps"] = owner.first_line_caps
+                else:
+                    owner = Post.all_objects.prefetch_related("post_assets__asset").get(
+                        pk=int(object_id)
+                    )
+                    context["post"] = owner
+                    context["content_object"] = owner
+            except ValueError, TypeError, ObjectDoesNotExist:
                 pass
 
-        post_assets = (
-            list(post.post_assets.select_related("asset").all()) if post else []
+        relation = None
+        if owner is not None:
+            relation = getattr(owner, "page_assets", None) or getattr(
+                owner, "post_assets", None
+            )
+        content_assets = (
+            list(relation.select_related("asset").all()) if relation else []
         )
         findings = lint_markdown(
             content,
-            post_assets=post_assets,
-            current_post_pk=post.pk if post else None,
+            post_assets=content_assets,
+            current_post_pk=owner.pk if owner else None,
         )
         lint_items = summarize(findings)
 
@@ -1629,7 +1681,8 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         preview_url = reverse("admin:engine_post_preview_markdown")
         return format_html(
             '<div class="markdown-preview-controls" '
-            'data-preview-url="{}" data-post-id="{}">'
+            'data-preview-url="{}" data-owner-type="post" data-owner-id="{}" '
+            'data-textarea-id="id_content_markdown">'
             "<button type='button' class='markdown-preview-btn'>"
             "🔍 Preview rendered markdown</button>"
             "<span class='markdown-preview-hint'>"

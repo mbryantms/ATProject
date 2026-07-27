@@ -85,10 +85,12 @@ class IndexView(SEOContextMixin, TemplateView):
                 "pagefeaturedcategory_set__category",
             ).get(slug=self.PAGE_SLUG, is_active=True)
             context["intro_html"] = page.content_html
+            context["intro_toc"] = page.toc_tree if page.show_toc else []
             featured_tags_config = page.get_featured_tags_config()
             featured_categories_config = page.get_featured_categories_config()
         except Page.DoesNotExist:
             context["intro_html"] = ""
+            context["intro_toc"] = []
             featured_tags_config = []
             featured_categories_config = []
 
@@ -578,6 +580,7 @@ class PageView(SEOContextMixin, TemplateView):
             context["page"] = page
             context["page_title"] = page.title
             context["content_html"] = page.content_html
+            context["toc_nodes"] = page.toc_tree if page.show_toc else []
             context["seo_title"] = page.title
         except Page.DoesNotExist:
             raise Http404(f"Page '{slug}' not found")

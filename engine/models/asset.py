@@ -1,7 +1,7 @@
 """
 Asset management models.
 
-Includes Asset (with queryset/manager), AssetMetadata, AssetRendition, and PostAsset models
+Includes Asset (with queryset/manager), AssetMetadata, AssetRendition, and content-asset models
 for managing media assets across the site.
 """
 
@@ -30,8 +30,10 @@ class AssetQuerySet(SoftDeleteQuerySet):
         return self.prefetch_related("asset_tags")
 
     def with_usage(self):
-        """Prefetch post usages."""
-        return self.prefetch_related("post_usages", "post_usages__post")
+        """Prefetch post and page usages."""
+        return self.prefetch_related(
+            "post_usages", "post_usages__post", "page_usages", "page_usages__page"
+        )
 
     def by_type(self, asset_type):
         """Filter by asset type."""
@@ -1048,6 +1050,62 @@ class PostAsset(TimeStampedModel):
     def __str__(self):
         alias_str = f" (alias: @{self.alias})" if self.alias else ""
         return f"{self.post.title} → {self.asset.key}{alias_str}"
+
+    @property
+    def markdown_reference(self):
+        """Get markdown reference string (prefers alias if available)."""
+        if self.alias:
+            return f"@{self.alias}"
+        return f"@asset:{self.asset.key}"
+
+    def get_caption(self):
+        """Get caption (custom or default)."""
+        return self.custom_caption or self.asset.caption
+
+    def get_alt_text(self):
+        """Get alt text (custom or default)."""
+        return self.custom_alt_text or self.asset.alt_text
+
+
+class PageAsset(TimeStampedModel):
+    """Association between pages and assets with optional page-local aliases."""
+
+    page = models.ForeignKey(
+        "engine.Page", on_delete=models.CASCADE, related_name="page_assets"
+    )
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name="page_usages"
+    )
+    alias = models.SlugField(
+        max_length=100,
+        blank=True,
+        help_text="Optional short alias for this page. Use in markdown as @alias",
+    )
+    order = models.PositiveIntegerField(default=0, help_text="Display order in admin")
+    custom_caption = models.TextField(
+        blank=True, help_text="Override default caption for this page"
+    )
+    custom_alt_text = models.CharField(
+        max_length=255, blank=True, help_text="Override default alt text for this page"
+    )
+
+    class Meta:
+        ordering = ["order", "created_at"]
+        indexes = [
+            models.Index(fields=["page", "order"], name="pageasset_page_order_idx"),
+            models.Index(fields=["page", "asset"], name="pageasset_page_asset_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page", "alias"],
+                condition=~models.Q(alias=""),
+                name="unique_page_alias_when_not_blank",
+            ),
+        ]
+
+    def __str__(self):
+        alias_str = f" (alias: @{self.alias})" if self.alias else ""
+        return f"{self.page} → {self.asset.key}{alias_str}"
 
     @property
     def markdown_reference(self):
