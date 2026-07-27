@@ -353,7 +353,8 @@
       e.preventDefault();
       var wrap = e.target.closest('.markdown-preview-controls');
       var url = wrap.getAttribute('data-preview-url');
-      var ownerId = wrap.getAttribute('data-owner-id') || wrap.getAttribute('data-post-id');
+      var ownerId =
+        wrap.getAttribute('data-owner-id') || wrap.getAttribute('data-post-id');
       var ownerType = wrap.getAttribute('data-owner-type') || 'post';
       var textareaId = wrap.getAttribute('data-textarea-id');
       var textarea =
