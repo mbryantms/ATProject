@@ -79,19 +79,7 @@
       </span>
     </div>
 
-    {# Parent category #}
-    {% if category.parent %}
-      <div class="link-tags tag-parent-link">
-        <p>
-          <span class="tag-nav-label">Parent:</span>
-          <a href="{% url 'category-archive' slug=category.parent.slug %}"
-             class="link-tag link-page link-annotated icon-not has-annotation"
-             title="View posts in '{{ category.parent.name }}'">{{ category.parent.name }}</a><span class="hierarchy-arrow">&thinsp;&#10531;</span>
-        </p>
-      </div>
-    {% endif %}
-
-    {# Subcategories list #}
+    {# Subcategories list (the breadcrumb above covers the parent chain) #}
     {% if children %}
       <div class="link-tags tag-subtags">
         <p>
@@ -99,7 +87,7 @@
           {% for child in children %}
             <a href="{% url 'category-archive' slug=child.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
-               title="View posts in '{{ child.name }}'">{{ child.name }}</a><span class="hierarchy-arrow">&thinsp;&#8600;</span>{% if not forloop.last %},{% endif %}
+               title="View posts in '{{ child.name }}'">{{ child.name }}</a>&thinsp;<span class="tag-link-count">({{ child.post_count }})</span><span class="hierarchy-arrow">&thinsp;&#8600;</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>
@@ -113,7 +101,7 @@
           {% for sibling in siblings %}
             <a href="{% url 'category-archive' slug=sibling.slug %}"
                class="link-tag link-page link-annotated icon-not has-annotation"
-               title="View posts in '{{ sibling.name }}'">{{ sibling.name }}</a><span class="hierarchy-arrow">&thinsp;&rarr;</span>{% if not forloop.last %},{% endif %}
+               title="View posts in '{{ sibling.name }}'">{{ sibling.name }}</a>&thinsp;<span class="tag-link-count">({{ sibling.post_count }})</span>{% if not forloop.last %},{% endif %}
           {% endfor %}
         </p>
       </div>
@@ -121,25 +109,6 @@
   </div>
 
   {# Posts grouped by year #}
-  {% if posts_by_year %}
-    {% for year, posts in posts_by_year.items %}
-    <section class="archive-year">
-      <h2>{{ year }}</h2>
-      <ul class="archive-list list list-level-1 block">
-        {% for post in posts %}
-        <li class="in-list">
-          <span class="archive-date">{{ post.published_at|date:"m-d" }}:</span>
-          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
-          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endfor %}
-    {% include "posts/includes/pagination.html" %}
-  {% else %}
-    <p>No posts in this category yet.</p>
-  {% endif %}
+  {% include "posts/includes/post_index.html" with empty_message="No posts in this category yet." %}
 </div>
 {% endblock content %}

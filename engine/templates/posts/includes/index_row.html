@@ -1,0 +1,21 @@
+{# One row of the shared post index: date gutter, title line, optional description. #}
+{# Expects: post, plus optional current_sort / show_description. #}
+<li class="index-row">
+  <span class="index-date">{% if current_sort == 'title' %}{{ post.published_at|date:"Y" }}{% else %}{{ post.published_at|date:"m-d" }}{% endif %}</span>
+  <div class="index-body">
+    <span class="index-title-line">
+      <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+      {% if post.is_featured %}<span class="index-glyph" title="Featured">&#8251;</span>{% endif %}
+      {% if post.completion_status == 'in_progress' %}<span class="index-glyph" title="In progress">&#8943;</span>{% endif %}
+      {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+      {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+      {% if post.reading_time_minutes %}<span class="index-meta">{{ post.reading_time_minutes }}&#8202;min</span>{% endif %}
+      {% if post.row_tags %}
+        <span class="index-tags">{% for t in post.row_tags %}<a href="{% url 'tag-archive' slug=t.slug %}" rel="tag">{{ t.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      {% endif %}
+    </span>
+    {% if show_description and post.description %}
+      <span class="index-description">{{ post.description|truncatewords:30 }}</span>
+    {% endif %}
+  </div>
+</li>

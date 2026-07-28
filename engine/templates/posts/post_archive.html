@@ -13,31 +13,20 @@
     <div class="tag-list-controls">
       <span class="control-group">
         <span class="control-label">Sort:</span>
-        <a href="?sort=date" class="control-option{% if current_sort == 'date' %} active{% endif %}">Date</a>
-        <a href="?sort=title" class="control-option{% if current_sort == 'title' %} active{% endif %}">Title</a>
+        <a href="{% querystring sort='date' page=None %}" class="control-option{% if current_sort == 'date' %} active{% endif %}">Date</a>
+        <a href="{% querystring sort='title' page=None %}" class="control-option{% if current_sort == 'title' %} active{% endif %}">Title</a>
+      </span>
+      <span class="control-group">
+        <span class="control-label">Show:</span>
+        {% if show_description %}
+        <a href="{% querystring show=None page=None %}" class="control-option active">Description</a>
+        {% else %}
+        <a href="{% querystring show='description' page=None %}" class="control-option">Description</a>
+        {% endif %}
       </span>
     </div>
   </div>
 
-  {% if posts_by_year %}
-    {% for year, posts in posts_by_year.items %}
-    <section class="archive-year">
-      <h2>{{ year }}</h2>
-      <ul class="archive-list list list-level-1 block">
-        {% for post in posts %}
-        <li class="in-list">
-          <span class="archive-date">{{ post.published_at|date:"m-d" }}:</span>
-          <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-          {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
-          {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endfor %}
-    {% include "posts/includes/pagination.html" %}
-  {% else %}
-    <p>No posts yet.</p>
-  {% endif %}
+  {% include "posts/includes/post_index.html" %}
 </div>
 {% endblock content %}

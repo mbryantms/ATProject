@@ -1,0 +1,15 @@
+{# One node of the category tree; recurses into node.children. Expects: node. #}
+<li class="category-node">
+  <span class="category-node-line">
+    <a href="{% url 'category-archive' slug=node.category.slug %}" class="category-name">{{ node.category.name }}</a>
+    <span class="tag-count">({{ node.category.post_count }})</span>
+    {% if node.category.description %}<span class="category-description">{{ node.category.description }}</span>{% endif %}
+  </span>
+  {% if node.children %}
+    <ul class="category-children">
+      {% for node in node.children %}
+        {% include "posts/includes/category_tree_node.html" %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</li>

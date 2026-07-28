@@ -1,7 +1,9 @@
+import math
 from collections import OrderedDict
 
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Max, Min, Prefetch, Q, Sum
+from django.db.models.functions import ExtractYear
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -28,20 +30,134 @@ from .models import (
 ARCHIVE_PAGE_SIZE = 50
 
 
-def _paginate_posts_by_year(request, posts):
-    """Paginate an ordered post queryset and group the current page by year.
+def _paginate_post_index(request, posts, sort="date"):
+    """Paginate an ordered post queryset and group the current page into
+    display sections for the shared post-index template.
 
-    Returns ``(page_obj, posts_by_year, total_count)``. Year grouping is applied
-    to the current page only, so a year that straddles a page boundary simply
-    appears (as its own heading) on both pages — standard for paged archives.
+    For date sort the sections are years (with true per-year totals, plus a
+    year-strip entry mapping each year to the page it starts on); for title
+    sort they are initial letters. Grouping applies to the current page only,
+    so a section straddling a page boundary simply repeats its heading on the
+    next page — standard for paged archives.
+
+    Returns ``(page_obj, sections, year_strip, total_count)``. ``sections``
+    is a list of ``{"heading", "anchor", "posts", "total"}`` dicts;
+    ``year_strip`` is a list of ``{"year", "total", "page"}`` dicts (empty
+    for title sort).
     """
     paginator = Paginator(posts, ARCHIVE_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
-    posts_by_year = OrderedDict()
+
+    if sort == "title":
+        by_letter = OrderedDict()
+        for post in page_obj.object_list:
+            letter = post.title[:1].upper()
+            if not letter.isalpha():
+                letter = "#"
+            by_letter.setdefault(letter, []).append(post)
+        sections = [
+            {
+                "heading": letter,
+                "anchor": "t-num" if letter == "#" else f"t-{letter}",
+                "posts": letter_posts,
+                "total": None,
+            }
+            for letter, letter_posts in by_letter.items()
+        ]
+        return page_obj, sections, [], paginator.count
+
+    # Per-year totals over the WHOLE queryset (the page only holds a slice).
+    # ExtractYear and ``localtime`` below both resolve in the current timezone,
+    # so section keys and totals agree.
+    totals = (
+        posts.filter(published_at__isnull=False)
+        .prefetch_related(None)  # aggregate rows can't take prefetches
+        .annotate(year=ExtractYear("published_at"))
+        .values("year")
+        .annotate(n=Count("pk"))
+        .order_by("-year")
+    )
+    # Undated posts (staff viewing drafts) sort NULLS FIRST under
+    # ``-published_at`` on Postgres, so they occupy the earliest offsets.
+    undated_count = posts.filter(published_at__isnull=True).count()
+
+    year_totals = {}
+    year_strip = []
+    offset = undated_count
+    for row in totals:
+        year_totals[row["year"]] = row["n"]
+        year_strip.append(
+            {
+                "year": row["year"],
+                "total": row["n"],
+                "page": offset // ARCHIVE_PAGE_SIZE + 1,
+            }
+        )
+        offset += row["n"]
+
+    by_year = OrderedDict()
     for post in page_obj.object_list:
         if post.published_at:
-            posts_by_year.setdefault(post.published_at.year, []).append(post)
-    return page_obj, posts_by_year, paginator.count
+            key = timezone.localtime(post.published_at).year
+        else:
+            key = None
+        by_year.setdefault(key, []).append(post)
+
+    sections = []
+    for year, year_posts in by_year.items():
+        if year is None:
+            sections.append(
+                {
+                    "heading": "Undated",
+                    "anchor": "y-undated",
+                    "posts": year_posts,
+                    "total": None,
+                }
+            )
+        else:
+            sections.append(
+                {
+                    "heading": str(year),
+                    "anchor": f"y{year}",
+                    "posts": year_posts,
+                    "total": year_totals.get(year),
+                }
+            )
+    return page_obj, sections, year_strip, paginator.count
+
+
+def _taxonomy_post_filter(user, now):
+    """Q filter for counting a taxonomy object's posts (Tag/Category/Series
+    all expose the same ``posts`` related name).
+
+    Staff count every non-deleted post; the public count must match what the
+    archive pages actually list: PUBLIC and published only. Counting UNLISTED
+    here would advertise the number of hidden posts and make count badges
+    disagree with the archive pages.
+    """
+    if user.is_authenticated and (user.is_staff or user.is_superuser):
+        return Q(posts__is_deleted=False)
+    return Q(
+        Q(posts__expire_at__isnull=True) | Q(posts__expire_at__gt=now),
+        posts__is_deleted=False,
+        posts__status=Post.Status.PUBLISHED,
+        posts__visibility=Post.Visibility.PUBLIC,
+        posts__published_at__isnull=False,
+        posts__published_at__lte=now,
+    )
+
+
+def _attach_row_tags(sections, exclude_slug=None, limit=3):
+    """Attach ``row_tags`` to each post in the paginated index sections.
+
+    Uses the prefetched tag list (no extra queries), dropping the archive's
+    own tag — on /tags/x/ every row would otherwise repeat "x" — and capping
+    the count so rows stay one scan-friendly line.
+    """
+    for section in sections:
+        for post in section["posts"]:
+            tags = [t for t in post.tags.all() if t.slug != exclude_slug]
+            post.row_tags = tags[:limit]
 
 
 class IndexView(SEOContextMixin, TemplateView):
@@ -178,6 +294,8 @@ class PostArchiveView(SEOContextMixin, TemplateView):
         current_sort = self.request.GET.get("sort", "date")
         if current_sort not in ("date", "title"):
             current_sort = "date"
+        show_param = self.request.GET.get("show", "")
+        show_options = [opt.strip() for opt in show_param.split(",") if opt.strip()]
 
         # Get published, public posts — defer heavy text fields not needed for listing
         deferred = (
@@ -207,11 +325,16 @@ class PostArchiveView(SEOContextMixin, TemplateView):
         else:
             posts = posts.order_by("-published_at")
 
-        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
+        page_obj, sections, year_strip, total = _paginate_post_index(
+            self.request, posts, sort=current_sort
+        )
+        _attach_row_tags(sections)
         context["page_obj"] = page_obj
-        context["posts_by_year"] = posts_by_year
+        context["index_sections"] = sections
+        context["year_strip"] = year_strip
         context["total_posts"] = total
         context["current_sort"] = current_sort
+        context["show_description"] = "description" in show_options
         return context
 
 
@@ -263,6 +386,7 @@ class TagArchiveView(SEOContextMixin, TemplateView):
             posts = (
                 Post.all_objects.filter(is_deleted=False, tags=tag)
                 .select_related("author")
+                .prefetch_related("tags")
                 .order_by("-published_at")
             )
         else:
@@ -271,20 +395,30 @@ class TagArchiveView(SEOContextMixin, TemplateView):
                 .public()
                 .filter(tags=tag)
                 .select_related("author")
+                .prefetch_related("tags")
                 .order_by("-published_at")
             )
 
-        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
+        page_obj, sections, year_strip, total = _paginate_post_index(
+            self.request, posts
+        )
+        _attach_row_tags(sections, exclude_slug=tag.slug)
 
-        # Get hierarchical navigation
+        # Hierarchical navigation, with post counts on every linked tag
+        post_filter = _taxonomy_post_filter(user, timezone.now())
         ancestors = tag.get_ancestors()
-        children = tag.children.filter(is_active=True).order_by("-rank", "name")
+        children = (
+            tag.children.filter(is_active=True)
+            .annotate(post_count=Count("posts", filter=post_filter))
+            .order_by("-rank", "name")
+        )
 
         # Get sibling tags (other children of the same parent)
         if tag.parent:
             siblings = (
                 tag.parent.children.filter(is_active=True)
                 .exclude(pk=tag.pk)
+                .annotate(post_count=Count("posts", filter=post_filter))
                 .order_by("-rank", "name")
             )
         else:
@@ -292,12 +426,14 @@ class TagArchiveView(SEOContextMixin, TemplateView):
             siblings = (
                 Tag.objects.filter(parent__isnull=True, is_active=True)
                 .exclude(pk=tag.pk)
+                .annotate(post_count=Count("posts", filter=post_filter))
                 .order_by("-rank", "name")
             )
 
         context["tag"] = tag
         context["page_obj"] = page_obj
-        context["posts_by_year"] = posts_by_year
+        context["index_sections"] = sections
+        context["year_strip"] = year_strip
         context["total_posts"] = total
         context["ancestors"] = ancestors
         context["children"] = children
@@ -328,7 +464,6 @@ class TagListView(SEOContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        now = timezone.now()
 
         # Parse display options from query string
         show_param = self.request.GET.get("show", "")
@@ -337,22 +472,7 @@ class TagListView(SEOContextMixin, TemplateView):
         sort_by = self.request.GET.get("sort", "name")
         group_by = self.request.GET.get("group", "")
 
-        # Build post count filter based on user permissions
-        if user.is_authenticated and (user.is_staff or user.is_superuser):
-            # Staff sees all non-deleted posts
-            post_filter = Q(posts__is_deleted=False)
-        else:
-            # Public counts must match what the tag archive actually lists:
-            # PUBLIC only. Counting UNLISTED here would advertise the number of
-            # hidden posts and make the badge disagree with the archive page.
-            post_filter = Q(
-                Q(posts__expire_at__isnull=True) | Q(posts__expire_at__gt=now),
-                posts__is_deleted=False,
-                posts__status=Post.Status.PUBLISHED,
-                posts__visibility=Post.Visibility.PUBLIC,
-                posts__published_at__isnull=False,
-                posts__published_at__lte=now,
-            )
+        post_filter = _taxonomy_post_filter(user, timezone.now())
 
         # Get tags with post counts
         tags = (
@@ -368,6 +488,17 @@ class TagListView(SEOContextMixin, TemplateView):
             tags = tags.order_by("-rank", "name")
         else:  # default: name
             tags = tags.order_by("name")
+
+        # Weight-scale each tag name by post count (log scale, so one giant
+        # tag doesn't flatten the rest): classes tag-weight-1 … tag-weight-4.
+        tags = list(tags)
+        max_count = max((t.post_count for t in tags), default=0)
+        for t in tags:
+            if max_count > 0 and t.post_count > 0:
+                ratio = math.log1p(t.post_count) / math.log1p(max_count)
+                t.weight_class = 1 + round(3 * ratio)
+            else:
+                t.weight_class = 1
 
         # Grouping by namespace
         if group_by == "namespace":
@@ -388,27 +519,14 @@ class TagListView(SEOContextMixin, TemplateView):
             context["tags"] = tags
             context["grouped"] = False
 
-        # Display options
+        # Display options (color/icon/namespace are always on — they're
+        # authored data; only the description line is a toggle)
         context["show_description"] = "description" in show_options
-        context["show_color"] = "color" in show_options
-        context["show_icon"] = "icon" in show_options
-        context["show_namespace"] = "namespace" in show_options
-        context["show_hierarchy"] = "hierarchy" in show_options
-        context["show_any_extra"] = bool(show_options)
-
-        # Current settings for building toggle links
-        context["current_show"] = show_options
         context["current_sort"] = sort_by
         context["current_group"] = group_by
 
-        # Build base URL for toggle links
-        base_url = f"?sort={sort_by}"
-        if group_by:
-            base_url += f"&group={group_by}"
-        context["base_url"] = base_url
-
         # Stats
-        context["total_tags"] = tags.count()
+        context["total_tags"] = len(tags)
         context["total_posts"] = sum(t.post_count for t in tags)
 
         return context
@@ -437,6 +555,7 @@ class CategoryArchiveView(SEOContextMixin, TemplateView):
             posts = (
                 Post.all_objects.filter(is_deleted=False, categories=category)
                 .select_related("author")
+                .prefetch_related("tags")
                 .order_by("-published_at")
             )
         else:
@@ -445,27 +564,40 @@ class CategoryArchiveView(SEOContextMixin, TemplateView):
                 .public()
                 .filter(categories=category)
                 .select_related("author")
+                .prefetch_related("tags")
                 .order_by("-published_at")
             )
 
-        page_obj, posts_by_year, total = _paginate_posts_by_year(self.request, posts)
+        page_obj, sections, year_strip, total = _paginate_post_index(
+            self.request, posts
+        )
+        _attach_row_tags(sections)
 
-        # Hierarchical navigation
+        # Hierarchical navigation, with post counts on every linked category
+        post_filter = _taxonomy_post_filter(user, timezone.now())
         ancestors = category.get_ancestors()
-        children = category.children.order_by("name")
+        children = category.children.annotate(
+            post_count=Count("posts", filter=post_filter)
+        ).order_by("name")
 
         if category.parent:
-            siblings = category.parent.children.exclude(pk=category.pk).order_by("name")
+            siblings = (
+                category.parent.children.exclude(pk=category.pk)
+                .annotate(post_count=Count("posts", filter=post_filter))
+                .order_by("name")
+            )
         else:
             siblings = (
                 Category.objects.filter(parent__isnull=True)
                 .exclude(pk=category.pk)
+                .annotate(post_count=Count("posts", filter=post_filter))
                 .order_by("name")
             )
 
         context["category"] = category
         context["page_obj"] = page_obj
-        context["posts_by_year"] = posts_by_year
+        context["index_sections"] = sections
+        context["year_strip"] = year_strip
         context["total_posts"] = total
         context["ancestors"] = ancestors
         context["children"] = children
@@ -481,11 +613,11 @@ class CategoryArchiveView(SEOContextMixin, TemplateView):
 
 class CategoryListView(SEOContextMixin, TemplateView):
     """
-    Display all categories with post counts.
+    Display all categories as an indented tree with post counts and inline
+    descriptions.
 
     Supports query parameters:
-    - sort=name|count (default: name)
-    - show=description,hierarchy (comma-separated)
+    - sort=name|count (default: name; applies within each tree level)
     """
 
     template_name = "posts/category_list.html"
@@ -494,25 +626,9 @@ class CategoryListView(SEOContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        now = timezone.now()
-
-        show_param = self.request.GET.get("show", "")
-        show_options = [opt.strip() for opt in show_param.split(",") if opt.strip()]
         sort_by = self.request.GET.get("sort", "name")
 
-        # Build post count filter based on user permissions
-        if user.is_authenticated and (user.is_staff or user.is_superuser):
-            post_filter = Q(posts__is_deleted=False)
-        else:
-            # PUBLIC only — see the note in TagListView.get_context_data.
-            post_filter = Q(
-                Q(posts__expire_at__isnull=True) | Q(posts__expire_at__gt=now),
-                posts__is_deleted=False,
-                posts__status=Post.Status.PUBLISHED,
-                posts__visibility=Post.Visibility.PUBLIC,
-                posts__published_at__isnull=False,
-                posts__published_at__lte=now,
-            )
+        post_filter = _taxonomy_post_filter(user, timezone.now())
 
         categories = Category.objects.annotate(
             post_count=Count("posts", filter=post_filter)
@@ -523,14 +639,21 @@ class CategoryListView(SEOContextMixin, TemplateView):
         else:
             categories = categories.order_by("name")
 
-        context["categories"] = categories
-        context["show_description"] = "description" in show_options
-        context["show_hierarchy"] = "hierarchy" in show_options
-        context["show_any_extra"] = bool(show_options)
-        context["current_show"] = show_options
+        # Arrange into a tree; queryset order carries into each level.
+        categories = list(categories)
+        by_parent = {}
+        for cat in categories:
+            by_parent.setdefault(cat.parent_id, []).append(cat)
+
+        def build(parent_id):
+            return [
+                {"category": cat, "children": build(cat.pk)}
+                for cat in by_parent.get(parent_id, [])
+            ]
+
+        context["category_tree"] = build(None)
         context["current_sort"] = sort_by
-        context["base_url"] = f"?sort={sort_by}"
-        context["total_categories"] = categories.count()
+        context["total_categories"] = len(categories)
         context["total_posts"] = sum(c.post_count for c in categories)
         return context
 
@@ -831,47 +954,46 @@ class SeriesListView(SEOContextMixin, ListView):
     context_object_name = "series_list"
     seo_title = "Series"
 
+    def _current_sort(self):
+        current_sort = self.request.GET.get("sort", "updated")
+        if current_sort not in ("updated", "name", "count"):
+            current_sort = "updated"
+        return current_sort
+
     def get_queryset(self):
-        user = self.request.user
-        now = timezone.now()
-
-        if user.is_authenticated and (user.is_staff or user.is_superuser):
-            post_filter = Q(posts__is_deleted=False)
-        else:
-            post_filter = Q(
-                posts__is_deleted=False,
-                posts__status=Post.Status.PUBLISHED,
-                posts__visibility=Post.Visibility.PUBLIC,
-                posts__published_at__isnull=False,
-                posts__published_at__lte=now,
-            )
-
-        current_sort = self.request.GET.get("sort", "name")
-        if current_sort not in ("name", "count"):
-            current_sort = "name"
+        post_filter = _taxonomy_post_filter(self.request.user, timezone.now())
+        current_sort = self._current_sort()
 
         qs = Series.objects.annotate(
-            post_count=Count("posts", filter=post_filter)
+            post_count=Count("posts", filter=post_filter),
+            first_published=Min("posts__published_at", filter=post_filter),
+            last_published=Max("posts__published_at", filter=post_filter),
+            total_reading_time=Sum("posts__reading_time_minutes", filter=post_filter),
         ).filter(post_count__gt=0)
 
         if current_sort == "count":
             qs = qs.order_by("-post_count", "title")
-        else:
+        elif current_sort == "name":
             qs = qs.order_by("title")
+        else:  # updated: a series with a new entry surfaces first
+            qs = qs.order_by(F("last_published").desc(nulls_last=True), "title")
 
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        current_sort = self.request.GET.get("sort", "name")
-        if current_sort not in ("name", "count"):
-            current_sort = "name"
-        context["current_sort"] = current_sort
-        context["total_series"] = (
-            context["series_list"].count()
-            if hasattr(context["series_list"], "count")
-            else len(context["series_list"])
-        )
+        series_list = list(context["series_list"])
+        for s in series_list:
+            minutes = s.total_reading_time or 0
+            if minutes >= 60:
+                s.reading_display = f"{minutes / 60:.1f} hr"
+            elif minutes > 0:
+                s.reading_display = f"{minutes} min"
+            else:
+                s.reading_display = ""
+        context["series_list"] = series_list
+        context["current_sort"] = self._current_sort()
+        context["total_series"] = len(series_list)
         return context
 
 

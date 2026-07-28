@@ -184,6 +184,16 @@ class Tag(TimeStampedModel, UniqueSlugMixin):
             return f"{self.namespace}:{self.name}"
         return self.name
 
+    @property
+    def has_custom_color(self) -> bool:
+        """True when an author picked a color (vs the field default).
+
+        The tag index only draws a color dot for deliberate choices — with
+        the default counted, every tag would carry an identical grey dot.
+        """
+        default = type(self)._meta.get_field("color").default
+        return bool(self.color) and self.color.lower() != str(default).lower()
+
     def get_absolute_url(self):
         return reverse("tag-archive", kwargs={"slug": self.slug})
 
