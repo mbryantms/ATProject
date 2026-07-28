@@ -13,54 +13,20 @@
       <span class="page-post-count">{{ total_posts }} post{{ total_posts|pluralize }}</span>
     </div>
 
-    {# Display controls #}
     <div class="tag-list-controls">
       <span class="control-group">
         <span class="control-label">Sort:</span>
-        <a href="?sort=name{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
-           class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
-        <a href="?sort=count{% if current_show %}&show={{ current_show|join:',' }}{% endif %}"
-           class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
-      </span>
-
-      <span class="control-group">
-        <span class="control-label">Show:</span>
-        {% if show_description %}
-        <a href="{{ base_url }}&show={% for opt in current_show %}{% if opt != 'description' %}{{ opt }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}"
-           class="control-option active">Description</a>
-        {% else %}
-        <a href="{{ base_url }}&show=description{% if current_show %},{{ current_show|join:',' }}{% endif %}"
-           class="control-option">Description</a>
-        {% endif %}
-        {% if show_hierarchy %}
-        <a href="{{ base_url }}&show={% for opt in current_show %}{% if opt != 'hierarchy' %}{{ opt }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}"
-           class="control-option active">Hierarchy</a>
-        {% else %}
-        <a href="{{ base_url }}&show=hierarchy{% if current_show %},{{ current_show|join:',' }}{% endif %}"
-           class="control-option">Hierarchy</a>
-        {% endif %}
+        <a href="{% querystring sort='name' %}" class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
+        <a href="{% querystring sort='count' %}" class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
       </span>
     </div>
   </div>
 
-  {# Category listing #}
-  {% if categories %}
-  <ul class="tag-list list list-level-1 block">
-    {% for category in categories %}
-    <li class="in-list tag-list-item{% if show_any_extra %} tag-list-item-expanded{% endif %}">
-      <div class="tag-list-main">
-        <a href="{% url 'category-archive' slug=category.slug %}" class="tag-name">{{ category.name }}</a>
-        <span class="tag-count">({{ category.post_count }})</span>
-        {% if show_hierarchy and category.parent %}
-        <span class="tag-parent">
-          &larr; <a href="{% url 'category-archive' slug=category.parent.slug %}">{{ category.parent.name }}</a>
-        </span>
-        {% endif %}
-      </div>
-      {% if show_description and category.description %}
-      <div class="tag-description">{{ category.description }}</div>
-      {% endif %}
-    </li>
+  {# The taxonomy drawn as a tree: structure stated once, descriptions inline #}
+  {% if category_tree %}
+  <ul class="category-tree">
+    {% for node in category_tree %}
+      {% include "posts/includes/category_tree_node.html" %}
     {% endfor %}
   </ul>
   {% else %}

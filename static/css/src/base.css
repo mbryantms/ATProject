@@ -779,12 +779,19 @@ header h1 em {
   margin-right: 0.25em;
 }
 
-/*  Subtags, parent, and related tags lists.
+/*  Subtags and related tags lists.
  */
 #page-metadata .tag-subtags,
-#page-metadata .tag-related,
-#page-metadata .tag-parent-link {
+#page-metadata .tag-related {
   font-size: 0.95em;
+}
+
+/*  Post count beside each subtag/related link.
+ */
+#page-metadata .tag-link-count {
+  font-style: normal;
+  font-size: 0.85em;
+  color: var(--AT-body-text-secondary-color, #666);
 }
 
 /*  Hierarchy direction arrows.
@@ -811,12 +818,158 @@ header h1 em {
 /* ARCHIVE STYLES */
 /******************/
 
-.archive-year h2 {
-  margin-bottom: 0.5em;
+/*  Year jump-strip at the top of multi-year archives.
+    (Specificity must beat `.markdownBody p`'s justify/indent rules.)
+ */
+.markdownBody p.archive-year-strip {
+  font-family: var(--AT-monospaced-font-stack);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.8em;
+  text-align: center;
+  text-indent: 0;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin: 0 0 1.5em;
 }
 
-.archive-list {
-  margin-bottom: 1.5em;
+.archive-year-strip a {
+  color: inherit;
+}
+
+/*  Year (or letter) section headings: heading + count sharing a hairline.
+ */
+.archive-year {
+  margin-bottom: 1.75em;
+}
+
+.archive-year-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  margin: 0 0 0.5em;
+}
+
+.archive-year-header h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.archive-year-header::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
+  transform: translateY(-0.3em);
+}
+
+.archive-year-count {
+  font-family: var(--AT-monospaced-font-stack);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.75em;
+  color: var(--AT-body-text-secondary-color, #666);
+  white-space: nowrap;
+}
+
+/*  Shared index-row anatomy: date/number gutter + body. Used by the post
+    archive and tag/category archives; series pages migrate to it later.
+ */
+.index-list {
+  --index-gutter-width: 3.25em;
+
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+.index-list > li {
+  display: grid;
+  grid-template-columns: var(--index-gutter-width) 1fr;
+  column-gap: 0.75em;
+  align-items: baseline;
+  padding: 0.1em 0;
+}
+
+/*  Suppress the global star bullets (ul > li::before).
+ */
+.index-list > li::before {
+  content: none;
+}
+
+.index-date,
+.index-num {
+  font-family: var(--AT-monospaced-font-stack);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.8em;
+  color: var(--AT-body-text-secondary-color, #666);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/*  Gutterless variant (series index): body spans the full measure.
+ */
+.index-list.index-list-plain > li {
+  grid-template-columns: 1fr;
+}
+
+.index-body {
+  min-width: 0;
+}
+
+.index-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5em;
+}
+
+.index-glyph {
+  color: var(--AT-body-text-secondary-color, #666);
+  font-size: 0.85em;
+}
+
+.index-meta {
+  font-family: var(--AT-monospaced-font-stack);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.75em;
+  color: var(--AT-body-text-secondary-color, #666);
+  white-space: nowrap;
+}
+
+.index-tags {
+  font-family: var(--AT-monospaced-font-stack);
+  font-style: italic;
+  font-size: 0.75em;
+  color: var(--AT-body-text-secondary-color, #666);
+}
+
+/*  Tag links stay quiet (no Tufte underline) until hovered, so they don't
+    compete with the underlined title beside them.
+ */
+.index-tags a {
+  color: inherit;
+  text-shadow: none;
+  background-image: none;
+}
+
+.index-tags a:hover {
+  text-decoration: underline;
+}
+
+.index-description {
+  display: block;
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--AT-body-text-secondary-color, #666);
+  line-height: 1.4;
+  margin-top: 0.1em;
+}
+
+@media all and (max-width: 649px) {
+  .index-list {
+    --index-gutter-width: 2.7em;
+  }
+
+  .index-list > li {
+    column-gap: 0.5em;
+  }
 }
 
 /* Archive pagination — understated, centered, matches the muted control row. */
@@ -844,62 +997,19 @@ header h1 em {
   opacity: 0.45;
 }
 
-ol.archive-list {
-  --list-left-padding: 2.5em;
-  list-style-type: none;
-  padding-left: 0;
-}
-
-ol.archive-list > li {
-  padding-left: var(--list-left-padding);
-}
-
-.archive-date {
-  font-family: var(--AT-monospaced-font-stack);
-  font-size: 0.9em;
-  color: var(--AT-body-text-secondary-color, #666);
-  margin-right: 0.5em;
-}
-
 /*****************/
 /* SERIES STYLES */
 /*****************/
 
-/*  Series post count on index page.
+/*  Series index rows: bolded title, then the heft cluster
+    (posts · year-span · reading time) in the shared meta style.
  */
-.series-post-count {
-  font-family: var(--AT-monospaced-font-stack);
-  font-size: 0.9em;
-  color: var(--AT-body-text-secondary-color, #666);
-}
-
-/*  Series description snippet.
- */
-.series-description {
-  color: var(--AT-body-text-secondary-color, #666);
-}
-
-.series-index .series-description {
-  font-size: 0.85em;
-  margin-top: 0.15em;
-  margin-left: 1em;
-  line-height: 1.4;
-}
-
-.series-posts .series-description {
-  display: block;
-  font-size: 0.85em;
-  margin-top: 0.15em;
-  margin-left: 1em;
-  line-height: 1.4;
-}
-
-/*  Series order number on detail page.
- */
-.series-order {
+.series-index .series-title {
   font-weight: 600;
-  min-width: 2em;
-  display: inline-block;
+}
+
+.series-index > li {
+  padding: 0.3em 0;
 }
 
 /*  Series navigation block at the bottom of post detail pages.
@@ -1000,21 +1110,45 @@ ol.archive-list > li {
   color: var(--AT-body-background-color, #fff);
 }
 
-/*  Tag list section headers (when grouped).
+/*  Namespace section headers (when grouped): small caps on a hairline.
  */
-.tag-list-section h2 {
-  margin-top: 1.5em;
-  margin-bottom: 0.5em;
+.tag-list-section .tag-namespace-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+  font-variant-caps: small-caps;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
+  padding-bottom: 0.2em;
+  margin: 1.5em 0 0.5em;
 }
 
-.tag-list-section:first-of-type h2 {
+.tag-list-section:first-of-type .tag-namespace-heading {
   margin-top: 0;
 }
 
-/*  Tag list items.
+/*  Tag list: a multi-column book index (single column once descriptions
+    are expanded).
  */
 .tag-list {
-  margin-bottom: 1.5em;
+  margin: 0 0 1.5em;
+  padding: 0;
+  list-style-type: none;
+}
+
+.tag-list-columns {
+  columns: 14em;
+  column-gap: 2.5em;
+}
+
+.tag-list > li {
+  padding: 0;
+  break-inside: avoid;
+}
+
+/*  Suppress the global star bullets (ul > li::before).
+ */
+.tag-list > li::before {
+  content: none;
 }
 
 .tag-list-item {
@@ -1032,11 +1166,27 @@ ol.archive-list > li {
   gap: 0.25em;
 }
 
-.tag-list-main .tag-name {
+/*  Name weight scales with post count (assigned in the view, log scale):
+    the index doubles as a frequency map.
+ */
+.tag-weight-1 {
+  font-weight: 400;
+}
+
+.tag-weight-2 {
   font-weight: 500;
 }
 
-.tag-list-main .tag-count {
+.tag-weight-3 {
+  font-weight: 600;
+}
+
+.tag-weight-4 {
+  font-weight: 700;
+}
+
+.tag-list-main .tag-count,
+.category-node-line .tag-count {
   color: var(--AT-body-text-secondary-color, #666);
   font-size: 0.9em;
 }
@@ -1046,17 +1196,20 @@ ol.archive-list > li {
   font-size: 0.85em;
 }
 
-.tag-list-main .tag-parent {
+/*  Rank number gutter, shown when sorted by rank so the order explains
+    itself.
+ */
+.tag-rank {
+  font-family: var(--AT-monospaced-font-stack);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 0.8em;
   color: var(--AT-body-text-secondary-color, #666);
-  font-size: 0.85em;
-  margin-left: 0.5em;
+  min-width: 1.5em;
+  text-align: right;
 }
 
-.tag-list-main .tag-parent a {
-  color: var(--AT-body-text-secondary-color, #666);
-}
-
-/*  Color indicator dot.
+/*  Color indicator dot. The faint ring keeps arbitrary author-picked hex
+    colors legible on both light and dark grounds.
  */
 .tag-color-dot {
   display: inline-block;
@@ -1064,6 +1217,7 @@ ol.archive-list > li {
   height: 0.65em;
   border-radius: 50%;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgb(127 127 127 / 35%);
 }
 
 /*  Icon display.
@@ -1081,6 +1235,45 @@ ol.archive-list > li {
   margin-top: 0.15em;
   margin-left: 1em;
   line-height: 1.4;
+}
+
+/**********************/
+/* CATEGORY TREE      */
+/**********************/
+
+/*  The taxonomy drawn as a tree: hairline spine for children, inline
+    descriptions, roots bolded.
+ */
+.category-tree {
+  margin: 0 0 1.5em;
+  padding: 0;
+  list-style-type: none;
+}
+
+.category-tree li {
+  padding: 0.14em 0;
+}
+
+.category-tree li::before {
+  content: none;
+}
+
+.category-tree > .category-node > .category-node-line .category-name {
+  font-weight: 600;
+}
+
+.category-children {
+  list-style-type: none;
+  margin: 0 0 0 0.35em;
+  padding-left: 1.6em;
+  border-left: 1px solid var(--AT-body-text-faint-color, #e5e5e5);
+}
+
+.category-description {
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--AT-body-text-secondary-color, #666);
+  margin-left: 0.6em;
 }
 
 /****************/

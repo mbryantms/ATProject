@@ -13,22 +13,26 @@
     <div class="tag-list-controls">
       <span class="control-group">
         <span class="control-label">Sort:</span>
-        <a href="?sort=name" class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
-        <a href="?sort=count" class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
+        <a href="{% querystring sort='updated' %}" class="control-option{% if current_sort == 'updated' %} active{% endif %}">Updated</a>
+        <a href="{% querystring sort='name' %}" class="control-option{% if current_sort == 'name' %} active{% endif %}">A-Z</a>
+        <a href="{% querystring sort='count' %}" class="control-option{% if current_sort == 'count' %} active{% endif %}">Count</a>
       </span>
     </div>
   </div>
 
   {% if series_list %}
-    <ul class="archive-list series-index list list-level-1 block">
+    <ul class="index-list index-list-plain series-index">
       {% for series in series_list %}
-      <li class="in-list">
-        <a href="{{ series.get_absolute_url }}"
-           class="link-annotated link-page has-icon has-annotation">{{ series.title }}<span class="link-icon-hook dark-mode-invert">&NoBreak;</span></a>
-        <span class="series-post-count">({{ series.post_count }} post{{ series.post_count|pluralize }})</span>
-        {% if series.description %}
-          <div class="series-description">{{ series.description|truncatewords:20 }}</div>
-        {% endif %}
+      <li class="index-row">
+        <div class="index-body">
+          <span class="index-title-line">
+            <a href="{{ series.get_absolute_url }}" class="series-title">{{ series.title }}</a>
+            <span class="index-meta">{{ series.post_count }} post{{ series.post_count|pluralize }}{% if series.first_published %} · {{ series.first_published|date:"Y" }}{% if series.last_published|date:"Y" != series.first_published|date:"Y" %}–{{ series.last_published|date:"Y" }}{% endif %}{% endif %}{% if series.reading_display %} · {{ series.reading_display }}{% endif %}</span>
+          </span>
+          {% if series.description %}
+            <span class="index-description">{{ series.description|truncatewords:30 }}</span>
+          {% endif %}
+        </div>
       </li>
       {% endfor %}
     </ul>

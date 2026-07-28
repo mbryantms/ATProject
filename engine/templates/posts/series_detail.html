@@ -53,18 +53,25 @@
   </div>
 
   {% if posts %}
-    <ol class="archive-list series-posts block">
+    <ol class="index-list series-posts">
       {% for post in posts %}
-      <li>
-        <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-        {% if post.published_at %}
-          <span class="archive-date">{{ post.published_at|date:"Y-m-d" }}</span>
-        {% endif %}
-        {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
-        {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
-        {% if post.description %}
-          <div class="series-description">{{ post.description|truncatewords:25 }}</div>
-        {% endif %}
+      <li class="index-row">
+        <span class="index-num">{{ forloop.counter|stringformat:"02d" }}</span>
+        <div class="index-body">
+          <span class="index-title-line">
+            <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
+            {% if post.is_featured %}<span class="index-glyph" title="Featured">&#8251;</span>{% endif %}
+            {% if post.completion_status == 'in_progress' %}<span class="index-glyph" title="In progress">&#8943;</span>{% endif %}
+            {% if user.is_staff and post.visibility != 'public' %}<span class="staff-indicator">[{{ post.get_visibility_display }}]</span>{% endif %}
+            {% if user.is_staff and post.status != 'published' %}<span class="staff-indicator">[{{ post.get_status_display }}]</span>{% endif %}
+            {% if post.published_at or post.reading_time_minutes %}
+              <span class="index-meta">{% if post.published_at %}{{ post.published_at|date:"Y-m-d" }}{% endif %}{% if post.published_at and post.reading_time_minutes %} · {% endif %}{% if post.reading_time_minutes %}{{ post.reading_time_minutes }}&#8202;min{% endif %}</span>
+            {% endif %}
+          </span>
+          {% if post.description %}
+            <span class="index-description">{{ post.description|truncatewords:25 }}</span>
+          {% endif %}
+        </div>
       </li>
       {% endfor %}
     </ol>

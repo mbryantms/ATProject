@@ -1,0 +1,36 @@
+{# Shared sectioned post index used by /posts/ and the tag/category archives. #}
+{# Expects: index_sections, year_strip, page_obj (from _paginate_post_index), #}
+{# plus optional show_description / current_sort / empty_message. #}
+{% if index_sections %}
+  {% if year_strip|length > 1 %}
+    <p class="archive-year-strip">
+      {% for entry in year_strip %}
+        {% if entry.page == page_obj.number %}
+          <a href="#y{{ entry.year }}" title="{{ entry.total }} post{{ entry.total|pluralize }}">{{ entry.year }}</a>
+        {% else %}
+          <a href="{% querystring page=entry.page %}#y{{ entry.year }}" title="{{ entry.total }} post{{ entry.total|pluralize }}">{{ entry.year }}</a>
+        {% endif %}
+        {% if not forloop.last %}·{% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+
+  {% for section in index_sections %}
+    <section class="archive-year" id="{{ section.anchor }}">
+      <header class="archive-year-header">
+        <h2>{{ section.heading }}</h2>
+        {% if section.total %}
+          <span class="archive-year-count">{{ section.total }} post{{ section.total|pluralize }}</span>
+        {% endif %}
+      </header>
+      <ul class="index-list">
+        {% for post in section.posts %}
+          {% include "posts/includes/index_row.html" %}
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+  {% include "posts/includes/pagination.html" %}
+{% else %}
+  <p>{{ empty_message|default:"No posts yet." }}</p>
+{% endif %}
