@@ -46,7 +46,9 @@ logger = logging.getLogger(__name__)
 CITATION_STYLE_CHOICES = [
     ("", "— Use site default —"),
     ("chicago-author-date", "Chicago (author-date)"),
-    ("chicago-note-bibliography", "Chicago (notes & bibliography)"),
+    # NB: must match the .csl filename in engine/bibliography/styles/ —
+    # "chicago-note-bibliography" (no s) silently fell back to APA.
+    ("chicago-notes-bibliography", "Chicago (notes & bibliography)"),
     ("apa", "APA 7th edition"),
     ("modern-language-association", "MLA 9th edition"),
     ("ieee", "IEEE"),
@@ -65,7 +67,7 @@ _CITATION_STYLE_SAMPLES = [
         "Smith, Jane. 2024. “A Short Article.” Journal of Things 12 (3): 37–58.",
     ),
     (
-        "chicago-note-bibliography",
+        "chicago-notes-bibliography",
         "¹ Jane Smith, “A Short Article,”…",
         "Smith, Jane. “A Short Article.” Journal of Things 12, no. 3 (2024): 37–58.",
     ),
@@ -801,6 +803,12 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "style": "width: 100%; font-family: monospace; font-size: 14px;",
                 }
             )
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
+        elif db_field.name == "language":
+            # Free-typed IETF tag with a datalist of the common choices.
+            from .widgets import LANGUAGE_SUGGESTIONS, DatalistTextInput
+
+            kwargs["widget"] = DatalistTextInput(LANGUAGE_SUGGESTIONS)
             return super().formfield_for_dbfield(db_field, request, **kwargs)
         elif db_field.name == "citation_style":
             # Present curated CSL styles as a dropdown without changing the

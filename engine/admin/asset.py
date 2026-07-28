@@ -2259,6 +2259,13 @@ class AssetTagAdmin(admin.ModelAdmin):
     class Media:
         css = {"all": ("css/admin-common.css", "css/admin-asset.css")}
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "color":
+            from .widgets import ColorInput
+
+            kwargs["widget"] = ColorInput()
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
     list_display = ("tag_display", "slug", "asset_count_display", "color_preview")
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}

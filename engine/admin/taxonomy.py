@@ -15,6 +15,7 @@ from django.utils.html import format_html
 from engine.models import Category, Series, Tag, TagAlias
 
 from .display import admin_change_link, admin_changelist_link, muted
+from .widgets import ColorInput, GlyphPickerInput
 
 
 # --------------------------
@@ -123,6 +124,16 @@ class TagAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ("created_at", "updated_at", "usage_count")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        # Pickers for the visual-styling fields: a native color dialog with
+        # preset swatches, and a glyph palette for the icon. Both keep the
+        # underlying CharField free-typed.
+        if db_field.name == "color":
+            kwargs["widget"] = ColorInput()
+        elif db_field.name == "icon":
+            kwargs["widget"] = GlyphPickerInput()
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
