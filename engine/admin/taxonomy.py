@@ -12,6 +12,7 @@ from django.db import models
 from django.http import HttpResponse
 from django.utils.html import format_html
 
+from engine.icons import icon_html
 from engine.models import Category, Series, Tag, TagAlias
 
 from .display import admin_change_link, admin_changelist_link, muted
@@ -153,7 +154,7 @@ class TagAdmin(admin.ModelAdmin):
     @admin.display(description="Tag", ordering="name")
     def colored_name_display(self, obj):
         """Display tag name as a badge in the tag's own configured color."""
-        icon = format_html("{} ", obj.icon) if obj.icon else ""
+        icon = format_html("{} ", icon_html(obj.icon)) if obj.icon else ""
         return format_html(
             '{}<span style="display:inline-block;padding:3px 9px;border-radius:10px;'
             'background-color:{};color:#fff;font-weight:500;font-size:12px;">{}</span>',

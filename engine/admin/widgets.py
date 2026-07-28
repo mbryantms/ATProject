@@ -5,15 +5,20 @@ with a suggestion list (e.g. IETF language tags).
 
 All widgets keep the underlying field a plain CharField — unusual values can
 still be typed or set via the ORM; the widgets just make the common choices
-one click instead of something to remember and retype.
+one click instead of something to remember and retype. Chrome is styled on
+Django admin's own CSS variables (css/admin-widgets.css) so both admin
+themes match.
 """
 
 from django import forms
-from django.utils.html import format_html, format_html_join
+from django.templatetags.static import static
+from django.utils.html import format_html, format_html_join, json_script
 
-# Muted preset swatches offered inside the native color-picker dialog.
+from engine.icons import SPRITE_STATIC_PATH, lucide_icon_names
+
+# Muted preset swatches shown as a clickable row beside the color dialog.
 # Chosen to sit well against the site's monochrome ground; any other color
-# can still be picked freely in the dialog.
+# can still be picked in the native dialog or typed as hex.
 COLOR_PRESETS = [
     "#8A6D3B",  # ochre
     "#A33B2E",  # brick
@@ -32,8 +37,8 @@ COLOR_PRESETS = [
     "#3B82F6",  # azure (AssetTag default)
 ]
 
-# Curated glyph palette for icon fields. The templates render the value as
-# text, so anything typeable works — these are just the likely wants.
+# Typographic marks and emoji offered alongside the Lucide set — these render
+# as literal text on the public site, so they remain first-class values.
 GLYPH_GROUPS = [
     (
         "Marks",
@@ -131,17 +136,17 @@ LANGUAGE_SUGGESTIONS = [
 
 
 class ColorInput(forms.TextInput):
-    """Native color picker with preset swatches.
+    """Native color dialog + synced hex readout + a visible preset row.
 
-    Renders ``<input type="color" list="…">`` plus a ``<datalist>`` of preset
-    hexes — supporting browsers show the presets as swatches inside the
-    picker dialog; others just show the plain picker.
+    The color input carries the form value; the hex text field and the
+    swatch buttons are conveniences kept in sync by admin-widgets.js.
     """
 
     input_type = "color"
 
     class Media:
         css = {"all": ("css/admin-widgets.css",)}
+        js = ("js/admin-widgets.js",)
 
     def __init__(self, attrs=None, presets=None):
         self.presets = COLOR_PRESETS if presets is None else presets
@@ -151,15 +156,24 @@ class ColorInput(forms.TextInput):
         super().__init__(base)
 
     def render(self, name, value, attrs=None, renderer=None):
-        attrs = dict(attrs or {})
-        list_id = f"{attrs.get('id', 'id_' + name)}_presets"
-        attrs["list"] = list_id
         input_html = super().render(name, value, attrs, renderer)
-        options = format_html_join(
-            "", '<option value="{}"></option>', ((c,) for c in self.presets)
+        swatches = format_html_join(
+            "",
+            '<button type="button" class="mk-color-swatch" data-color="{0}" '
+            'style="background-color:{0}" title="{0}"></button>',
+            ((c,) for c in self.presets),
         )
         return format_html(
-            '{}<datalist id="{}">{}</datalist>', input_html, list_id, options
+            '<span class="mk-color-picker">'
+            "{}"
+            '<input type="text" class="mk-color-hex" value="{}" maxlength="7" '
+            'size="8" spellcheck="false" aria-label="Hex color value">'
+            '<span class="mk-color-swatches" role="group" '
+            'aria-label="Preset colors">{}</span>'
+            "</span>",
+            input_html,
+            value or "",
+            swatches,
         )
 
 
@@ -187,12 +201,14 @@ class DatalistTextInput(forms.TextInput):
 
 
 class GlyphPickerInput(forms.TextInput):
-    """Text input with a popover palette of curated glyphs.
+    """Text input with a searchable popover palette of icons.
 
-    The value stays free-typed (any emoji, symbol, or icon name works); the
-    palette makes the common choices one click. Behavior lives in
-    static/js/admin-widgets.js — an external file so the nonce CSP doesn't
-    block it.
+    Offers typographic marks and emoji (stored as literal text) plus the
+    full vendored Lucide set (stored as ``lucide:<name>`` and rendered as
+    inline SVG by engine.icons). The Lucide grid is built lazily by
+    admin-widgets.js from the name list embedded via ``json_script`` — the
+    server never renders ~1,700 buttons into the page. Values remain
+    free-typed; anything can still be entered by hand.
     """
 
     class Media:
@@ -208,6 +224,7 @@ class GlyphPickerInput(forms.TextInput):
 
     def render(self, name, value, attrs=None, renderer=None):
         input_html = super().render(name, value, attrs, renderer)
+        widget_id = (attrs or {}).get("id", f"id_{name}")
         groups = format_html_join(
             "",
             '<div class="mk-glyph-group">'
@@ -227,16 +244,28 @@ class GlyphPickerInput(forms.TextInput):
                 for label, glyphs in self.glyph_groups
             ),
         )
+        names = json_script(list(lucide_icon_names()), f"{widget_id}_lucide_names")
         return format_html(
-            '<span class="mk-glyph-picker">'
+            '<span class="mk-glyph-picker" data-sprite-url="{}">'
             "{}"
-            '<button type="button" class="mk-glyph-toggle" aria-expanded="false" '
-            'aria-haspopup="true">Pick…</button>'
+            '<span class="mk-glyph-preview" aria-hidden="true"></span>'
+            '<button type="button" class="mk-glyph-toggle button" '
+            'aria-expanded="false" aria-haspopup="true">Choose…</button>'
             '<div class="mk-glyph-panel" hidden>'
+            '<input type="search" class="mk-glyph-search" '
+            'placeholder="Search icons…" aria-label="Search icons">'
             "{}"
-            '<button type="button" class="mk-glyph-clear">Clear icon</button>'
+            '<div class="mk-glyph-group">'
+            '<span class="mk-glyph-group-label">Icons (Lucide)</span>'
+            '<div class="mk-glyph-grid mk-glyph-grid-lucide" data-lucide-grid>'
+            "</div></div>"
+            '<button type="button" class="mk-glyph-clear button">'
+            "Clear icon</button>"
             "</div>"
+            "{}"
             "</span>",
+            static(SPRITE_STATIC_PATH),
             input_html,
             groups,
+            names,
         )
