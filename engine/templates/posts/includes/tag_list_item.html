@@ -1,9 +1,10 @@
 {# One tag row on /tags/. Expects: tag, plus optional show_description / current_sort / hide_namespace. #}
+{% load icon_tags %}
 <li class="tag-list-item{% if show_description %} tag-list-item-expanded{% endif %}">
   <div class="tag-list-main">
     {% if current_sort == 'rank' %}<span class="tag-rank">{{ tag.rank }}</span>{% endif %}
     {% if tag.has_custom_color %}<span class="tag-color-dot" style="background-color: {{ tag.color }};"></span>{% endif %}
-    {% if tag.icon %}<span class="tag-icon">{{ tag.icon }}</span>{% endif %}
+    {% if tag.icon %}<span class="tag-icon">{{ tag.icon|tag_icon }}</span>{% endif %}
     {% if tag.namespace and not hide_namespace %}<span class="tag-namespace">{{ tag.namespace }}:</span>{% endif %}
     <a href="{% url 'tag-archive' slug=tag.slug %}" class="tag-name tag-weight-{{ tag.weight_class|default:1 }}">{{ tag.name }}</a>
     <span class="tag-count">({{ tag.post_count }})</span>

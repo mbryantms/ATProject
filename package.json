@@ -4,6 +4,7 @@
   "description": "A personal place for all my thoughts",
   "scripts": {
     "build": "npm-run-all --parallel build:css build:js:*",
+    "icons:update": "cp node_modules/lucide-static/sprite.svg static/img/lucide/sprite.svg && cp node_modules/lucide-static/LICENSE static/img/lucide/LICENSE.txt",
     "build:css": "postcss static/css/src/*.css --dir static/css/dist/",
     "build:js": "npm-run-all --parallel build:js:*",
     "build:js:standalone": "esbuild static/js/standalone-entry.js --bundle --minify --target=es2017 --outfile=static/js/dist/standalone.js --legal-comments=none",
@@ -30,6 +31,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
+    "lucide-static": "^1.27.0",
     "npm-run-all2": "^8.0.4",
     "postcss": "^8.5.15",
     "postcss-cli": "^11.0.1",

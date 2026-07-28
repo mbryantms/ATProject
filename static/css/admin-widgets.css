@@ -1,34 +1,80 @@
-/* Admin picker widgets (engine/admin/widgets.py): color input sizing and
-   the glyph-picker popover. Uses Django admin theme variables so both the
-   light and dark admin themes work. */
+/* Admin picker widgets (engine/admin/widgets.py). All chrome uses Django
+   admin's own CSS variables so the widgets match both admin themes; the
+   toggle/clear buttons additionally carry the admin "button" class and
+   inherit its native styling. */
+
+/* ---- Color picker: dialog + hex readout + preset swatches ---- */
+
+.mk-color-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .mk-color-input {
-  width: 64px;
-  height: 32px;
+  width: 44px;
+  height: 30px;
   padding: 2px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--body-bg, #fff);
   cursor: pointer;
 }
+
+.mk-color-hex {
+  width: 6.5em;
+  font-family: var(--font-family-monospace, monospace);
+}
+
+.mk-color-swatches {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.mk-color-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.mk-color-swatch:hover,
+.mk-color-swatch:focus-visible {
+  outline: 2px solid var(--body-quiet-color, #666);
+  outline-offset: 1px;
+}
+
+/* ---- Glyph/icon picker ---- */
 
 .mk-glyph-picker {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-/* Django admin's .form-row clips overflow, which would cut the popover off —
-   let the row containing a picker overflow. */
-.form-row:has(.mk-glyph-panel) {
-  overflow: visible;
+  gap: 8px;
 }
 
 .mk-glyph-input {
-  width: 8em;
+  width: 11em;
 }
 
+/* Live preview of the current value (glyph text or Lucide SVG). */
+.mk-glyph-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  font-size: 1.1rem;
+  color: var(--body-fg, #333);
+}
+
+/* The toggle/clear buttons use the admin "button" class; only spacing is
+   adjusted here. */
 .mk-glyph-toggle {
-  cursor: pointer;
-  padding: 4px 10px;
+  padding: 6px 12px;
 }
 
 .mk-glyph-panel {
@@ -36,14 +82,31 @@
   top: calc(100% + 4px);
   left: 0;
   z-index: 1000;
-  width: 340px;
-  max-height: 280px;
+  width: 380px;
+  max-width: min(380px, 90vw);
+  max-height: 320px;
   overflow-y: auto;
   padding: 10px;
   background: var(--body-bg, #fff);
   border: 1px solid var(--border-color, #ccc);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+}
+
+/* Django admin's .form-row clips overflow, which would cut the popover
+   off — let the row containing a picker overflow. */
+.form-row:has(.mk-glyph-panel) {
+  overflow: visible;
+}
+
+.mk-glyph-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  background: var(--body-bg, #fff);
 }
 
 .mk-glyph-group + .mk-glyph-group {
@@ -61,14 +124,18 @@
 
 .mk-glyph-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+  gap: 2px;
 }
 
 .mk-glyph-option {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
   line-height: 1;
   padding: 6px 0;
+  color: var(--body-fg, #333);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -81,17 +148,19 @@
   background: var(--darkened-bg, #f2f2f2);
 }
 
-.mk-glyph-clear {
-  margin-top: 10px;
-  font-size: 12px;
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 4px;
-  padding: 3px 8px;
-  color: var(--body-quiet-color, #666);
+/* Explicit display values above would defeat the hidden attribute the
+   search filter sets — restore it. */
+.mk-glyph-option[hidden],
+.mk-glyph-group[hidden] {
+  display: none;
 }
 
-.mk-glyph-clear:hover {
-  color: var(--body-fg, #333);
+.mk-glyph-option .lucide-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.mk-glyph-clear {
+  margin-top: 10px;
+  padding: 4px 10px;
 }

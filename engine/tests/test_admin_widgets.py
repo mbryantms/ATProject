@@ -21,8 +21,9 @@ class AdminWidgetRenderTests(TestCase):
     def test_color_input_renders_native_picker_with_presets(self):
         html = ColorInput().render("color", "#8a6d3b", attrs={"id": "id_color"})
         self.assertIn('type="color"', html)
-        self.assertIn('list="id_color_presets"', html)
-        self.assertIn('<datalist id="id_color_presets">', html)
+        self.assertIn("mk-color-hex", html)
+        self.assertIn('data-color="#8A6D3B"', html)
+        self.assertIn("mk-color-swatch", html)
 
     def test_datalist_input_accepts_bare_values_and_pairs(self):
         html = DatalistTextInput(["en", ("de", "German")]).render(
@@ -38,6 +39,65 @@ class AdminWidgetRenderTests(TestCase):
         self.assertIn("mk-glyph-panel", html)
         self.assertIn('data-glyph="¶"', html)
         self.assertIn("mk-glyph-clear", html)
+        self.assertIn("mk-glyph-search", html)
+        self.assertIn("data-sprite-url", html)
+        # Lucide names are embedded for the lazily built grid
+        self.assertIn('id="id_icon_lucide_names"', html)
+        self.assertIn("map-pin", html)
+
+
+class IconRenderingTests(TestCase):
+    """engine.icons: lucide-prefixed values become inline SVGs, literals
+    are escaped, unknown names render as nothing."""
+
+    def test_sprite_names_are_loaded(self):
+        from engine.icons import lucide_icon_names
+
+        names = lucide_icon_names()
+        self.assertGreater(len(names), 1000)
+        self.assertIn("map-pin", names)
+
+    def test_lucide_value_renders_inline_svg(self):
+        from engine.icons import icon_html
+
+        html = icon_html("lucide:map-pin")
+        self.assertIn("<svg", html)
+        self.assertIn('stroke="currentColor"', html)
+        self.assertIn("<path", html)
+        self.assertNotIn("lucide:", html)
+
+    def test_literal_value_is_escaped_passthrough(self):
+        from engine.icons import icon_html
+
+        self.assertEqual(icon_html("¶"), "¶")
+        self.assertEqual(
+            icon_html("<script>x</script>"), "&lt;script&gt;x&lt;/script&gt;"
+        )
+
+    def test_unknown_lucide_name_renders_nothing(self):
+        from engine.icons import icon_html
+
+        self.assertEqual(icon_html("lucide:definitely-not-an-icon"), "")
+
+    def test_tag_list_page_renders_lucide_icon(self):
+        from django.utils import timezone
+
+        from engine.models import Post, Tag
+
+        user = User.objects.create_user(username="author2", password="x")
+        tag = Tag.objects.create(name="maps", icon="lucide:map-pin")
+        post = Post.objects.create(
+            title="A Post",
+            content_markdown="Body.",
+            status="published",
+            visibility="public",
+            published_at=timezone.now(),
+            author=user,
+        )
+        post.tags.add(tag)
+        resp = self.client.get("/tags/")
+        self.assertContains(resp, "lucide-icon")
+        self.assertNotContains(resp, "lucide:map-pin")
 
 
 class AdminWidgetPageTests(TestCase):
