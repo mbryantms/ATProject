@@ -1,0 +1,97 @@
+/* Admin picker widgets (engine/admin/widgets.py): color input sizing and
+   the glyph-picker popover. Uses Django admin theme variables so both the
+   light and dark admin themes work. */
+
+.mk-color-input {
+  width: 64px;
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.mk-glyph-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Django admin's .form-row clips overflow, which would cut the popover off —
+   let the row containing a picker overflow. */
+.form-row:has(.mk-glyph-panel) {
+  overflow: visible;
+}
+
+.mk-glyph-input {
+  width: 8em;
+}
+
+.mk-glyph-toggle {
+  cursor: pointer;
+  padding: 4px 10px;
+}
+
+.mk-glyph-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1000;
+  width: 340px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--body-bg, #fff);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+}
+
+.mk-glyph-group + .mk-glyph-group {
+  margin-top: 10px;
+}
+
+.mk-glyph-group-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--body-quiet-color, #666);
+  margin-bottom: 4px;
+}
+
+.mk-glyph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+}
+
+.mk-glyph-option {
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mk-glyph-option:hover,
+.mk-glyph-option:focus-visible {
+  border-color: var(--border-color, #ccc);
+  background: var(--darkened-bg, #f2f2f2);
+}
+
+.mk-glyph-clear {
+  margin-top: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  padding: 3px 8px;
+  color: var(--body-quiet-color, #666);
+}
+
+.mk-glyph-clear:hover {
+  color: var(--body-fg, #333);
+}
