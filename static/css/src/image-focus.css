@@ -146,6 +146,74 @@
   }
 }
 
+/*=------------------------=*/
+/*= Caption toggle button  =*/
+/*=------------------------=*/
+
+/*  Sits below the close button; same chrome styling. Only offered when the
+    focused image actually has a caption.
+ */
+#image-focus-overlay .caption-toggle-button {
+  position: absolute;
+  top: 3.5em;
+  right: 0.5em;
+  z-index: 10;
+  width: 2.5em;
+  height: 2.5em;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.3s ease,
+    top 0.3s ease;
+  opacity: 0.8;
+}
+#image-focus-overlay .caption-toggle-button svg {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+#image-focus-overlay .caption-toggle-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  opacity: 1;
+}
+#image-focus-overlay .caption-toggle-button:active {
+  transform: scale(0.9);
+}
+#image-focus-overlay .caption-toggle-button[aria-pressed='true'] {
+  opacity: 0.5;
+}
+#image-focus-overlay .caption-toggle-button.hidden {
+  top: -3em;
+  opacity: 0;
+}
+#image-focus-overlay:not(.has-caption) .caption-toggle-button {
+  display: none;
+}
+
+@media (max-width: 649px) {
+  #image-focus-overlay .caption-toggle-button {
+    top: 3.25em;
+    width: 2.25em;
+    height: 2.25em;
+    font-size: 1.25rem;
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+  #image-focus-overlay .caption-toggle-button[aria-pressed='true'] {
+    opacity: 0.6;
+  }
+}
+
 #image-focus-overlay .image-in-focus {
   margin: auto;
   position: absolute;
@@ -236,6 +304,15 @@
 #image-focus-overlay .caption.hidden:not(.locked) {
   bottom: -50%;
   transition: bottom 0.5s ease-in;
+}
+
+/*  Caption explicitly toggled off (chrome button or the C key): pinned
+    closed regardless of the idle-fade state, and inert to the mouse so its
+    full-width hover strip can't keep the hide timer from firing.
+ */
+#image-focus-overlay.caption-hidden .caption {
+  bottom: -50%;
+  pointer-events: none;
 }
 
 /*  Necessary so that mouse hover at bottom of screen to the left or right of
