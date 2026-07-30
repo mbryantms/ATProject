@@ -798,3 +798,78 @@
     opacity: 1;
   }
 }
+
+/* --- Asset hover cards + completion thumbnails (CM6 editor) --- */
+
+.cm-tooltip .cm-atp-asset-card {
+  max-width: 260px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--body-bg);
+  color: var(--body-fg);
+}
+
+.cm-atp-asset-card .cm-atp-card-thumb {
+  display: block;
+  max-width: 244px;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 3px;
+  margin-bottom: 6px;
+  background: var(--darkened-bg);
+}
+
+.cm-atp-asset-card .cm-atp-card-title {
+  font-weight: 600;
+}
+
+.cm-atp-asset-card .cm-atp-card-meta {
+  color: var(--body-quiet-color);
+  font-family: var(--font-family-monospace, monospace);
+  font-size: 11px;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.cm-atp-asset-card .cm-atp-card-missing {
+  color: var(--error-fg, #ba2121);
+  font-family: var(--font-family-monospace, monospace);
+}
+
+.cm-atp-asset-card .cm-atp-card-badges {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cm-atp-card-badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  border: 1px solid var(--border-color);
+  color: var(--body-quiet-color);
+}
+
+.cm-atp-card-badge.ok {
+  border-color: transparent;
+  background: var(--message-success-bg, #dfd);
+  color: var(--body-fg);
+}
+
+.cm-atp-card-badge.warn {
+  border-color: transparent;
+  background: var(--message-warning-bg, #ffc);
+  color: var(--body-fg);
+}
+
+.cm-atp-completion-info img {
+  display: block;
+  max-width: 200px;
+  max-height: 120px;
+  object-fit: contain;
+  border-radius: 3px;
+  margin-bottom: 4px;
+  background: var(--darkened-bg);
+}

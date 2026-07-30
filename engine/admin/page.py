@@ -153,6 +153,7 @@ class PageAdmin(admin.ModelAdmin):
                 ),
                 "data-cm-assets-url": reverse("admin:engine_post_autocomplete_assets"),
                 "data-cm-upload-url": reverse("admin:engine_post_upload_asset"),
+                "data-cm-asset-info-url": reverse("admin:engine_post_asset_info"),
                 "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                 "data-cm-owner-type": "page",
                 "data-cm-owner-id": object_id,

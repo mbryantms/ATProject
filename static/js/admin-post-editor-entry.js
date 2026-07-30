@@ -50,6 +50,7 @@ import { makeLintSource } from './admin-post-editor/lint-source.js';
 import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
 import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.js';
 import { makeAssetUploadExtension } from './admin-post-editor/asset-upload.js';
+import { makeAssetHoverExtension } from './admin-post-editor/asset-hover.js';
 
 function initEditor() {
   const textarea =
@@ -72,6 +73,7 @@ function initEditor() {
   const citationsUrl = textarea.dataset.cmCitationsUrl || '';
   const assetsUrl = textarea.dataset.cmAssetsUrl || '';
   const uploadUrl = textarea.dataset.cmUploadUrl || '';
+  const assetInfoUrl = textarea.dataset.cmAssetInfoUrl || '';
   const lintUrl = textarea.dataset.cmLintUrl || '';
   const ownerTypeValue = textarea.dataset.cmOwnerType || 'post';
   const ownerIdValue = textarea.dataset.cmOwnerId || textarea.dataset.cmPostId || '';
@@ -120,6 +122,11 @@ function initEditor() {
   const uploadExtensions = uploadUrl
     ? [makeAssetUploadExtension(uploadUrl, getOwnerId, getOwnerType)]
     : [];
+  if (assetInfoUrl) {
+    uploadExtensions.push(
+      makeAssetHoverExtension(assetInfoUrl, getOwnerId, getOwnerType),
+    );
+  }
 
   const state = EditorState.create({
     doc: textarea.value || '',

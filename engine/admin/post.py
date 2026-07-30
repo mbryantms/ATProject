@@ -761,6 +761,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                         "admin:engine_post_autocomplete_assets"
                     ),
                     "data-cm-upload-url": reverse("admin:engine_post_upload_asset"),
+                    "data-cm-asset-info-url": reverse("admin:engine_post_asset_info"),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
@@ -926,6 +927,11 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "upload-asset/",
                 self.admin_site.admin_view(self.upload_asset_view),
                 name="engine_post_upload_asset",
+            ),
+            path(
+                "asset-info/",
+                self.admin_site.admin_view(self.asset_info_view),
+                name="engine_post_asset_info",
             ),
             path(
                 "lint-content/",
@@ -1106,8 +1112,10 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             try:
                 relation_model = PageAsset if owner_type == "page" else PostAsset
                 owner_filter = {f"{owner_type}_id": int(object_id)}
-                pa_qs = relation_model.objects.filter(**owner_filter).select_related(
-                    "asset"
+                pa_qs = (
+                    relation_model.objects.filter(**owner_filter)
+                    .select_related("asset")
+                    .prefetch_related("asset__renditions")
                 )
                 if q:
                     pa_qs = pa_qs.filter(
@@ -1128,13 +1136,16 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                             "global": False,
                             "type": pa.asset.asset_type,
                             "title": (pa.asset.title or "")[:140],
+                            "thumb": pa.asset.thumbnail_url(prefer_width=200),
                         }
                     )
             except ValueError, TypeError:
                 pass
 
         # Then global asset keys.
-        asset_qs = Asset.objects.filter(is_deleted=False, status="ready")
+        asset_qs = Asset.objects.filter(
+            is_deleted=False, status="ready"
+        ).prefetch_related("renditions")
         if q:
             asset_qs = asset_qs.filter(Q(key__icontains=q) | Q(title__icontains=q))
         for a in asset_qs.order_by("key")[: 20 - len(results)]:
@@ -1147,6 +1158,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "global": True,
                     "type": a.asset_type,
                     "title": (a.title or "")[:140],
+                    "thumb": a.thumbnail_url(prefer_width=200),
                 }
             )
 
@@ -1243,6 +1255,110 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "markdown": markdown,
             }
         )
+
+    @staticmethod
+    def _resolve_ref(ref, owner_type, object_id):
+        """Resolve an editor reference token to (asset, relation_row).
+
+        ``ref`` is what follows ``@`` in the markdown: ``asset:key`` for a
+        global reference or a bare token that is tried as an owner-local
+        alias first, then as a global key — the same order the markdown
+        resolver uses. Returns (None, None) when nothing matches.
+        """
+        from engine.models import Asset, PageAsset, PostAsset
+
+        relation_model = PageAsset if owner_type == "page" else PostAsset
+        owner_field = f"{owner_type}_id"
+
+        content_row = None
+        asset = None
+        key = ref.removeprefix("asset:")
+        is_global = ref.startswith("asset:")
+
+        if not is_global and object_id:
+            try:
+                content_row = (
+                    relation_model.objects.filter(
+                        **{owner_field: int(object_id)}, alias=key
+                    )
+                    .select_related("asset")
+                    .first()
+                )
+            except ValueError, TypeError:
+                content_row = None
+            if content_row:
+                asset = content_row.asset
+
+        if asset is None:
+            asset = Asset.objects.filter(
+                key=key, is_deleted=False, status="ready"
+            ).first()
+
+        if asset is not None and content_row is None and object_id:
+            try:
+                content_row = (
+                    relation_model.objects.filter(
+                        **{owner_field: int(object_id)}, asset=asset
+                    )
+                    .select_related("asset")
+                    .first()
+                )
+            except ValueError, TypeError:
+                content_row = None
+
+        return asset, content_row
+
+    @staticmethod
+    def _asset_info_payload(asset, content_row):
+        """Serialize one asset for the hover card / drawer entries."""
+        renditions = list(asset.renditions.all())
+        completed = sum(1 for r in renditions if r.status == "completed")
+        alt_text = asset.alt_text
+        caption = asset.caption
+        if content_row:
+            alt_text = content_row.custom_alt_text or alt_text
+            caption = content_row.custom_caption or caption
+        return {
+            "key": asset.key,
+            "alias": (content_row.alias if content_row else "") or "",
+            "title": asset.title,
+            "asset_type": asset.asset_type,
+            "status": asset.status,
+            "thumb": asset.thumbnail_url(prefer_width=400),
+            "width": asset.width,
+            "height": asset.height,
+            "alt_text": alt_text or "",
+            "caption": caption or "",
+            "attached": content_row is not None,
+            "renditions": {"completed": completed, "total": len(renditions)},
+        }
+
+    def asset_info_view(self, request):
+        """Resolve one editor reference to asset metadata for the hover card.
+
+        GET params: ``ref`` (the token after ``@`` — ``asset:key`` or a bare
+        alias/key), plus ``owner_type``/``object_id`` for alias resolution
+        and per-post overrides. 404s with JSON when nothing resolves, which
+        the editor renders as an "unknown reference" card.
+        """
+        from django.http import JsonResponse
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        ref = (request.GET.get("ref") or "").strip()
+        if not ref:
+            return JsonResponse({"error": "ref required"}, status=400)
+        owner_type = request.GET.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.GET.get("object_id") or ""
+
+        asset, content_row = self._resolve_ref(ref, owner_type, object_id)
+        if asset is None:
+            return JsonResponse({"error": "Unknown asset reference"}, status=404)
+
+        return JsonResponse(self._asset_info_payload(asset, content_row))
 
     def lint_content_view(self, request):
         """Return CM6-compatible diagnostics for the submitted content.

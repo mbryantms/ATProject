@@ -179,3 +179,67 @@ class AdapterTests(TestCase):
 
     def test_summarize_empty_when_clean(self):
         self.assertEqual(summarize(lint_markdown("clean prose")), [])
+
+
+class AltTextLintTests(TestCase):
+    """The alt rule: image refs with no markdown alt AND no asset alt."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.no_alt = Asset.objects.create(
+            title="Bare", asset_type="image", key="img-bare", status="ready"
+        )
+        cls.with_alt = Asset.objects.create(
+            title="Described",
+            asset_type="image",
+            key="img-described",
+            status="ready",
+            alt_text="A described image",
+        )
+        cls.doc = Asset.objects.create(
+            title="Paper", asset_type="document", key="doc-paper", status="ready"
+        )
+
+    def test_image_without_any_alt_flagged(self):
+        content = "text ![](@asset:img-bare) more"
+        findings = [f for f in lint_markdown(content) if f.kind == "alt"]
+        self.assertEqual(len(findings), 1)
+        f = findings[0]
+        self.assertEqual(f.label, "@asset:img-bare")
+        # Span covers the image marker and empty brackets.
+        self.assertEqual(content[f.start : f.end], "![]")
+
+    def test_markdown_alt_satisfies_rule(self):
+        findings = lint_markdown("![harbor at dusk](@asset:img-bare)")
+        self.assertEqual([f for f in findings if f.kind == "alt"], [])
+
+    def test_asset_level_alt_satisfies_rule(self):
+        findings = lint_markdown("![](@asset:img-described)")
+        self.assertEqual([f for f in findings if f.kind == "alt"], [])
+
+    def test_non_image_asset_not_flagged(self):
+        findings = lint_markdown("![](@asset:doc-paper)")
+        self.assertEqual([f for f in findings if f.kind == "alt"], [])
+
+    def test_alias_custom_alt_override_satisfies_rule(self):
+        author = User.objects.create_user(username="lint-alt", password="x")
+        post = Post.objects.create(title="P", content_markdown="x", author=author)
+        pa = PostAsset.objects.create(
+            post=post, asset=self.no_alt, alias="hero", custom_alt_text="Override"
+        )
+        findings = lint_markdown("![](@hero)", post_assets=[pa])
+        self.assertEqual([f for f in findings if f.kind == "alt"], [])
+
+    def test_alias_without_alt_flagged(self):
+        author = User.objects.create_user(username="lint-alt2", password="x")
+        post = Post.objects.create(title="P2", content_markdown="x", author=author)
+        pa = PostAsset.objects.create(post=post, asset=self.no_alt, alias="hero2")
+        findings = [
+            f for f in lint_markdown("![](@hero2)", post_assets=[pa]) if f.kind == "alt"
+        ]
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].label, "@hero2")
+
+    def test_summarize_mentions_alt(self):
+        lines = summarize(lint_markdown("![](@asset:img-bare)"))
+        self.assertTrue(any("alt text" in line for line in lines))

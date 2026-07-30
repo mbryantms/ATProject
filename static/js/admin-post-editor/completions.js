@@ -132,11 +132,28 @@ export function makeAssetCompletionSource(url, getOwnerId, getOwnerType) {
         } else {
           apply = r.key;
         }
+        // With a thumbnail available the info panel shows the image itself;
+        // otherwise fall back to the plain type/title string.
+        const infoText = `${r.type || ''} — ${r.title || ''}`.trim();
+        const info = r.thumb
+          ? () => {
+              const el = document.createElement('div');
+              el.className = 'cm-atp-completion-info';
+              const img = document.createElement('img');
+              img.src = r.thumb;
+              img.alt = '';
+              el.appendChild(img);
+              const text = document.createElement('div');
+              text.textContent = infoText;
+              el.appendChild(text);
+              return el;
+            }
+          : infoText;
         return {
           label: r.key,
           type: r.global ? 'namespace' : 'variable',
           detail: r.global ? 'global' : 'alias',
-          info: `${r.type || ''} — ${r.title || ''}`.trim(),
+          info,
           apply,
         };
       });
