@@ -51,6 +51,7 @@ import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
 import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.js';
 import { makeAssetUploadExtension } from './admin-post-editor/asset-upload.js';
 import { makeAssetHoverExtension } from './admin-post-editor/asset-hover.js';
+import { mountAssetDrawer } from './admin-post-editor/asset-drawer.js';
 
 function initEditor() {
   const textarea =
@@ -332,6 +333,24 @@ function initEditor() {
     }
   } catch (err) {
     console.warn('CM6: failed to mount markdown helper', err);
+  }
+
+  // The asset drawer: browse/upload/edit assets beside the editor.
+  const panelUrl = textarea.dataset.cmAssetsPanelUrl || '';
+  if (panelUrl && uploadUrl) {
+    try {
+      mountAssetDrawer({
+        view,
+        panelUrl,
+        uploadUrl,
+        updateUrl: textarea.dataset.cmUpdateAssetUrl || '',
+        attachUrl: textarea.dataset.cmAttachAssetUrl || '',
+        getOwnerId,
+        getOwnerType,
+      });
+    } catch (err) {
+      console.warn('CM6: failed to mount asset drawer', err);
+    }
   }
 
   // Ensure the textarea is in sync on submit regardless of

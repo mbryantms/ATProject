@@ -120,3 +120,149 @@ class AssetInfoTests(TestCase):
         results = resp.json()["results"]
         self.assertTrue(results)
         self.assertIn("thumb", results[0])
+
+
+class AssetsPanelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(
+            username="panelist", password="pw", is_staff=True
+        )
+        cls.post = Post.objects.create(
+            title="Panel Draft", content_markdown="x", author=cls.staff
+        )
+        cls.attached_asset = Asset.objects.create(
+            title="Attached One", asset_type="image", key="img-attached", status="ready"
+        )
+        PostAsset.objects.create(post=cls.post, asset=cls.attached_asset, alias="hero")
+        cls.loose_asset = Asset.objects.create(
+            title="Loose Two", asset_type="image", key="img-loose", status="ready"
+        )
+        cls.doc_asset = Asset.objects.create(
+            title="A Document", asset_type="document", key="doc-notes", status="ready"
+        )
+
+    def setUp(self):
+        self.client.force_login(self.staff)
+
+    def _get(self, **params):
+        return self.client.get(reverse("admin:engine_post_assets_panel"), params).json()
+
+    def test_attached_and_library_returned(self):
+        data = self._get(object_id=str(self.post.pk))
+        self.assertEqual([a["key"] for a in data["attached"]], ["img-attached"])
+        self.assertEqual(data["attached"][0]["alias"], "hero")
+        library_keys = {a["key"] for a in data["library"]}
+        self.assertEqual(library_keys, {"img-attached", "img-loose", "doc-notes"})
+        by_key = {a["key"]: a for a in data["library"]}
+        self.assertTrue(by_key["img-attached"]["attached"])
+        self.assertFalse(by_key["img-loose"]["attached"])
+
+    def test_search_filters_library(self):
+        data = self._get(q="loose")
+        self.assertEqual([a["key"] for a in data["library"]], ["img-loose"])
+
+    def test_type_filter(self):
+        data = self._get(type="document")
+        self.assertEqual([a["key"] for a in data["library"]], ["doc-notes"])
+
+    def test_library_total_reported(self):
+        data = self._get()
+        self.assertEqual(data["library_total"], 3)
+
+    def test_anonymous_redirected(self):
+        self.client.logout()
+        resp = self.client.get(reverse("admin:engine_post_assets_panel"))
+        self.assertEqual(resp.status_code, 302)
+
+
+class UpdateAssetTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(
+            username="editor", password="pw", is_staff=True
+        )
+        cls.asset = Asset.objects.create(
+            title="Editable", asset_type="image", key="img-editable", status="ready"
+        )
+
+    def setUp(self):
+        self.client.force_login(self.staff)
+
+    def _post(self, **fields):
+        return self.client.post(reverse("admin:engine_post_update_asset"), fields)
+
+    def test_updates_alt_and_caption(self):
+        resp = self._post(key="img-editable", alt_text="New alt", caption="New caption")
+        self.assertEqual(resp.status_code, 200)
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.alt_text, "New alt")
+        self.assertEqual(self.asset.caption, "New caption")
+        self.assertEqual(resp.json()["alt_text"], "New alt")
+
+    def test_empty_title_rejected(self):
+        resp = self._post(key="img-editable", title="   ")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_unknown_key_404(self):
+        self.assertEqual(self._post(key="img-nope", alt_text="x").status_code, 404)
+
+    def test_no_fields_400(self):
+        self.assertEqual(self._post(key="img-editable").status_code, 400)
+
+    def test_focal_point_validation(self):
+        self.assertEqual(
+            self._post(key="img-editable", focal_point_x="1.5").status_code, 400
+        )
+        resp = self._post(
+            key="img-editable", focal_point_x="0.25", focal_point_y="0.75"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.focal_point_x, 0.25)
+        self.assertEqual(self.asset.focal_point_y, 0.75)
+
+    def test_get_not_allowed(self):
+        resp = self.client.get(reverse("admin:engine_post_update_asset"))
+        self.assertEqual(resp.status_code, 405)
+
+
+class AttachAssetTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(
+            username="attacher", password="pw", is_staff=True
+        )
+        cls.post = Post.objects.create(
+            title="Attach Draft", content_markdown="x", author=cls.staff
+        )
+        cls.asset = Asset.objects.create(
+            title="Attachable", asset_type="image", key="img-attachable", status="ready"
+        )
+
+    def setUp(self):
+        self.client.force_login(self.staff)
+
+    def test_attach_and_idempotent(self):
+        url = reverse("admin:engine_post_attach_asset")
+        for _ in range(2):
+            resp = self.client.post(
+                url,
+                {
+                    "key": "img-attachable",
+                    "object_id": str(self.post.pk),
+                    "owner_type": "post",
+                },
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertTrue(resp.json()["attached"])
+        self.assertEqual(
+            PostAsset.objects.filter(post=self.post, asset=self.asset).count(), 1
+        )
+
+    def test_unknown_owner_404(self):
+        resp = self.client.post(
+            reverse("admin:engine_post_attach_asset"),
+            {"key": "img-attachable", "object_id": "999999"},
+        )
+        self.assertEqual(resp.status_code, 404)
