@@ -453,7 +453,7 @@ class TagListView(SEOContextMixin, TemplateView):
     Display all active tags with post counts.
 
     Supports display options via query parameters:
-    - show=description,color,icon,namespace,hierarchy (comma-separated)
+    - show=description
     - sort=name|count|rank (default: name)
     - group=namespace (group tags by namespace)
     """
@@ -519,8 +519,7 @@ class TagListView(SEOContextMixin, TemplateView):
             context["tags"] = tags
             context["grouped"] = False
 
-        # Display options (color/icon/namespace are always on — they're
-        # authored data; only the description line is a toggle)
+        # Display options: only the description line is a toggle
         context["show_description"] = "description" in show_options
         context["current_sort"] = sort_by
         context["current_group"] = group_by
@@ -841,10 +840,9 @@ class PostDetailView(SEOContextMixin, DetailView):
                 source_post=post,
                 target_post__status=Post.Status.PUBLISHED,
                 target_post__is_deleted=False,
-                target_post__visibility__in=[
-                    Post.Visibility.PUBLIC,
-                    Post.Visibility.UNLISTED,
-                ],
+                # Unlisted posts are link-only: viewable at their URL but never
+                # advertised on other pages, so only PUBLIC targets appear here.
+                target_post__visibility=Post.Visibility.PUBLIC,
             )
             .select_related("target_post", "target_post__series")
             .prefetch_related("target_post__tags", "target_post__categories")

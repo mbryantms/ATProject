@@ -79,13 +79,15 @@ class IconRenderingTests(TestCase):
 
         self.assertEqual(icon_html("lucide:definitely-not-an-icon"), "")
 
-    def test_tag_list_page_renders_lucide_icon(self):
+    def test_tag_list_page_omits_icon_and_color(self):
+        """Color/icon are admin-side styling; the public tag index stays
+        purely typographic and must not render either."""
         from django.utils import timezone
 
         from engine.models import Post, Tag
 
         user = User.objects.create_user(username="author2", password="x")
-        tag = Tag.objects.create(name="maps", icon="lucide:map-pin")
+        tag = Tag.objects.create(name="maps", icon="lucide:map-pin", color="#3B82F6")
         post = Post.objects.create(
             title="A Post",
             content_markdown="Body.",
@@ -96,8 +98,10 @@ class IconRenderingTests(TestCase):
         )
         post.tags.add(tag)
         resp = self.client.get("/tags/")
-        self.assertContains(resp, "lucide-icon")
+        self.assertContains(resp, "Maps")
+        self.assertNotContains(resp, "lucide-icon")
         self.assertNotContains(resp, "lucide:map-pin")
+        self.assertNotContains(resp, "tag-color-dot")
 
 
 class AdminWidgetPageTests(TestCase):

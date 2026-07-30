@@ -700,8 +700,9 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
     ):
         """
         Return posts ranked for similarity, reading from the precomputed
-        ``PostSimilarity`` table. ``include_private`` can be used for staff
-        tools.
+        ``PostSimilarity`` table. Only PUBLIC targets by default — unlisted
+        posts are link-only and must not be advertised on other pages.
+        ``include_private`` lifts the restriction for staff tools.
         """
         qs = (
             PostSimilarity.objects.filter(source_post=self)
@@ -710,9 +711,9 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         )
         if min_score is not None:
             qs = qs.filter(score__gte=min_score)
-        visibilities = [Post.Visibility.PUBLIC, Post.Visibility.UNLISTED]
+        visibilities = [Post.Visibility.PUBLIC]
         if include_private:
-            visibilities.append(Post.Visibility.PRIVATE)
+            visibilities += [Post.Visibility.UNLISTED, Post.Visibility.PRIVATE]
         qs = qs.filter(
             target_post__status=Post.Status.PUBLISHED,
             target_post__is_deleted=False,

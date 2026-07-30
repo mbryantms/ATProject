@@ -14,6 +14,8 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8.3 4.3a1 1 0 0 1 1.4 0L16.4 11l-6.7 6.7a1 1 0 1 1-1.4-1.4L13.6 11 8.3 5.7a1 1 0 0 1 0-1.4z"></path></svg>',
     'circle-notch-light':
       '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="45 10"></circle></svg>',
+    'caption-lines':
+      '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4zm0 2h16v12H4V6zm2 7h8v2H6v-2zm10 0h2v2h-2v-2zm-10 0"></path></svg>',
     'copy-regular':
       '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 3a3 3 0 0 0-3 3v9h2V6a1 1 0 0 1 1-1h9V3z"></path><path fill="currentColor" d="M10 7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3zm0 2h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z"></path></svg>',
     'circle-check-solid':
@@ -303,6 +305,7 @@
       '.image-number',
       '.caption',
       '.close-button',
+      '.caption-toggle-button',
     ].join(', '),
 
     focusableImagesSelector: null,
@@ -346,10 +349,14 @@
 
       ImageFocus.overlay = addUIElement(`<div id="image-focus-overlay">
             <button type="button" class="close-button" tabindex="0" title="Close (Escape)">&times;</button>
+            <button type="button" class="caption-toggle-button" tabindex="0" title="Hide caption (C)" aria-pressed="false">
+                ${GW.svg('caption-lines')}
+            </button>
             <div class="help-overlay">
                 <p class="slideshow-help-text"><strong>Arrow keys:</strong> Next/previous image</p>
                 <p><strong>Escape</strong> or <strong>click</strong>: Hide zoomed image</p>
                 <p><strong>Space bar:</strong> Reset image size &amp; position</p>
+                <p><strong>C:</strong> Hide/show caption</p>
                 <p><strong>Scroll</strong> to zoom in/out</p>
                 <p>(When zoomed in, <strong>drag</strong> to pan;<br><strong>double-click</strong> to reset size &amp; position)</p>
             </div>
@@ -390,6 +397,17 @@
         GWLog('ImageFocus.closeButtonClicked', 'image-focus.js', 2);
         event.stopPropagation();
         ImageFocus.exitImageFocus();
+      });
+
+      // Caption toggle handler
+      const captionToggleButton = ImageFocus.overlay.querySelector(
+        '.caption-toggle-button',
+      );
+      captionToggleButton.addActivateEvent((event) => {
+        GWLog('ImageFocus.captionToggleButtonClicked', 'image-focus.js', 2);
+        event.stopPropagation();
+        ImageFocus.toggleCaption();
+        event.target.closest('button').blur();
       });
 
       // Click outside image to close (on overlay background)
@@ -821,6 +839,7 @@
         removeMousemoveListener('ImageFocusMousemoveListener');
 
       ImageFocus.overlay.classList.remove('engaged');
+      ImageFocus.toggleCaption(false);
 
       requestAnimationFrame(() => {
         togglePageScrolling(true);
@@ -857,6 +876,22 @@
 
       if (images[indexOfFocusedImage])
         ImageFocus.focusImage(images[indexOfFocusedImage]);
+    },
+
+    /*  Explicit caption toggle (chrome button or the C key). Unlike the idle
+        fade, this pins the caption closed so mouse movement can't bring it
+        back; the state persists across gallery navigation and resets when
+        the viewer closes.
+     */
+    toggleCaption: (hide = null) => {
+      GWLog('ImageFocus.toggleCaption', 'image-focus.js', 2);
+
+      const hidden = hide ?? !ImageFocus.overlay.classList.contains('caption-hidden');
+      ImageFocus.overlay.classList.toggle('caption-hidden', hidden);
+
+      const button = ImageFocus.overlay.querySelector('.caption-toggle-button');
+      button.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+      button.title = hidden ? 'Show caption (C)' : 'Hide caption (C)';
     },
 
     setImageFocusCaption: () => {
@@ -928,6 +963,12 @@
           imageURLBlock.classList.remove('copied');
         });
       }
+
+      // The toggle button is only offered when there is a caption to hide.
+      ImageFocus.overlay.classList.toggle(
+        'has-caption',
+        captionContainer.children.length > 0,
+      );
     },
 
     truncatedURLString: (urlString) => {
@@ -1151,6 +1192,8 @@
         'Down',
         'Left',
         'Right',
+        'c',
+        'C',
       ];
       if (
         !allowedKeys.includes(event.key) ||
@@ -1168,6 +1211,10 @@
         case ' ':
         case 'Spacebar':
           ImageFocus.resetFocusedImagePosition();
+          break;
+        case 'c':
+        case 'C':
+          ImageFocus.toggleCaption();
           break;
         case 'ArrowDown':
         case 'Down':
