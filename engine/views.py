@@ -840,10 +840,9 @@ class PostDetailView(SEOContextMixin, DetailView):
                 source_post=post,
                 target_post__status=Post.Status.PUBLISHED,
                 target_post__is_deleted=False,
-                target_post__visibility__in=[
-                    Post.Visibility.PUBLIC,
-                    Post.Visibility.UNLISTED,
-                ],
+                # Unlisted posts are link-only: viewable at their URL but never
+                # advertised on other pages, so only PUBLIC targets appear here.
+                target_post__visibility=Post.Visibility.PUBLIC,
             )
             .select_related("target_post", "target_post__series")
             .prefetch_related("target_post__tags", "target_post__categories")
