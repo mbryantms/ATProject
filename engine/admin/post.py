@@ -760,6 +760,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "data-cm-assets-url": reverse(
                         "admin:engine_post_autocomplete_assets"
                     ),
+                    "data-cm-upload-url": reverse("admin:engine_post_upload_asset"),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
@@ -920,6 +921,11 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "autocomplete-assets/",
                 self.admin_site.admin_view(self.autocomplete_assets_view),
                 name="engine_post_autocomplete_assets",
+            ),
+            path(
+                "upload-asset/",
+                self.admin_site.admin_view(self.upload_asset_view),
+                name="engine_post_upload_asset",
             ),
             path(
                 "lint-content/",
@@ -1145,6 +1151,98 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             )
 
         return JsonResponse({"results": results})
+
+    def upload_asset_view(self, request):
+        """Create an Asset from an editor-uploaded file, no page reload.
+
+        Backs paste/drop upload in the markdown editor: the file becomes a
+        ready Asset immediately (the normal save pipeline handles key
+        generation, metadata, and renditions), and when ``object_id`` names a
+        saved post/page the asset is also attached so it appears in the
+        attachment inline on next load. The returned ``markdown`` snippet is
+        what the editor inserts at the cursor; the ``@asset:key`` reference
+        resolves globally, so no attachment or post save is required first.
+
+        POST multipart fields: ``file`` (required), ``title`` (optional,
+        defaults to the filename stem), ``owner_type`` (post/page),
+        ``object_id`` (optional pk of a saved owner).
+        """
+        import os
+
+        from django.core.exceptions import ValidationError
+        from django.http import JsonResponse
+
+        from engine.api.views import get_asset_type, validate_file_size
+        from engine.models import Asset, Page, PageAsset, PostAsset
+
+        if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        uploaded = request.FILES.get("file")
+        if uploaded is None:
+            return JsonResponse({"error": "No file provided"}, status=400)
+
+        try:
+            for validator in Asset._meta.get_field("file").validators:
+                validator(uploaded)
+        except ValidationError:
+            ext = os.path.splitext(uploaded.name)[1] or "(none)"
+            return JsonResponse(
+                {"error": f"File type {ext} is not allowed"}, status=400
+            )
+
+        asset_type = get_asset_type(uploaded.name, uploaded.content_type)
+        is_valid, error_message = validate_file_size(uploaded.size, asset_type)
+        if not is_valid:
+            return JsonResponse({"error": error_message}, status=400)
+
+        title = (request.POST.get("title") or "").strip()
+        if not title:
+            title = os.path.splitext(os.path.basename(uploaded.name))[0][:255]
+
+        asset = Asset.objects.create(
+            file=uploaded,
+            title=title,
+            uploaded_by=request.user,
+        )
+
+        # Attach to the owning post/page when it already exists, so the asset
+        # shows up in the attachment inline; a missing/unsaved owner is fine —
+        # the global @asset:key reference works without it.
+        owner_type = request.POST.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.POST.get("object_id") or ""
+        attached = False
+        if object_id:
+            try:
+                if owner_type == "page":
+                    owner = Page.objects.get(pk=int(object_id))
+                    PageAsset.objects.get_or_create(page=owner, asset=asset)
+                else:
+                    owner = Post.objects.get(pk=int(object_id))
+                    PostAsset.objects.get_or_create(post=owner, asset=asset)
+                attached = True
+            except ValueError, TypeError, Post.DoesNotExist, Page.DoesNotExist:
+                pass
+
+        reference = f"@asset:{asset.key}"
+        if asset.asset_type == "image":
+            markdown = f"![]({reference})"
+        else:
+            markdown = f"[{asset.title}]({reference})"
+
+        return JsonResponse(
+            {
+                "key": asset.key,
+                "asset_type": asset.asset_type,
+                "title": asset.title,
+                "attached": attached,
+                "markdown": markdown,
+            }
+        )
 
     def lint_content_view(self, request):
         """Return CM6-compatible diagnostics for the submitted content.
