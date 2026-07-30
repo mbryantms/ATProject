@@ -49,6 +49,7 @@ import {
 import { makeLintSource } from './admin-post-editor/lint-source.js';
 import { makeSnippetCompletionSource } from './admin-post-editor/snippets.js';
 import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.js';
+import { makeAssetUploadExtension } from './admin-post-editor/asset-upload.js';
 
 function initEditor() {
   const textarea =
@@ -70,6 +71,7 @@ function initEditor() {
   // Endpoint URLs + owning content object are stamped onto the textarea.
   const citationsUrl = textarea.dataset.cmCitationsUrl || '';
   const assetsUrl = textarea.dataset.cmAssetsUrl || '';
+  const uploadUrl = textarea.dataset.cmUploadUrl || '';
   const lintUrl = textarea.dataset.cmLintUrl || '';
   const ownerTypeValue = textarea.dataset.cmOwnerType || 'post';
   const ownerIdValue = textarea.dataset.cmOwnerId || textarea.dataset.cmPostId || '';
@@ -115,9 +117,14 @@ function initEditor() {
     linterExtensions.push(lintGutter());
   }
 
+  const uploadExtensions = uploadUrl
+    ? [makeAssetUploadExtension(uploadUrl, getOwnerId, getOwnerType)]
+    : [];
+
   const state = EditorState.create({
     doc: textarea.value || '',
     extensions: [
+      ...uploadExtensions,
       lineNumbers(),
       highlightActiveLine(),
       highlightActiveLineGutter(),
