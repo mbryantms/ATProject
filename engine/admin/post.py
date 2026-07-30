@@ -771,6 +771,9 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "data-cm-attach-asset-url": reverse(
                         "admin:engine_post_attach_asset"
                     ),
+                    "data-cm-preview-url": reverse(
+                        "admin:engine_post_preview_markdown"
+                    ),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
@@ -1678,13 +1681,28 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         )
         lint_items = summarize(findings)
 
-        try:
-            rendered = render_markdown(content, context=context)
-        except Exception as exc:
-            return JsonResponse(
-                {"ok": False, "error": f"Render failed: {exc}", "lint": lint_items},
-                status=500,
-            )
+        # The full pipeline (pandoc + postprocessors) is expensive; the live
+        # split preview re-posts on every typing pause, so identical content
+        # renders once. Keyed on owner too — alias resolution differs per post.
+        import hashlib
+
+        from django.core.cache import cache as render_cache
+
+        digest = hashlib.sha256(
+            f"{owner_type}:{object_id}:{content}".encode()
+        ).hexdigest()
+        cache_key = f"admin-preview:{digest}"
+        rendered = render_cache.get(cache_key)
+
+        if rendered is None:
+            try:
+                rendered = render_markdown(content, context=context)
+            except Exception as exc:
+                return JsonResponse(
+                    {"ok": False, "error": f"Render failed: {exc}", "lint": lint_items},
+                    status=500,
+                )
+            render_cache.set(cache_key, rendered, 900)
 
         css_links = "\n".join(
             f'<link rel="stylesheet" href="{static(path)}">'

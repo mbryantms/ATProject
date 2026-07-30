@@ -52,6 +52,7 @@ import { mountCheatsheetPalette } from './admin-post-editor/cheatsheet-palette.j
 import { makeAssetUploadExtension } from './admin-post-editor/asset-upload.js';
 import { makeAssetHoverExtension } from './admin-post-editor/asset-hover.js';
 import { mountAssetDrawer } from './admin-post-editor/asset-drawer.js';
+import { mountLivePreview } from './admin-post-editor/live-preview.js';
 
 function initEditor() {
   const textarea =
@@ -350,6 +351,16 @@ function initEditor() {
       });
     } catch (err) {
       console.warn('CM6: failed to mount asset drawer', err);
+    }
+  }
+
+  // Split live preview: renders through the real pipeline on typing pauses.
+  const previewUrl = textarea.dataset.cmPreviewUrl || '';
+  if (previewUrl) {
+    try {
+      mountLivePreview({ view, previewUrl, getOwnerId, getOwnerType });
+    } catch (err) {
+      console.warn('CM6: failed to mount live preview', err);
     }
   }
 

@@ -266,3 +266,56 @@ class AttachAssetTests(TestCase):
             {"key": "img-attachable", "object_id": "999999"},
         )
         self.assertEqual(resp.status_code, 404)
+
+
+class PreviewRenderCacheTests(TestCase):
+    """The live split preview re-posts on typing pauses; identical content
+    must hit the render cache instead of re-running the pandoc pipeline."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_user(
+            username="previewer", password="pw", is_staff=True
+        )
+        cls.post = Post.objects.create(
+            title="Cache Draft", content_markdown="x", author=cls.staff
+        )
+
+    def setUp(self):
+        self.client.force_login(self.staff)
+
+    def _preview(self, content, object_id=""):
+        params = {"content": content}
+        if object_id:
+            params["object_id"] = object_id
+        return self.client.post(reverse("admin:engine_post_preview_markdown"), params)
+
+    def test_identical_content_renders_once(self):
+        from unittest import mock
+
+        from django.test import override_settings
+
+        caches = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "preview-cache-test",
+            }
+        }
+        with override_settings(CACHES=caches):
+            with mock.patch(
+                "engine.markdown.renderer.render_markdown",
+                return_value="<p>rendered</p>",
+            ) as rm:
+                for _ in range(2):
+                    resp = self._preview("Hello *world*")
+                    self.assertTrue(resp.json()["ok"])
+                self.assertEqual(rm.call_count, 1)
+
+                # Different content: a fresh render.
+                self._preview("Hello *world* changed")
+                self.assertEqual(rm.call_count, 2)
+
+                # Same content but owner-scoped: alias resolution can differ,
+                # so it must not share the anonymous entry.
+                self._preview("Hello *world*", object_id=str(self.post.pk))
+                self.assertEqual(rm.call_count, 3)
