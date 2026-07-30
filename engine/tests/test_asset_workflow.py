@@ -319,3 +319,37 @@ class PreviewRenderCacheTests(TestCase):
                 # so it must not share the anonymous entry.
                 self._preview("Hello *world*", object_id=str(self.post.pk))
                 self.assertEqual(rm.call_count, 3)
+
+
+class RenditionRerenderTests(TestCase):
+    """Completing renditions must queue cached-HTML re-renders for every
+    post that embeds the asset (attached or via a global reference)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        author = User.objects.create_user(username="rerender", password="x")
+        cls.asset = Asset.objects.create(
+            title="Baked", asset_type="image", key="img-baked", status="ready"
+        )
+        cls.attached_post = Post.objects.create(
+            title="Attached Ref", content_markdown="![](@hero)", author=author
+        )
+        PostAsset.objects.create(post=cls.attached_post, asset=cls.asset, alias="hero")
+        cls.global_post = Post.objects.create(
+            title="Global Ref",
+            content_markdown="![x](@asset:img-baked)",
+            author=author,
+        )
+        cls.unrelated_post = Post.objects.create(
+            title="Unrelated", content_markdown="No images here.", author=author
+        )
+
+    def test_referencing_posts_queued(self):
+        from unittest import mock
+
+        from engine.tasks import _rerender_posts_referencing_asset
+
+        with mock.patch("engine.tasks.update_post_derived_content") as task:
+            _rerender_posts_referencing_asset(self.asset)
+        queued = {call.args[0] for call in task.delay.call_args_list}
+        self.assertEqual(queued, {self.attached_post.pk, self.global_post.pk})

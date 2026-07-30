@@ -223,7 +223,31 @@ export function mountAssetDrawer(options) {
     }
     setStatus('');
     offset = 0;
-    refresh();
+    await refresh();
+    startRenditionPolling();
+  }
+
+  // After an upload, renditions generate in the background; poll the panel
+  // for a bit so badges flip from "no renditions" to "renditions n/n"
+  // without the author doing anything.
+  let pollTimer = null;
+  function startRenditionPolling(remaining = 6) {
+    clearTimeout(pollTimer);
+    if (remaining <= 0) return;
+    pollTimer = setTimeout(async () => {
+      invalidateAssetInfo();
+      await refresh();
+      const stillPending = data.attached
+        .concat(data.library)
+        .some(
+          (i) =>
+            i.asset_type === 'image' &&
+            (!i.renditions ||
+              i.renditions.total === 0 ||
+              i.renditions.completed < i.renditions.total),
+        );
+      if (stillPending) startRenditionPolling(remaining - 1);
+    }, 5000);
   }
 
   function insertAtCursor(text) {
