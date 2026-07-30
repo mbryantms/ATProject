@@ -453,7 +453,7 @@ class TagListView(SEOContextMixin, TemplateView):
     Display all active tags with post counts.
 
     Supports display options via query parameters:
-    - show=description,color,icon,namespace,hierarchy (comma-separated)
+    - show=description
     - sort=name|count|rank (default: name)
     - group=namespace (group tags by namespace)
     """
@@ -519,8 +519,7 @@ class TagListView(SEOContextMixin, TemplateView):
             context["tags"] = tags
             context["grouped"] = False
 
-        # Display options (color/icon/namespace are always on — they're
-        # authored data; only the description line is a toggle)
+        # Display options: only the description line is a toggle
         context["show_description"] = "description" in show_options
         context["current_sort"] = sort_by
         context["current_group"] = group_by

@@ -1159,11 +1159,13 @@ header h1 em {
   margin-bottom: 0.75em;
 }
 
+/*  One index entry: inline text flow with a hanging indent, so a long
+    name that wraps within a column reads as a continuation line rather
+    than a new entry.
+ */
 .tag-list-main {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.25em;
+  padding-left: 1em;
+  text-indent: -1em;
 }
 
 /*  Name weight scales with post count (assigned in the view, log scale):
@@ -1200,31 +1202,14 @@ header h1 em {
     itself.
  */
 .tag-rank {
+  display: inline-block;
+  text-indent: 0; /* don't inherit the entry's hanging indent */
   font-family: var(--AT-monospaced-font-stack);
   font-variant-numeric: tabular-nums lining-nums;
   font-size: 0.8em;
   color: var(--AT-body-text-secondary-color, #666);
   min-width: 1.5em;
   text-align: right;
-}
-
-/*  Color indicator dot. The faint ring keeps arbitrary author-picked hex
-    colors legible on both light and dark grounds.
- */
-.tag-color-dot {
-  display: inline-block;
-  width: 0.65em;
-  height: 0.65em;
-  border-radius: 50%;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgb(127 127 127 / 35%);
-}
-
-/*  Icon display.
- */
-.tag-icon {
-  font-size: 1em;
-  margin-right: 0.1em;
 }
 
 /*  Tag description (optional).
