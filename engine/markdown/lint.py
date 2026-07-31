@@ -29,8 +29,11 @@ from dataclasses import dataclass
 
 # @asset:key / @alias inside a markdown link/image target. Mirrors the
 # production asset_resolver preprocessor pattern so lint stays in sync with what
-# actually resolves at render time.
-ASSET_REF_RE = re.compile(r"!?\[[^\]]*\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)")
+# actually resolves at render time. Groups: 1=! (image marker), 2=bracket text
+# (markdown alt), 3="asset:" prefix, 4=key.
+ASSET_REF_RE = re.compile(
+    r"(!?)\[([^\]]*)\]\(@(asset:)?([a-zA-Z0-9_-]+)(?:\?[^\)]*)?\)"
+)
 
 _INTERNAL_LINK_RE = re.compile(r"\]\(/posts/([a-z0-9][a-z0-9\-_]*)/?\)")
 _FENCE_RE = re.compile(r"^:::+.*$", re.MULTILINE)
@@ -46,7 +49,7 @@ _CODE_SPAN_PATTERNS = (r"```[\s\S]*?```", r"~~~[\s\S]*?~~~", r"`[^`\n]+`")
 class LintFinding:
     """One authoring-lint problem, with its span in the source text."""
 
-    kind: str  # "asset" | "citation" | "link" | "fence"
+    kind: str  # "asset" | "alt" | "citation" | "link" | "fence"
     label: str  # offending token, e.g. "@asset:foo" or "/posts/bar/"
     message: str
     start: int
@@ -101,6 +104,12 @@ def summarize(findings):
             + ", ".join(grouped["asset"])
             + ". Attach the asset or fix the key/alias."
         )
+    if grouped.get("alt"):
+        lines.append(
+            "Image(s) missing alt text: "
+            + ", ".join(grouped["alt"])
+            + ". Add alt in the markdown brackets or set it on the asset."
+        )
     if grouped.get("citation"):
         lines.append(
             "Unknown citation key(s) — will render as [??key]: "
@@ -142,43 +151,93 @@ def _lint_assets(content, post_assets):
         return []
     from engine.models import Asset
 
-    aliases = {pa.alias for pa in post_assets if pa.alias}
-    post_keys = {pa.asset.key for pa in post_assets if pa.asset}
+    # Effective alt text per alias / attached key: the per-post override wins,
+    # then the asset's own alt — mirroring PostAsset.get_alt_text().
+    alias_alt = {
+        pa.alias: (pa.custom_alt_text or pa.asset.alt_text)
+        for pa in post_assets
+        if pa.alias and pa.asset
+    }
+    post_key_alt = {
+        pa.asset.key: (pa.custom_alt_text or pa.asset.alt_text)
+        for pa in post_assets
+        if pa.asset
+    }
+    alias_type = {pa.alias: pa.asset.asset_type for pa in post_assets if pa.alias}
+    post_key_type = {
+        pa.asset.key: pa.asset.asset_type for pa in post_assets if pa.asset
+    }
 
-    candidates = {m.group(2) for m in ASSET_REF_RE.finditer(content)}
-    known_globals = (
-        set(
-            Asset.objects.filter(
-                key__in=candidates, is_deleted=False, status="ready"
-            ).values_list("key", flat=True)
-        )
+    candidates = {m.group(4) for m in ASSET_REF_RE.finditer(content)}
+    global_rows = (
+        Asset.objects.filter(
+            key__in=candidates, is_deleted=False, status="ready"
+        ).values_list("key", "alt_text", "asset_type")
         if candidates
-        else set()
+        else []
     )
+    global_alt = {key: alt for key, alt, _type in global_rows}
+    global_type = {key: _type for key, _alt, _type in global_rows}
 
     findings = []
     for m in ASSET_REF_RE.finditer(content):
-        is_global = m.group(1) == "asset:"
-        key = m.group(2)
+        is_image = m.group(1) == "!"
+        md_alt = (m.group(2) or "").strip()
+        is_global = m.group(3) == "asset:"
+        key = m.group(4)
+
         if is_global:
-            if key in post_keys or key in known_globals:
-                continue
+            resolved = key in post_key_alt or key in global_alt
             label = f"@asset:{key}"
         else:
-            if key in aliases or key in post_keys or key in known_globals:
-                continue
+            resolved = key in alias_alt or key in post_key_alt or key in global_alt
             label = f"@{key}"
-        # Underline just the @…key span, not the whole image/link syntax.
-        start = (m.start(1) - 1) if is_global else (m.start(2) - 1)
-        findings.append(
-            LintFinding(
-                kind="asset",
-                label=label,
-                message=f"Unresolved asset reference: {label}",
-                start=start,
-                end=m.end(2),
+
+        if not resolved:
+            # Underline just the @…key span, not the whole image/link syntax.
+            start = (m.start(3) - 1) if is_global else (m.start(4) - 1)
+            findings.append(
+                LintFinding(
+                    kind="asset",
+                    label=label,
+                    message=f"Unresolved asset reference: {label}",
+                    start=start,
+                    end=m.end(4),
+                )
             )
-        )
+            continue
+
+        # Accessibility: an image with no markdown alt AND no asset-level alt
+        # renders with an empty alt attribute. (The resolver prefers the
+        # asset's alt over the bracket text, so either one satisfies this.)
+        if is_image and not md_alt:
+            if is_global:
+                asset_alt = post_key_alt.get(key) or global_alt.get(key, "")
+                ref_type = post_key_type.get(key) or global_type.get(key, "")
+            else:
+                asset_alt = (
+                    alias_alt.get(key)
+                    or post_key_alt.get(key)
+                    or global_alt.get(key, "")
+                )
+                ref_type = (
+                    alias_type.get(key)
+                    or post_key_type.get(key)
+                    or global_type.get(key, "")
+                )
+            if ref_type == "image" and not asset_alt:
+                findings.append(
+                    LintFinding(
+                        kind="alt",
+                        label=label,
+                        message=(
+                            f"Image {label} has no alt text — add it in the "
+                            "brackets or set it on the asset."
+                        ),
+                        start=m.start(0),
+                        end=m.end(2) + 1,
+                    )
+                )
     return findings
 
 

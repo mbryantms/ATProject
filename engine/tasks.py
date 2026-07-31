@@ -117,6 +117,13 @@ def generate_renditions_async(asset_id, widths=None, formats=None):
     try:
         renditions = generate_asset_renditions(asset, widths=widths, formats=formats)
 
+        # Renditions are baked into cached post HTML as srcset at render
+        # time, so completing new ones must re-render referencing posts —
+        # otherwise published pages keep serving the original file until
+        # some unrelated save. (Same pattern as source-archive changes.)
+        if renditions:
+            _rerender_posts_referencing_asset(asset)
+
         return {
             "success": True,
             "asset_key": asset.key,
@@ -129,6 +136,36 @@ def generate_renditions_async(asset_id, widths=None, formats=None):
             "asset_key": asset.key,
             "error": str(e),
         }
+
+
+def _rerender_posts_referencing_asset(asset):
+    """Queue derived-content re-renders for posts embedding this asset.
+
+    Covers attachment rows (which also cover ``@alias`` references, since
+    aliases require attachment) and global ``@asset:key`` references from
+    unattached posts.
+    """
+    from .models import Post, PostAsset
+
+    post_ids = set(
+        PostAsset.objects.filter(asset=asset).values_list("post_id", flat=True)
+    )
+    post_ids.update(
+        Post.objects.filter(
+            content_markdown__contains=f"@asset:{asset.key}"
+        ).values_list("pk", flat=True)
+    )
+    for post_id in post_ids:
+        try:
+            update_post_derived_content.delay(post_id)
+        except Exception as exc:  # pragma: no cover - broker hiccup
+            logger.warning(
+                "Could not queue re-render for post %s after renditions "
+                "completed for asset %s: %s",
+                post_id,
+                asset.key,
+                exc,
+            )
 
 
 @shared_task(

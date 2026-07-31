@@ -761,6 +761,19 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                         "admin:engine_post_autocomplete_assets"
                     ),
                     "data-cm-upload-url": reverse("admin:engine_post_upload_asset"),
+                    "data-cm-asset-info-url": reverse("admin:engine_post_asset_info"),
+                    "data-cm-assets-panel-url": reverse(
+                        "admin:engine_post_assets_panel"
+                    ),
+                    "data-cm-update-asset-url": reverse(
+                        "admin:engine_post_update_asset"
+                    ),
+                    "data-cm-attach-asset-url": reverse(
+                        "admin:engine_post_attach_asset"
+                    ),
+                    "data-cm-preview-url": reverse(
+                        "admin:engine_post_preview_markdown"
+                    ),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
@@ -926,6 +939,26 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "upload-asset/",
                 self.admin_site.admin_view(self.upload_asset_view),
                 name="engine_post_upload_asset",
+            ),
+            path(
+                "asset-info/",
+                self.admin_site.admin_view(self.asset_info_view),
+                name="engine_post_asset_info",
+            ),
+            path(
+                "assets-panel/",
+                self.admin_site.admin_view(self.assets_panel_view),
+                name="engine_post_assets_panel",
+            ),
+            path(
+                "update-asset/",
+                self.admin_site.admin_view(self.update_asset_view),
+                name="engine_post_update_asset",
+            ),
+            path(
+                "attach-asset/",
+                self.admin_site.admin_view(self.attach_asset_view),
+                name="engine_post_attach_asset",
             ),
             path(
                 "lint-content/",
@@ -1106,8 +1139,10 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             try:
                 relation_model = PageAsset if owner_type == "page" else PostAsset
                 owner_filter = {f"{owner_type}_id": int(object_id)}
-                pa_qs = relation_model.objects.filter(**owner_filter).select_related(
-                    "asset"
+                pa_qs = (
+                    relation_model.objects.filter(**owner_filter)
+                    .select_related("asset")
+                    .prefetch_related("asset__renditions")
                 )
                 if q:
                     pa_qs = pa_qs.filter(
@@ -1128,13 +1163,16 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                             "global": False,
                             "type": pa.asset.asset_type,
                             "title": (pa.asset.title or "")[:140],
+                            "thumb": pa.asset.thumbnail_url(prefer_width=200),
                         }
                     )
             except ValueError, TypeError:
                 pass
 
         # Then global asset keys.
-        asset_qs = Asset.objects.filter(is_deleted=False, status="ready")
+        asset_qs = Asset.objects.filter(
+            is_deleted=False, status="ready"
+        ).prefetch_related("renditions")
         if q:
             asset_qs = asset_qs.filter(Q(key__icontains=q) | Q(title__icontains=q))
         for a in asset_qs.order_by("key")[: 20 - len(results)]:
@@ -1147,6 +1185,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "global": True,
                     "type": a.asset_type,
                     "title": (a.title or "")[:140],
+                    "thumb": a.thumbnail_url(prefer_width=200),
                 }
             )
 
@@ -1243,6 +1282,278 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                 "markdown": markdown,
             }
         )
+
+    @staticmethod
+    def _resolve_ref(ref, owner_type, object_id):
+        """Resolve an editor reference token to (asset, relation_row).
+
+        ``ref`` is what follows ``@`` in the markdown: ``asset:key`` for a
+        global reference or a bare token that is tried as an owner-local
+        alias first, then as a global key — the same order the markdown
+        resolver uses. Returns (None, None) when nothing matches.
+        """
+        from engine.models import Asset, PageAsset, PostAsset
+
+        relation_model = PageAsset if owner_type == "page" else PostAsset
+        owner_field = f"{owner_type}_id"
+
+        content_row = None
+        asset = None
+        key = ref.removeprefix("asset:")
+        is_global = ref.startswith("asset:")
+
+        if not is_global and object_id:
+            try:
+                content_row = (
+                    relation_model.objects.filter(
+                        **{owner_field: int(object_id)}, alias=key
+                    )
+                    .select_related("asset")
+                    .first()
+                )
+            except ValueError, TypeError:
+                content_row = None
+            if content_row:
+                asset = content_row.asset
+
+        if asset is None:
+            asset = Asset.objects.filter(
+                key=key, is_deleted=False, status="ready"
+            ).first()
+
+        if asset is not None and content_row is None and object_id:
+            try:
+                content_row = (
+                    relation_model.objects.filter(
+                        **{owner_field: int(object_id)}, asset=asset
+                    )
+                    .select_related("asset")
+                    .first()
+                )
+            except ValueError, TypeError:
+                content_row = None
+
+        return asset, content_row
+
+    @staticmethod
+    def _asset_info_payload(asset, content_row):
+        """Serialize one asset for the hover card / drawer entries."""
+        renditions = list(asset.renditions.all())
+        completed = sum(1 for r in renditions if r.status == "completed")
+        alt_text = asset.alt_text
+        caption = asset.caption
+        if content_row:
+            alt_text = content_row.custom_alt_text or alt_text
+            caption = content_row.custom_caption or caption
+        return {
+            "key": asset.key,
+            "alias": (content_row.alias if content_row else "") or "",
+            "title": asset.title,
+            "asset_type": asset.asset_type,
+            "status": asset.status,
+            "thumb": asset.thumbnail_url(prefer_width=400),
+            "width": asset.width,
+            "height": asset.height,
+            "alt_text": alt_text or "",
+            "caption": caption or "",
+            "attached": content_row is not None,
+            "renditions": {"completed": completed, "total": len(renditions)},
+            "focal_point_x": asset.focal_point_x,
+            "focal_point_y": asset.focal_point_y,
+        }
+
+    def asset_info_view(self, request):
+        """Resolve one editor reference to asset metadata for the hover card.
+
+        GET params: ``ref`` (the token after ``@`` — ``asset:key`` or a bare
+        alias/key), plus ``owner_type``/``object_id`` for alias resolution
+        and per-post overrides. 404s with JSON when nothing resolves, which
+        the editor renders as an "unknown reference" card.
+        """
+        from django.http import JsonResponse
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        ref = (request.GET.get("ref") or "").strip()
+        if not ref:
+            return JsonResponse({"error": "ref required"}, status=400)
+        owner_type = request.GET.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.GET.get("object_id") or ""
+
+        asset, content_row = self._resolve_ref(ref, owner_type, object_id)
+        if asset is None:
+            return JsonResponse({"error": "Unknown asset reference"}, status=404)
+
+        return JsonResponse(self._asset_info_payload(asset, content_row))
+
+    def assets_panel_view(self, request):
+        """Data for the editor's asset drawer.
+
+        GET params: ``owner_type``/``object_id`` (for the "this post" tab and
+        attachment flags), ``q`` (key/title search), ``type`` (asset_type
+        filter), ``offset`` (library paging). Returns ``attached`` (the
+        owner's attachment rows, in order) and one page of ``library``
+        (ready assets, newest first, 30 per page) with ``library_total``.
+        """
+        from django.db.models import Q
+        from django.http import JsonResponse
+
+        from engine.models import Asset, PageAsset, PostAsset
+
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        owner_type = request.GET.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.GET.get("object_id") or ""
+        q = (request.GET.get("q") or "").strip()
+        type_filter = (request.GET.get("type") or "").strip()
+        try:
+            offset = max(0, int(request.GET.get("offset") or 0))
+        except ValueError, TypeError:
+            offset = 0
+
+        attached = []
+        attached_asset_ids = set()
+        if object_id:
+            relation_model = PageAsset if owner_type == "page" else PostAsset
+            try:
+                rows = (
+                    relation_model.objects.filter(
+                        **{f"{owner_type}_id": int(object_id)}
+                    )
+                    .select_related("asset")
+                    .prefetch_related("asset__renditions")
+                    .order_by("order", "created_at")
+                )
+                for row in rows:
+                    if row.asset is None:
+                        continue
+                    attached_asset_ids.add(row.asset_id)
+                    attached.append(self._asset_info_payload(row.asset, row))
+            except ValueError, TypeError:
+                pass
+
+        library_qs = Asset.objects.filter(
+            is_deleted=False, status="ready"
+        ).prefetch_related("renditions")
+        if q:
+            library_qs = library_qs.filter(Q(key__icontains=q) | Q(title__icontains=q))
+        if type_filter:
+            library_qs = library_qs.filter(asset_type=type_filter)
+        library_qs = library_qs.order_by("-created_at")
+
+        total = library_qs.count()
+        page = library_qs[offset : offset + 30]
+        library = []
+        for asset in page:
+            payload = self._asset_info_payload(asset, None)
+            payload["attached"] = asset.pk in attached_asset_ids
+            library.append(payload)
+
+        return JsonResponse(
+            {"attached": attached, "library": library, "library_total": total}
+        )
+
+    def update_asset_view(self, request):
+        """Edit asset metadata from the drawer, no page reload.
+
+        POST fields: ``key`` (required) plus any of ``title``, ``alt_text``,
+        ``caption``, ``focal_point_x``, ``focal_point_y``. Edits apply to the
+        Asset itself (site-wide defaults); per-post overrides remain in the
+        attachment inline. Returns the refreshed info payload.
+        """
+        from django.http import JsonResponse
+
+        from engine.models import Asset
+
+        if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        key = (request.POST.get("key") or "").strip()
+        asset = Asset.objects.filter(key=key, is_deleted=False).first()
+        if asset is None:
+            return JsonResponse({"error": "Unknown asset"}, status=404)
+
+        update_fields = []
+        if "title" in request.POST:
+            title = request.POST["title"].strip()
+            if not title:
+                return JsonResponse({"error": "Title cannot be empty"}, status=400)
+            asset.title = title[:255]
+            update_fields.append("title")
+        if "alt_text" in request.POST:
+            asset.alt_text = request.POST["alt_text"].strip()[:255]
+            update_fields.append("alt_text")
+        if "caption" in request.POST:
+            asset.caption = request.POST["caption"].strip()
+            update_fields.append("caption")
+        for field in ("focal_point_x", "focal_point_y"):
+            if field in request.POST:
+                raw = request.POST[field].strip()
+                if raw == "":
+                    setattr(asset, field, None)
+                else:
+                    try:
+                        value = float(raw)
+                    except ValueError:
+                        return JsonResponse(
+                            {"error": f"{field} must be a number"}, status=400
+                        )
+                    if not 0.0 <= value <= 1.0:
+                        return JsonResponse(
+                            {"error": f"{field} must be between 0 and 1"},
+                            status=400,
+                        )
+                    setattr(asset, field, value)
+                update_fields.append(field)
+
+        if not update_fields:
+            return JsonResponse({"error": "No fields to update"}, status=400)
+
+        asset.save(update_fields=update_fields + ["updated_at"])
+        return JsonResponse(self._asset_info_payload(asset, None))
+
+    def attach_asset_view(self, request):
+        """Attach an existing asset to a saved post/page from the drawer.
+
+        POST fields: ``key``, ``owner_type``, ``object_id``. Idempotent.
+        """
+        from django.http import JsonResponse
+
+        from engine.models import Asset, Page, PageAsset, PostAsset
+
+        if request.method != "POST":
+            return JsonResponse({"error": "POST required"}, status=405)
+        if not (request.user.is_staff or request.user.is_superuser):
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
+        key = (request.POST.get("key") or "").strip()
+        asset = Asset.objects.filter(key=key, is_deleted=False).first()
+        if asset is None:
+            return JsonResponse({"error": "Unknown asset"}, status=404)
+
+        owner_type = request.POST.get("owner_type") or "post"
+        if owner_type not in {"post", "page"}:
+            owner_type = "post"
+        object_id = request.POST.get("object_id") or ""
+        try:
+            if owner_type == "page":
+                owner = Page.objects.get(pk=int(object_id))
+                row, _ = PageAsset.objects.get_or_create(page=owner, asset=asset)
+            else:
+                owner = Post.objects.get(pk=int(object_id))
+                row, _ = PostAsset.objects.get_or_create(post=owner, asset=asset)
+        except ValueError, TypeError, Post.DoesNotExist, Page.DoesNotExist:
+            return JsonResponse({"error": "Unknown owner"}, status=404)
+
+        return JsonResponse(self._asset_info_payload(asset, row))
 
     def lint_content_view(self, request):
         """Return CM6-compatible diagnostics for the submitted content.
@@ -1372,13 +1683,28 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         )
         lint_items = summarize(findings)
 
-        try:
-            rendered = render_markdown(content, context=context)
-        except Exception as exc:
-            return JsonResponse(
-                {"ok": False, "error": f"Render failed: {exc}", "lint": lint_items},
-                status=500,
-            )
+        # The full pipeline (pandoc + postprocessors) is expensive; the live
+        # split preview re-posts on every typing pause, so identical content
+        # renders once. Keyed on owner too — alias resolution differs per post.
+        import hashlib
+
+        from django.core.cache import cache as render_cache
+
+        digest = hashlib.sha256(
+            f"{owner_type}:{object_id}:{content}".encode()
+        ).hexdigest()
+        cache_key = f"admin-preview:{digest}"
+        rendered = render_cache.get(cache_key)
+
+        if rendered is None:
+            try:
+                rendered = render_markdown(content, context=context)
+            except Exception as exc:
+                return JsonResponse(
+                    {"ok": False, "error": f"Render failed: {exc}", "lint": lint_items},
+                    status=500,
+                )
+            render_cache.set(cache_key, rendered, 900)
 
         css_links = "\n".join(
             f'<link rel="stylesheet" href="{static(path)}">'
