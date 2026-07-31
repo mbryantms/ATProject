@@ -45,8 +45,7 @@ export function mountAssetDrawer(options) {
   let loaded = false;
   let searchTimer = null;
 
-  // --- Layout: wrap the editor and hang the drawer beside it (reusing the
-  // flex wrapper if the live preview already created it) ---
+  // --- Layout: wrap the editor and hang the drawer beside it ---
   const editorDom = view.dom;
   let wrapper = editorDom.parentElement;
   if (!wrapper.classList.contains('atp-editor-flex')) {
