@@ -353,3 +353,20 @@ class RenditionRerenderTests(TestCase):
             _rerender_posts_referencing_asset(self.asset)
         queued = {call.args[0] for call in task.delay.call_args_list}
         self.assertEqual(queued, {self.attached_post.pk, self.global_post.pk})
+
+
+class FocalPointPayloadTests(TestCase):
+    def test_info_payload_carries_focal_points(self):
+        staff = User.objects.create_user(username="focal", password="pw", is_staff=True)
+        Asset.objects.create(
+            title="Focal",
+            asset_type="image",
+            key="img-focal",
+            status="ready",
+            focal_point_x=0.3,
+            focal_point_y=0.7,
+        )
+        self.client.force_login(staff)
+        data = self.client.get(reverse(INFO_URL), {"ref": "asset:img-focal"}).json()
+        self.assertEqual(data["focal_point_x"], 0.3)
+        self.assertEqual(data["focal_point_y"], 0.7)

@@ -1358,6 +1358,8 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             "caption": caption or "",
             "attached": content_row is not None,
             "renditions": {"completed": completed, "total": len(renditions)},
+            "focal_point_x": asset.focal_point_x,
+            "focal_point_y": asset.focal_point_y,
         }
 
     def asset_info_view(self, request):

@@ -352,6 +352,46 @@ export function mountAssetDrawer(options) {
       ),
     );
     form.appendChild(save);
+
+    // Focal point picker: click the image to mark where crops should center.
+    if (item.asset_type === 'image' && item.thumb) {
+      form.appendChild(el('label', null, 'Focal point (click to set)'));
+      const fpWrap = el('div', 'atp-fp-wrap');
+      const img = el('img', 'atp-fp-img');
+      img.src = item.thumb;
+      img.alt = '';
+      fpWrap.appendChild(img);
+      const dot = el('div', 'atp-fp-dot');
+      const setDot = (x, y) => {
+        if (x == null || y == null) {
+          dot.style.display = 'none';
+          return;
+        }
+        dot.style.display = '';
+        dot.style.left = `${x * 100}%`;
+        dot.style.top = `${y * 100}%`;
+      };
+      setDot(item.focal_point_x, item.focal_point_y);
+      fpWrap.appendChild(dot);
+      fpWrap.addEventListener('click', (event) => {
+        const rect = fpWrap.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+        const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+        setDot(x, y);
+        saveEdit(
+          item,
+          { focal_point_x: x.toFixed(3), focal_point_y: y.toFixed(3) },
+          card,
+        );
+      });
+      form.appendChild(fpWrap);
+      const clear = el('button', 'atp-card-btn', 'Clear focal point');
+      clear.type = 'button';
+      clear.addEventListener('click', () =>
+        saveEdit(item, { focal_point_x: '', focal_point_y: '' }, card),
+      );
+      form.appendChild(clear);
+    }
     return form;
   }
 

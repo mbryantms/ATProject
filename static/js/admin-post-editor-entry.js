@@ -53,6 +53,7 @@ import { makeAssetUploadExtension } from './admin-post-editor/asset-upload.js';
 import { makeAssetHoverExtension } from './admin-post-editor/asset-hover.js';
 import { mountAssetDrawer } from './admin-post-editor/asset-drawer.js';
 import { mountLivePreview } from './admin-post-editor/live-preview.js';
+import { makeRefToolbarExtension } from './admin-post-editor/ref-toolbar.js';
 
 function initEditor() {
   const textarea =
@@ -129,6 +130,7 @@ function initEditor() {
       makeAssetHoverExtension(assetInfoUrl, getOwnerId, getOwnerType),
     );
   }
+  uploadExtensions.push(makeRefToolbarExtension());
 
   const state = EditorState.create({
     doc: textarea.value || '',
