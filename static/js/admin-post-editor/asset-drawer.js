@@ -126,17 +126,21 @@ export function mountAssetDrawer(options) {
   });
   controls.appendChild(typeSelect);
 
-  const uploadLabel = el('label', 'atp-drawer-upload', 'Upload');
+  // A button (not a <label>) so Django's .aligned label styling — fixed
+  // 160px width, trailing colon — can't reach it.
   const uploadInput = el('input', null);
   uploadInput.type = 'file';
   uploadInput.multiple = true;
   uploadInput.style.display = 'none';
-  uploadLabel.appendChild(uploadInput);
   uploadInput.addEventListener('change', () => {
     uploadFiles(Array.from(uploadInput.files || []));
     uploadInput.value = '';
   });
-  controls.appendChild(uploadLabel);
+  const uploadBtn = el('button', 'atp-drawer-upload', 'Upload');
+  uploadBtn.type = 'button';
+  uploadBtn.addEventListener('click', () => uploadInput.click());
+  controls.appendChild(uploadBtn);
+  controls.appendChild(uploadInput);
 
   const status = el('div', 'atp-drawer-status');
   body.appendChild(status);
