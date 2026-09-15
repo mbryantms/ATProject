@@ -209,7 +209,7 @@ Every dependency source is tracked by Dependabot ([.github/dependabot.yml](.gith
 - **Security:** Dependabot alerts + security-update PRs are enabled in the repo settings, and the CI `security` job runs `pip-audit` and `npm audit --audit-level=high` on every PR and weekly on `main`.
 - **Auto-merge:** [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml) enables GitHub auto-merge on Dependabot PRs for patch/minor bumps; they merge once the required CI checks pass. Major bumps wait for review. Merging to `main` deploys via Railway, so narrow the allowed update types there if that is ever too aggressive.
 - **Version pins live in one place:** ruff and prettier run as `local` pre-commit hooks using the versions in `uv.lock` / `package-lock.json`, so pre-commit, CI and editors always agree.
-- **Known ceiling:** Django is held at 6.0.x by `django-celery-beat` (its latest release requires `django<6.1`). Dependabot will open the 6.1 PR once django-celery-beat lifts that cap.
+- **Known ceiling:** Django is held at 6.0.x by `django-celery-beat` (its latest release requires `django<6.1`). Dependabot would fail the whole uv run trying to resolve 6.1, so `dependabot.yml` ignores Django *minor* updates. When a django-celery-beat PR arrives that lifts the cap, delete that `ignore` entry and bump Django.
 
 Manual refresh, if ever needed:
 
