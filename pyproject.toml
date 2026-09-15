@@ -64,3 +64,8 @@ known-first-party = ["engine", "ATProject"]
 venvPath = "."
 venv = ".venv"
 reportMissingTypeStubs = false
+
+[dependency-groups]
+dev = [
+    "pre-commit-hooks>=6.0.0",
+]

@@ -1,20 +1,38 @@
-# Formatters and linters run from the project's own pinned tools (uv.lock and
-# package-lock.json) rather than from pre-commit's mirror repos, so pre-commit,
-# CI and editors all use the same version, and Dependabot updates them in one
-# place. The one remaining remote hook repo is refreshed weekly by
-# .github/workflows/pre-commit-autoupdate.yml.
+# Every hook runs from the project's own pinned tools (uv.lock and
+# package-lock.json) as a `local` hook, so pre-commit, CI and editors all use
+# the same version and Dependabot updates them in one place. There are no
+# remote hook repos, so `pre-commit autoupdate` has nothing to do.
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: check-yaml
-      - id: check-toml
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
-      - id: check-merge-conflict
-
   - repo: local
     hooks:
+      # pre-commit-hooks (dev dependency in pyproject.toml)
+      - id: check-yaml
+        name: check yaml
+        entry: uv run --frozen check-yaml
+        language: system
+        types: [yaml]
+      - id: check-toml
+        name: check toml
+        entry: uv run --frozen check-toml
+        language: system
+        types: [toml]
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: uv run --frozen end-of-file-fixer
+        language: system
+        types: [text]
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: uv run --frozen trailing-whitespace-fixer
+        language: system
+        types: [text]
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        entry: uv run --frozen check-merge-conflict
+        language: system
+        types: [text]
+
+      # ruff (dev dependency in pyproject.toml)
       - id: ruff-check
         name: ruff check
         entry: uv run --frozen ruff check --fix --exit-non-zero-on-fix
@@ -29,6 +47,8 @@ repos:
         language: system
         types_or: [python, pyi, markdown]
         require_serial: true
+
+      # prettier (devDependency in package.json)
       - id: prettier
         name: prettier
         entry: npx --no-install prettier --write --ignore-unknown
