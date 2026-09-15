@@ -971,15 +971,35 @@
 
 .atp-drawer-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
 }
 
+/*  Django's .aligned fieldset styles every <label> as a fixed 160px
+    floated block; neutralize the layout part inside the drawer, where
+    labels are compact. (The admin's trailing label colon is left alone —
+    it reads naturally on the edit form's field labels.)
+ */
+.atp-asset-drawer label {
+  float: none;
+  display: inline-block;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+}
+
 .atp-drawer-search {
-  flex: 1;
+  flex: 1 1 90px;
   min-width: 0;
   font-size: 12px;
   padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  box-sizing: border-box;
 }
 
 .atp-drawer-type {
@@ -987,7 +1007,12 @@
   max-width: 90px;
 }
 
-.atp-drawer-upload {
+.atp-asset-drawer .atp-drawer-upload {
+  float: none;
+  display: inline-block;
+  width: auto;
+  min-width: 0;
+  margin: 0;
   border: 1px solid var(--border-color);
   background: var(--darkened-bg);
   color: var(--body-fg);
@@ -1032,6 +1057,7 @@
 
 .atp-asset-card-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -1134,7 +1160,13 @@
   gap: 3px;
 }
 
-.atp-card-edit label {
+.atp-asset-drawer .atp-card-edit label {
+  display: block;
+  float: none;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
   font-size: 10.5px;
   color: var(--body-quiet-color);
 }
