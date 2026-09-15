@@ -1055,6 +1055,34 @@
   text-align: center;
 }
 
+/* Multi-select → "Insert N as gallery" bar. */
+.atp-card-select {
+  align-self: flex-start;
+  margin: 6px 0 0 2px;
+}
+
+.atp-drawer-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--darkened-bg);
+  font-size: 11px;
+}
+
+.atp-drawer-selection[hidden] {
+  display: none;
+}
+
+.atp-selection-count {
+  font-weight: 600;
+  margin-right: auto;
+}
+
 .atp-asset-card-row {
   display: flex;
   flex-wrap: wrap;

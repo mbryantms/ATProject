@@ -1,0 +1,182 @@
+/*  Gallery blocks — ::: {.gallery .wall|.grid|.strip}
+ *
+ *  Markup (from gallery_enhancer.py):
+ *    div.gallery.wall[data-row-height][data-columns][data-captions]
+ *      div.gallery-items
+ *        figure.gallery-item[style="--ar: 1.5; --focal: 62% 41%"] (standard figure markup inside)
+ *      figcaption.gallery-caption   (optional)
+ *
+ *  Wall rows are justified by gallery-wall.js, which sets an explicit width
+ *  on each figure and height on its .image-wrapper; the flex rules below are
+ *  the no-JS fallback and the first paint. Grid and strip are pure CSS.
+ */
+
+.markdownBody .gallery {
+  --tile-gap: 8px;
+  --cols: 3;
+  --row-base: 210px;
+  --row-scale: 1;
+  --row-h: calc(var(--row-base) * var(--row-scale));
+}
+.markdownBody .gallery.strip {
+  --row-base: 240px;
+}
+.markdownBody .gallery[data-row-height='short'] {
+  --row-base: 150px;
+}
+.markdownBody .gallery[data-row-height='medium'] {
+  --row-base: 210px;
+}
+.markdownBody .gallery[data-row-height='tall'] {
+  --row-base: 300px;
+}
+
+.markdownBody .gallery-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tile-gap);
+  align-items: flex-start;
+}
+
+.markdownBody .gallery .gallery-item {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+.markdownBody .gallery .gallery-item .figure-outer-wrapper {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  max-width: none;
+}
+.markdownBody .gallery .gallery-item .figure-outer-wrapper > .image-wrapper {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/*  image-focus.js wraps the <img> in a second span.image-wrapper inside
+ *  <picture>. Collapse it so the image sizes against the outer wrapper,
+ *  which is the one the wall script sets a height on.
+ */
+.markdownBody .gallery .gallery-item picture > .image-wrapper {
+  display: contents;
+}
+.markdownBody .gallery .gallery-item img {
+  /*  Override the lone-figure clamps (max-width tied to --img-ar, max-height
+   *  to the viewport): a tile is sized by its container and cropped with
+   *  object-fit, positioned on the asset's focal point when it has one.
+   */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  object-fit: cover;
+  object-position: var(--focal, 50% 50%);
+}
+
+/*  Wall: justified rows. Fallback flexes tiles proportionally to their
+ *  aspect ratio at the target row height; the script then pins exact sizes.
+ */
+.markdownBody .gallery.wall .gallery-item {
+  flex: calc(var(--ar, 1.5) * 100) 1 calc(var(--ar, 1.5) * var(--row-h));
+}
+.markdownBody .gallery.wall .gallery-item .figure-outer-wrapper > .image-wrapper {
+  height: var(--row-h);
+}
+.markdownBody .gallery.wall.is-justified .gallery-item {
+  flex: 0 0 auto;
+}
+
+/*  Grid: uniform 4:3 tiles, cols from the block attribute. */
+.markdownBody .gallery.grid .gallery-items {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+}
+.markdownBody .gallery.grid .gallery-item .figure-outer-wrapper > .image-wrapper {
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
+/*  Strip: one scroll-snapping row at a fixed height, native ratios. */
+.markdownBody .gallery.strip .gallery-items {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 0.5em;
+  scrollbar-width: thin;
+}
+.markdownBody .gallery.strip .gallery-item {
+  flex: 0 0 auto;
+  width: calc(var(--ar, 1.5) * var(--row-h));
+  scroll-snap-align: start;
+}
+.markdownBody .gallery.strip .gallery-item .figure-outer-wrapper > .image-wrapper {
+  height: var(--row-h);
+}
+
+/*  Tile captions: title (bold line) + caption, from the asset record. */
+.markdownBody .gallery .gallery-item .caption-wrapper {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  outline: none;
+  border-top: 1px solid var(--AT-figure-caption-outline-color);
+}
+.markdownBody .gallery .gallery-item figcaption {
+  width: auto;
+  margin: 0;
+  padding: 0.4em 0.7em 0.5em;
+  font-size: 0.72em;
+  line-height: 1.35;
+}
+.markdownBody .gallery .gallery-item figcaption .figure-title {
+  display: block;
+}
+/*  hover (default): slides up over the bottom of the tile. */
+.markdownBody .gallery[data-captions='hover'] .gallery-item .caption-wrapper {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  opacity: 0.96;
+}
+.markdownBody .gallery[data-captions='hover'] .gallery-item:hover .caption-wrapper,
+.markdownBody
+  .gallery[data-captions='hover']
+  .gallery-item:focus-within
+  .caption-wrapper {
+  transform: none;
+}
+/*  viewer: captions only in the image-focus overlay. */
+.markdownBody .gallery[data-captions='viewer'] .gallery-item .caption-wrapper {
+  display: none;
+}
+
+/*  Gallery caption: the trailing paragraph, styled like a figure caption. */
+.markdownBody .gallery > .gallery-caption {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--tile-gap) 0 0;
+  outline: 1px solid var(--AT-figure-caption-outline-color);
+}
+
+@media all and (max-width: 649px) {
+  .markdownBody .gallery {
+    --row-scale: 0.7;
+  }
+  .markdownBody .gallery.grid .gallery-items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markdownBody .gallery[data-captions='hover'] .gallery-item .caption-wrapper {
+    transition: none;
+  }
+}

@@ -204,6 +204,14 @@ CHEATSHEET_SECTIONS = [
                 "Float right (also `.float-left`, `.width-full`)",
             ),
             _i(
+                "::: {.gallery .wall} … :::",
+                "::: {.gallery .${1:wall}}\n\n![${2:Alt text}](@asset:${3:key-one})\n\n"
+                "![${4:Alt text}](@asset:${5:key-two})\n\n${6:Gallery caption.}\n\n:::\n$0",
+                "Gallery of several images, one per paragraph — `.wall` (default), "
+                "`.grid columns=3`, or `.strip`; `row-height=short|medium|tall|auto|260`; "
+                "`captions=hover|under|viewer`; a last paragraph is the gallery caption",
+            ),
+            _i(
                 "![](@asset:clip)",
                 "![](@asset:${1:clip})",
                 "Video / audio — asset type auto-detected, controls added",

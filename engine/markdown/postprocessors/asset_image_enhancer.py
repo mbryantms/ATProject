@@ -67,13 +67,46 @@ def _collect_figure_classes(img) -> list[str]:
     return list(dict.fromkeys(classes))
 
 
-def _sizes_for_figure(figure_classes: list[str], display_width: int | None) -> str:
+_GALLERY_LAYOUTS = ("wall", "grid", "strip")
+_GALLERY_DEFAULT_COLS = 3
+_GALLERY_BODY_WIDTH = 935
+
+
+def _gallery_for(img) -> dict | None:
+    """Return ``{"layout", "cols"}`` when ``img`` sits inside a ``div.gallery``.
+
+    Galleries are authored as Pandoc fenced divs (``::: {.gallery .grid columns=3}``),
+    so the wrapper is already in the tree when the image enhancer runs. Tiles
+    render far narrower than a full-column figure, and ``sizes`` has to know.
+    """
+    wrapper = img.find_parent("div", class_="gallery")
+    if wrapper is None:
+        return None
+    classes = wrapper.get("class") or []
+    if isinstance(classes, str):
+        classes = classes.split()
+    layout = next((c for c in classes if c in _GALLERY_LAYOUTS), "wall")
+    cols = _GALLERY_DEFAULT_COLS
+    raw_cols = wrapper.get("data-columns")
+    if raw_cols and str(raw_cols).isdigit():
+        cols = max(2, min(6, int(raw_cols)))
+    return {"layout": layout, "cols": cols}
+
+
+def _sizes_for_figure(
+    figure_classes: list[str],
+    display_width: int | None,
+    gallery: dict | None = None,
+) -> str:
     """Compute a ``sizes`` attribute tuned to how wide the figure actually renders.
 
     Author-requested ``display_width`` always wins — if they pinned the image
     to 400px, the browser should never fetch a 1600w rendition.
 
     Otherwise:
+    - Gallery tiles: a grid tile is the column divided by ``cols``; wall and
+      strip tiles vary with aspect ratio but stay under ~400px. Phones show
+      two tiles across in every layout.
     - ``.width-full`` figures break the 935px column and span the viewport.
     - ``.float-left`` / ``.float-right`` figures render at 50% of the column
       on wide viewports, full-width on mobile.
@@ -81,6 +114,12 @@ def _sizes_for_figure(figure_classes: list[str], display_width: int | None) -> s
     """
     if display_width:
         return f"(max-width: 649px) 100vw, {display_width}px"
+
+    if gallery is not None:
+        if gallery["layout"] == "grid":
+            tile = _GALLERY_BODY_WIDTH // gallery["cols"]
+            return f"(max-width: 649px) 50vw, {tile}px"
+        return "(max-width: 649px) 50vw, 400px"
 
     if "width-full" in figure_classes:
         return "100vw"
@@ -127,6 +166,29 @@ def _lookup_placeholder(asset, AssetMetadata) -> tuple[str | None, str | None]:
     result = (lqip, color)
     asset._cached_placeholder = result
     return result
+
+
+def _stamp_asset_details(figure, asset, gallery: dict | None) -> None:
+    """Record which asset a figure renders, plus what a gallery tile needs.
+
+    ``data-asset-key`` goes on every figure (cheap, and lets client code map
+    a figure back to its asset). Inside a gallery the figure also carries the
+    asset's focal point as ``--focal`` (used for ``object-position`` crops)
+    and its title as ``data-title`` for the gallery enhancer to fold into the
+    tile caption.
+    """
+    figure["data-asset-key"] = asset.key
+    if gallery is None:
+        return
+
+    fx = getattr(asset, "focal_point_x", None)
+    fy = getattr(asset, "focal_point_y", None)
+    if fx is not None and fy is not None:
+        figure["style"] = f"--focal: {round(fx * 100)}% {round(fy * 100)}%"
+
+    title = (asset.title or "").strip()
+    if title:
+        figure["data-title"] = title
 
 
 def enhance_image_assets(html: str, context: dict) -> str:
@@ -240,7 +302,8 @@ def enhance_image_assets(html: str, context: dict) -> str:
         # Gather positioning classes early so the sizes attribute and the
         # final figure wrapper agree on geometry.
         figure_classes = _collect_figure_classes(img)
-        sizes_attr = _sizes_for_figure(figure_classes, display_width)
+        gallery = _gallery_for(img)
+        sizes_attr = _sizes_for_figure(figure_classes, display_width, gallery)
 
         style_parts = []
 
@@ -323,7 +386,9 @@ def enhance_image_assets(html: str, context: dict) -> str:
         is_author_lcp = "lcp" in img_classes_raw
         is_large_enough = (intrinsic_width or 0) >= _LCP_MIN_INTRINSIC_WIDTH
 
-        if not lcp_emitted and (is_author_lcp or is_large_enough):
+        # Gallery tiles are small and many; none of them is the hero, so they
+        # never take the LCP slot (an explicit {.lcp} still wins).
+        if not lcp_emitted and (is_author_lcp or (is_large_enough and not gallery)):
             img["fetchpriority"] = "high"
             img["loading"] = "eager"
             lcp_emitted = True
@@ -393,7 +458,10 @@ def enhance_image_assets(html: str, context: dict) -> str:
 
         if existing_figure:
             caption = metadata.get("caption", "")
-            if not caption:
+            # Pandoc's implicit figures repeat the alt text as a figcaption.
+            # A lone figure keeps that fallback; gallery tiles show a caption
+            # only when the asset (or post) actually has one.
+            if not caption and gallery is None:
                 existing_caption = existing_figure.find("figcaption")
                 if existing_caption:
                     caption = "".join(str(c) for c in existing_caption.children)
@@ -449,6 +517,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 outer_wrapper.append(caption_wrapper)
 
             figure.append(outer_wrapper)
+            _stamp_asset_details(figure, asset, gallery)
             figure_parent.insert(figure_index, figure)
 
         else:
@@ -524,6 +593,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 outer_wrapper.append(caption_wrapper)
 
             figure.append(outer_wrapper)
+            _stamp_asset_details(figure, asset, gallery)
 
             if replace_parent and img_parent_parent is not None:
                 img_parent_parent.insert(img_parent_index, figure)

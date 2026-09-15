@@ -105,6 +105,27 @@ Located in `engine/markdown/`. Processing order:
 2. Pandoc conversion with Lua filters
 3. 20+ postprocessors (sanitization, enhancement, TOC, footnotes, etc.)
 
+### Image galleries
+
+Several images can share one spot via a Pandoc fenced div; each image is a normal asset reference on its own paragraph, and an optional last paragraph becomes the gallery caption:
+
+```markdown
+::: {.gallery .wall row-height=tall captions=hover}
+
+![Alt](@asset:key-one)
+
+![Alt](@asset:key-two)
+
+**Point Reyes, February.** One walk, eight frames.
+
+:::
+```
+
+- Layouts: `.wall` (justified rows, default), `.grid columns=3` (4:3 tiles cropped to the asset focal point), `.strip` (scroll-snap row).
+- `row-height=auto|short|medium|tall|<px>`; the site default is `GALLERY_ROW_HEIGHT` in settings. `captions=hover|under|viewer`.
+- Tile title/caption come from the asset (or `PostAsset.custom_caption`); both optional. `engine/markdown/postprocessors/gallery_enhancer.py` builds the block after the image enhancer; `static/css/src/gallery.css` and `static/js/gallery-wall.js` (wall row packing) render it; the image-focus viewer scopes previous/next to the gallery.
+- Attribute names avoid `rows`/`cols`: Pandoc passes real HTML attribute names through verbatim and the sanitizer strips them.
+
 ### Asset System
 
 - Assets stored in R2 with automatic rendition generation (400, 800, 1200, 1600px widths)

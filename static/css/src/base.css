@@ -6,6 +6,7 @@
 @import './fullwidth.css';
 @import './toc.css';
 @import './reading-progress.css';
+@import './gallery.css';
 
 :root {
   --AT-serif-font-stack:

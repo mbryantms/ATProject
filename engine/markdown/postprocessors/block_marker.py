@@ -76,6 +76,14 @@ def block_marker(
 
         while parent and parent.name != "[document]":
             if isinstance(parent, Tag):
+                # A ::: {.gallery} div is the block; its tile figures (and the
+                # gallery caption) must not get block spacing of their own.
+                parent_classes = parent.get("class", [])
+                if isinstance(parent_classes, str):
+                    parent_classes = parent_classes.split()
+                if parent.name == "div" and "gallery" in parent_classes:
+                    return True
+
                 # Special case for paragraphs
                 if is_paragraph:
                     # Skip paragraphs that are within lists or blockquotes
