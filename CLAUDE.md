@@ -204,7 +204,7 @@ Every dependency source is tracked by Dependabot ([.github/dependabot.yml](.gith
 | GitHub Actions | `.github/workflows/*.yml` | Dependabot `github-actions`, weekly, grouped |
 | Docker base images (`node`, `python`, `uv`) | `Dockerfile` | Dependabot `docker`, weekly |
 | Local-dev images (`postgres`, `redis`) | `compose.yaml` | Dependabot `docker-compose`, weekly |
-| pre-commit hook revs | `.pre-commit-config.yaml` | [pre-commit-autoupdate.yml](.github/workflows/pre-commit-autoupdate.yml), weekly PR |
+| pre-commit hook revs | `.pre-commit-config.yaml` | [pre-commit-autoupdate.yml](.github/workflows/pre-commit-autoupdate.yml), weekly PR (dispatches CI on its own branch, since `GITHUB_TOKEN` PRs don't trigger `pull_request` runs) |
 
 - **Security:** Dependabot alerts + security-update PRs are enabled in the repo settings, and the CI `security` job runs `pip-audit` and `npm audit --audit-level=high` on every PR and weekly on `main`.
 - **Auto-merge:** [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml) enables GitHub auto-merge on Dependabot PRs for patch/minor bumps; they merge once the required CI checks pass. Major bumps wait for review. Merging to `main` deploys via Railway, so narrow the allowed update types there if that is ever too aggressive.
