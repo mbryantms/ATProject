@@ -5,9 +5,10 @@ name: pre-commit autoupdate
 # `local` hooks that run the project-pinned versions, so this only ever touches
 # pre-commit/pre-commit-hooks.
 #
-# Note: PRs opened with GITHUB_TOKEN don't trigger other workflows, so CI won't
-# run on the PR automatically — close and reopen it (or push an empty commit)
-# to kick CI, or configure a PAT/GitHub App token via `token:` below.
+# PRs opened with GITHUB_TOKEN don't fire `pull_request` events in other
+# workflows, so the last step dispatches ci.yml on the PR branch explicitly.
+# Required status checks are evaluated per commit, so that run satisfies
+# branch protection just like a pull_request-triggered one would.
 
 on:
   schedule:
@@ -17,6 +18,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write # to dispatch ci.yml on the PR branch
 
 jobs:
   autoupdate:
@@ -32,6 +34,7 @@ jobs:
         run: uvx pre-commit autoupdate
 
       - name: Open PR with updated hook revs
+        id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "Update pre-commit hook revisions"
@@ -40,7 +43,12 @@ jobs:
           title: "Update pre-commit hook revisions"
           labels: dependencies
           body: |
-            Automated `pre-commit autoupdate` run.
+            Automated `pre-commit autoupdate` run. CI is dispatched on this
+            branch by the same workflow; wait for the checks before merging.
 
-            CI does not run automatically on PRs opened with `GITHUB_TOKEN`;
-            close and reopen this PR to trigger it before merging.
+      - name: Trigger CI on the PR branch
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        run: gh workflow run ci.yml --ref "$BRANCH"
+        env:
+          BRANCH: ${{ steps.cpr.outputs.pull-request-branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
