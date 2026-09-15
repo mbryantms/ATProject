@@ -62,9 +62,11 @@ COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
 # --frozen fails the build if uv.lock is out of date with pyproject.toml rather
 # than silently re-resolving. The project itself isn't a package, so nothing
 # else is installed at this layer and it caches until the lock changes.
+# No BuildKit cache mount here: Railway's builder rejects cache mounts without
+# a service-scoped `id=` (GitHub's buildx accepts the anonymous form, so CI
+# would not catch it). --no-cache keeps uv's download cache out of the layer.
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --no-cache
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser
