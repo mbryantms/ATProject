@@ -21,6 +21,14 @@ updates:
     cooldown:
       default-days: 3
     labels: ["dependencies", "python"]
+    ignore:
+      # django-celery-beat's latest release (2.9.0) requires django<6.1, so
+      # Dependabot's attempt to bump Django to 6.1.x fails to resolve and
+      # marks the whole uv run as errored. Patch releases (6.0.x) still flow.
+      # REMOVE this entry as soon as a django-celery-beat PR lands that lifts
+      # the cap (that PR is the signal).
+      - dependency-name: "django"
+        update-types: ["version-update:semver-minor"]
     groups:
       python-minor-patch:
         applies-to: version-updates
