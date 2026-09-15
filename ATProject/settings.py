@@ -478,6 +478,10 @@ ASSET_RENDITION_WIDTHS = (
 )
 # JPEG quality (1-95). Higher = larger files, better quality.
 ASSET_RENDITION_JPEG_QUALITY = env.int("ASSET_RENDITION_JPEG_QUALITY", default=85)
+# Default wall row height for ``::: {.gallery}`` blocks that give no ``rows=``:
+# "auto" (derived from image count and column width), "short" | "medium" |
+# "tall", or a pixel value such as "260".
+GALLERY_ROW_HEIGHT = env("GALLERY_ROW_HEIGHT", default="auto")
 
 
 # Running under ``manage.py test``? Force Celery to execute tasks inline so

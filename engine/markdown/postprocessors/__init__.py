@@ -23,6 +23,7 @@ from .epigraph_enhancer import epigraph_enhancer_default
 from .first_paragraph_marker import first_paragraph_marker_default
 from .footnote_enhancer import footnote_enhancer_default
 from .further_reading import further_reading_renderer_default
+from .gallery_enhancer import gallery_enhancer_default
 from .horizontal_rule_enhancer import horizontal_rule_enhancer_default
 from .link_decorator import link_decorator_default
 from .list_enhancer import list_enhancer_default
@@ -35,6 +36,7 @@ from .utils import clear_shared_soup
 POSTPROCESSORS = [
     sanitize_html,
     asset_image_enhancer_default,  # Enhance image assets with responsive features
+    gallery_enhancer_default,  # Wrap ::: {.gallery} figures into a tiled block
     asset_video_enhancer_default,  # Enhance video assets with HTML5 video markup
     asset_document_enhancer_default,  # Enhance document/data assets with metadata
     list_enhancer_default,  # Enhance list elements with classes and structure

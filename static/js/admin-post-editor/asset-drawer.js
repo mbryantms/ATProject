@@ -33,6 +33,15 @@ function markdownFor(item) {
   return `[${item.title || item.key}](${ref})`;
 }
 
+const GALLERY_LAYOUTS = ['wall', 'grid', 'strip'];
+
+// A ::: {.gallery} fenced div: one image per paragraph (blank lines matter —
+// Pandoc only makes a figure of an image that is alone in its paragraph).
+function galleryMarkdownFor(items, layout) {
+  const lines = items.map((item) => `![${item.alt_text || ''}](${referenceFor(item)})`);
+  return `::: {.gallery .${layout}}\n\n${lines.join('\n\n')}\n\n:::\n`;
+}
+
 export function mountAssetDrawer(options) {
   const { view, panelUrl, uploadUrl, updateUrl, attachUrl, getOwnerId, getOwnerType } =
     options;
@@ -44,6 +53,9 @@ export function mountAssetDrawer(options) {
   let data = { attached: [], library: [], library_total: 0 };
   let loaded = false;
   let searchTimer = null;
+  // Multi-select for "insert as gallery": keys survive tab switches and refreshes.
+  const selected = new Set();
+  let galleryLayout = 'wall';
 
   // --- Layout: wrap the editor and hang the drawer beside it ---
   const editorDom = view.dom;
@@ -143,6 +155,10 @@ export function mountAssetDrawer(options) {
 
   const status = el('div', 'atp-drawer-status');
   body.appendChild(status);
+
+  const selection = el('div', 'atp-drawer-selection');
+  selection.hidden = true;
+  body.appendChild(selection);
 
   const list = el('div', 'atp-drawer-list');
   body.appendChild(list);
@@ -251,6 +267,60 @@ export function mountAssetDrawer(options) {
         );
       if (stillPending) startRenditionPolling(remaining - 1);
     }, 5000);
+  }
+
+  function selectedItems() {
+    const byKey = new Map();
+    for (const item of data.attached.concat(data.library)) {
+      if (!byKey.has(item.key)) byKey.set(item.key, item);
+    }
+    return Array.from(selected)
+      .map((key) => byKey.get(key))
+      .filter(Boolean);
+  }
+
+  function renderSelection() {
+    const items = selectedItems();
+    selection.replaceChildren();
+    selection.hidden = items.length < 2;
+    if (selection.hidden) return;
+
+    selection.appendChild(
+      el('span', 'atp-selection-count', `${items.length} selected`),
+    );
+
+    const layoutSelect = el('select', 'atp-drawer-type');
+    for (const layout of GALLERY_LAYOUTS) {
+      const opt = el('option', null, layout);
+      opt.value = layout;
+      opt.selected = layout === galleryLayout;
+      layoutSelect.appendChild(opt);
+    }
+    layoutSelect.addEventListener('change', () => {
+      galleryLayout = layoutSelect.value;
+    });
+    selection.appendChild(layoutSelect);
+
+    const insert = el(
+      'button',
+      'atp-card-btn primary',
+      `Insert ${items.length} as gallery`,
+    );
+    insert.type = 'button';
+    insert.addEventListener('click', () => {
+      insertAtCursor(galleryMarkdownFor(items, galleryLayout));
+      selected.clear();
+      render();
+    });
+    selection.appendChild(insert);
+
+    const clear = el('button', 'atp-card-btn', 'Clear');
+    clear.type = 'button';
+    clear.addEventListener('click', () => {
+      selected.clear();
+      render();
+    });
+    selection.appendChild(clear);
   }
 
   function insertAtCursor(text) {
@@ -401,6 +471,20 @@ export function mountAssetDrawer(options) {
   function buildCard(item) {
     const card = el('div', 'atp-asset-card-row');
 
+    if (item.asset_type === 'image') {
+      const pick = el('input', 'atp-card-select');
+      pick.type = 'checkbox';
+      pick.title = 'Select for a gallery';
+      pick.setAttribute('aria-label', `Select ${item.title || item.key} for a gallery`);
+      pick.checked = selected.has(item.key);
+      pick.addEventListener('change', () => {
+        if (pick.checked) selected.add(item.key);
+        else selected.delete(item.key);
+        renderSelection();
+      });
+      card.appendChild(pick);
+    }
+
     if (item.thumb && item.asset_type === 'image') {
       const img = el('img', 'atp-card-thumb');
       img.src = item.thumb;
@@ -477,6 +561,7 @@ export function mountAssetDrawer(options) {
       );
     }
     for (const item of items) list.appendChild(buildCard(item));
+    renderSelection();
 
     if (currentTab === 'library' && data.library.length < data.library_total) {
       const more = el(

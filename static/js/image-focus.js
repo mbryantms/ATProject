@@ -590,8 +590,10 @@
           lastFocusedImage.removeAttribute('accesskey');
         }
 
-        const images = document.querySelectorAll(ImageFocus.galleryImagesSelector);
-        const indexOfFocusedImage = ImageFocus.getIndexOfFocusedImage();
+        const images = ImageFocus.slideshowImagesFor(imageToFocus);
+        const indexOfFocusedImage = Array.prototype.indexOf.call(images, imageToFocus);
+        ImageFocus.overlay.querySelector('.image-number').dataset.numberOfImages =
+          images.length;
         ImageFocus.overlay.querySelector('.slideshow-button.previous').disabled =
           indexOfFocusedImage === 0;
         ImageFocus.overlay.querySelector('.slideshow-button.next').disabled =
@@ -601,7 +603,9 @@
 
         if (!location.hash.startsWith('#if_slide_'))
           ImageFocus.savedHash = location.hash;
-        relocate('#if_slide_' + (indexOfFocusedImage + 1));
+        // Deep links stay page-wide so #if_slide_N means the same thing
+        // whether or not the image sits in a gallery.
+        relocate('#if_slide_' + (ImageFocus.getIndexOfFocusedImage() + 1));
 
         if (indexOfFocusedImage > 0)
           ImageFocus.preloadImage(images[indexOfFocusedImage - 1]);
@@ -696,12 +700,16 @@
         }
       } else if (isImageElement) {
         if (updateOnLoad) {
-          ImageFocus.imageInFocus.classList.add('loading');
-          ImageFocus.imageInFocus.addEventListener(
+          // Hold the element: fast prev/next can swap imageInFocus (or null
+          // it) before this image finishes loading.
+          const loadingImage = ImageFocus.imageInFocus;
+          loadingImage.classList.add('loading');
+          loadingImage.addEventListener(
             'load',
             () => {
-              ImageFocus.imageInFocus.classList.remove('loading');
-              ImageFocus.resetFocusedImagePosition();
+              loadingImage.classList.remove('loading');
+              if (ImageFocus.imageInFocus === loadingImage)
+                ImageFocus.resetFocusedImagePosition();
             },
             { once: true },
           );
@@ -848,6 +856,15 @@
       GW.notificationCenter.fireEvent('ImageFocus.imageOverlayDidDisappear');
     },
 
+    /*  The slideshow an image belongs to: the images of its ::: {.gallery}
+        block when it sits in one, otherwise every gallery image on the page
+        (the classic behaviour for lone figures).
+     */
+    slideshowImagesFor: (image) => {
+      const gallery = image ? image.closest('.gallery') : null;
+      return (gallery || document).querySelectorAll(ImageFocus.galleryImagesSelector);
+    },
+
     getIndexOfFocusedImage: () => {
       const images = document.querySelectorAll(ImageFocus.galleryImagesSelector);
       let indexOfFocusedImage = -1;
@@ -863,10 +880,13 @@
     focusNextImage: (forward = true) => {
       GWLog('ImageFocus.focusNextImage', 'image-focus.js', 1);
 
-      const images = document.querySelectorAll(ImageFocus.galleryImagesSelector);
+      const current = ImageFocus.currentlyFocusedImage;
+      const images = ImageFocus.slideshowImagesFor(current);
       if (images.length === 0) return;
 
-      let indexOfFocusedImage = ImageFocus.getIndexOfFocusedImage();
+      let indexOfFocusedImage = current
+        ? Array.prototype.indexOf.call(images, current)
+        : -1;
       if (indexOfFocusedImage === -1) indexOfFocusedImage = 0;
       else indexOfFocusedImage += forward ? 1 : -1;
       indexOfFocusedImage = Math.max(
