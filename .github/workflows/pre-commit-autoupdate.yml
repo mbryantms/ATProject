@@ -1,0 +1,46 @@
+name: pre-commit autoupdate
+
+# Dependabot doesn't cover .pre-commit-config.yaml, so this refreshes the
+# remote hook revs weekly and opens a PR with the diff. ruff and prettier are
+# `local` hooks that run the project-pinned versions, so this only ever touches
+# pre-commit/pre-commit-hooks.
+#
+# Note: PRs opened with GITHUB_TOKEN don't trigger other workflows, so CI won't
+# run on the PR automatically — close and reopen it (or push an empty commit)
+# to kick CI, or configure a PAT/GitHub App token via `token:` below.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  autoupdate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Run pre-commit autoupdate
+        run: uvx pre-commit autoupdate
+
+      - name: Open PR with updated hook revs
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "Update pre-commit hook revisions"
+          branch: chore/pre-commit-autoupdate
+          delete-branch: true
+          title: "Update pre-commit hook revisions"
+          labels: dependencies
+          body: |
+            Automated `pre-commit autoupdate` run.
+
+            CI does not run automatically on PRs opened with `GITHUB_TOKEN`;
+            close and reopen this PR to trigger it before merging.

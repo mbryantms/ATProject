@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Weekly audit-only run so new advisories against the *current* lockfiles are
+  # caught even when nothing is being pushed (Dependabot alerts cover GitHub's
+  # advisory DB; pip-audit additionally checks PyPA/OSV). Only the `security`
+  # job runs on this trigger — see the `if:` guards below.
+  schedule:
+    - cron: "0 6 * * 1"
 
 # Cancel superseded runs on the same branch/PR.
 concurrency:
@@ -14,6 +20,7 @@ concurrency:
 jobs:
   test:
     name: Tests & Django checks
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -44,16 +51,21 @@ jobs:
       # Without this the default sslmode=require rejects the connection.
       DB_SSL_REQUIRE: "False"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up uv (installs Python 3.14)
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v10.1.0
         with:
           python-version: "3.14"
           enable-cache: true
 
+      - name: Lockfile in sync with pyproject.toml
+        # The Dockerfile installs with `uv sync --frozen`, so a stale uv.lock
+        # would only surface at deploy time without this.
+        run: uv lock --check
+
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --frozen --all-extras
 
       - name: Ruff lint
         run: uv run ruff check .
@@ -80,11 +92,12 @@ jobs:
 
   frontend:
     name: Frontend build & lint
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -104,37 +117,44 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10.1.0
         with:
           python-version: "3.14"
 
       - name: pip-audit (Python dependencies)
         run: |
-          uv export --no-dev --no-emit-project --format requirements-txt -o audit-reqs.txt
+          uv export --frozen --no-dev --no-emit-project --format requirements-txt -o audit-reqs.txt
           uvx pip-audit -r audit-reqs.txt
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
 
       - run: npm ci
 
-      - name: npm audit
+      - name: npm audit (frontend toolchain)
         run: npm audit --audit-level=high
+
+      - name: npm audit (citeproc-js runtime)
+        working-directory: engine/bibliography
+        run: |
+          npm ci --omit=dev
+          npm audit --omit=dev --audit-level=high
 
   docker-build:
     name: Docker image build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build production image (mirrors Railway's build)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false

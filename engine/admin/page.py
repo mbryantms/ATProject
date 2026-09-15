@@ -157,7 +157,6 @@ class PageAdmin(admin.ModelAdmin):
                 "data-cm-assets-panel-url": reverse("admin:engine_post_assets_panel"),
                 "data-cm-update-asset-url": reverse("admin:engine_post_update_asset"),
                 "data-cm-attach-asset-url": reverse("admin:engine_post_attach_asset"),
-                "data-cm-preview-url": reverse("admin:engine_post_preview_markdown"),
                 "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                 "data-cm-owner-type": "page",
                 "data-cm-owner-id": object_id,

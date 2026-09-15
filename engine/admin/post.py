@@ -771,9 +771,6 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
                     "data-cm-attach-asset-url": reverse(
                         "admin:engine_post_attach_asset"
                     ),
-                    "data-cm-preview-url": reverse(
-                        "admin:engine_post_preview_markdown"
-                    ),
                     "data-cm-lint-url": reverse("admin:engine_post_lint_content"),
                     "data-cm-post-id": str(
                         request.resolver_match.kwargs.get("object_id", "")
@@ -1683,9 +1680,9 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
         )
         lint_items = summarize(findings)
 
-        # The full pipeline (pandoc + postprocessors) is expensive; the live
-        # split preview re-posts on every typing pause, so identical content
-        # renders once. Keyed on owner too — alias resolution differs per post.
+        # The full pipeline (pandoc + postprocessors) is expensive; repeated
+        # previews of unchanged content render once. Keyed on owner too —
+        # alias resolution differs per post.
         import hashlib
 
         from django.core.cache import cache as render_cache

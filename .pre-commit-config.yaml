@@ -1,21 +1,37 @@
+# Formatters and linters run from the project's own pinned tools (uv.lock and
+# package-lock.json) rather than from pre-commit's mirror repos, so pre-commit,
+# CI and editors all use the same version, and Dependabot updates them in one
+# place. The one remaining remote hook repo is refreshed weekly by
+# .github/workflows/pre-commit-autoupdate.yml.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
+      - id: check-toml
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-merge-conflict
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --frozen ruff check --fix --exit-non-zero-on-fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
+        name: ruff format
+        # ruff also formats Python code blocks in Markdown, matching CI's
+        # `ruff format --check .`.
+        entry: uv run --frozen ruff format
+        language: system
+        types_or: [python, pyi, markdown]
+        require_serial: true
       - id: prettier
-        types_or: [ css, html, javascript, json ]
+        name: prettier
+        entry: npx --no-install prettier --write --ignore-unknown
+        language: system
+        types_or: [css, html, javascript, json]
+        require_serial: true

@@ -269,8 +269,8 @@ class AttachAssetTests(TestCase):
 
 
 class PreviewRenderCacheTests(TestCase):
-    """The live split preview re-posts on typing pauses; identical content
-    must hit the render cache instead of re-running the pandoc pipeline."""
+    """Repeated previews of identical content must hit the render cache
+    instead of re-running the pandoc pipeline."""
 
     @classmethod
     def setUpTestData(cls):
