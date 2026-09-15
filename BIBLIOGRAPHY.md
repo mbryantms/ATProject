@@ -267,6 +267,7 @@ Available programmatically via `engine.bibliography.metadata_resolvers.resolve_i
 For background processing:
 ```python
 from engine.bibliography.tasks import fetch_metadata_for_source
+
 fetch_metadata_for_source.delay(source_id=42, resolve_type="doi")
 ```
 

@@ -82,11 +82,13 @@ This guide walks through deploying ATProject to **Neon** (serverless PostgreSQL)
 
 1. Click **"+ New"** → **"GitHub Repo"**
 2. Select your ATProject repository
-3. Railway will detect the `Procfile` and `requirements.txt`
+3. Railway detects the `Dockerfile` and builds the image from it (Python deps
+   come from `uv.lock` via `uv sync --frozen`; there is no `requirements.txt`)
 4. **Important**: In the service settings:
    - Go to **Settings** → **Deploy**
-   - Set **Start Command** to: `web` (this uses the `web:` line from Procfile)
-   - Or manually: `gunicorn ATProject.wsgi:application --bind 0.0.0.0:$PORT`
+   - Leave the **Start Command** empty to use the Dockerfile `CMD` (migrate,
+     then `gunicorn -c gunicorn.conf.py ATProject.wsgi:application`)
+   - Or set it manually: `gunicorn -c gunicorn.conf.py ATProject.wsgi:application`
 
 ### Step 2.4: Deploy Celery Worker Service
 
@@ -215,18 +217,13 @@ Alternatively, set `REDIS_URL` manually using the Redis connection string from R
    python manage.py createsuperuser
    ```
 
-### Option B: Using Release Command
+### Option B: Automatic (default)
 
-The `Procfile` includes a `release` command that runs migrations automatically on each deploy:
-
-```
-release: python manage.py migrate --noinput
-```
-
-To enable this in Railway:
-1. Go to web service **Settings** → **Deploy**
-2. Enable **"Run release command"**
-3. Railway will run `python manage.py migrate --noinput` before each deployment
+The Dockerfile's `CMD` runs `python manage.py migrate --noinput` before starting
+Gunicorn, so every web-service deploy applies pending migrations automatically.
+Nothing to enable in Railway — this is what happens when the **Start Command**
+is left empty. (The worker and beat services should keep their explicit start
+commands and not run migrations.)
 
 ---
 
@@ -285,13 +282,13 @@ curl https://your-app.up.railway.app/health/
 
 ## CI/CD (GitHub Actions → Railway)
 
-CI lives in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and runs on every push to `main`, every pull request, and on manual dispatch. Jobs:
+CI lives in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) and runs on every push to `main`, every pull request, on manual dispatch, and weekly on a cron (audit job only). Jobs:
 
 | Job | What it does |
 |-----|--------------|
-| `test` | Spins up Postgres + Redis service containers, installs deps with `uv`, runs `ruff check`/`ruff format --check`, a migration-drift check, the full test suite (`DEBUG=True`), and `manage.py check --deploy` (`DEBUG=False`, which also exercises the `SECRET_KEY`/`REDIS_URL` startup guards). |
+| `test` | Spins up Postgres + Redis service containers, verifies `uv.lock` is in sync with `pyproject.toml` (`uv lock --check` — the Dockerfile installs with `--frozen`), installs deps with `uv`, runs `ruff check`/`ruff format --check`, a migration-drift check, the full test suite (`DEBUG=True`), and `manage.py check --deploy` (`DEBUG=False`, which also exercises the `SECRET_KEY`/`REDIS_URL` startup guards). |
 | `frontend` | `npm ci`, builds the CSS/JS bundles, runs Prettier `--check` and ESLint. |
-| `security` | `pip-audit` on the locked production dependencies and `npm audit --audit-level=high`. |
+| `security` | `pip-audit` on the locked production dependencies and `npm audit --audit-level=high` on both npm trees (root toolchain and `engine/bibliography`). Also runs weekly on `main` via cron so new advisories surface without a push. |
 | `docker-build` | Builds the production Docker image (with buildx + GHA layer cache) — mirrors exactly what Railway builds, so a broken Dockerfile fails CI instead of the deploy. |
 
 The `test` job uses a **non-secret placeholder `SECRET_KEY`** (tests run under `DEBUG=True`, which skips the production guard). No real secrets are needed by CI.
@@ -304,6 +301,10 @@ Deployment stays with **Railway's native GitHub integration**, gated on the CI c
 2. Do the same for the **worker** and **beat** services if they deploy from the same repo (so a red commit doesn't ship to any service).
 
 That's it — push to `main`, CI runs, and Railway deploys only green commits.
+
+### Dependency updates
+
+Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) opens weekly PRs for Python (`uv`), both npm trees, GitHub Actions, the Dockerfile base images and the compose images; Dependabot security alerts and security-update PRs are enabled in the repo settings. [`dependabot-auto-merge.yml`](../.github/workflows/dependabot-auto-merge.yml) turns on GitHub auto-merge for patch/minor Dependabot PRs, so they land on `main` — and therefore deploy — as soon as the required CI checks are green; major bumps wait for a human. `pre-commit` hook revisions are refreshed by [`pre-commit-autoupdate.yml`](../.github/workflows/pre-commit-autoupdate.yml). See `CLAUDE.md` → "Dependency management" for the full table.
 
 > **Deploy-time guard reminder.** The guards in `settings.py` make a service **refuse to boot** if the production `SECRET_KEY` is weak (< 50 chars or `django-insecure-…`) or `REDIS_URL` is unset on any service (web, worker, beat). The `check --deploy` CI job catches the weak-`SECRET_KEY` case before Railway ever deploys; confirm `REDIS_URL` is referenced on all three services.
 
