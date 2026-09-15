@@ -18,7 +18,7 @@ uv run python manage.py createsuperuser           # optional, for admin access
 
 If Docker isn't available on your host (broken daemon, restricted sandbox), run native Postgres + Redis instead — the app only cares that the `DATABASE_URL` and `REDIS_URL` env vars resolve to reachable services.
 
-**CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every push to `main` and every PR — tests (Postgres + Redis services), ruff lint/format, migration-drift check, `check --deploy`, the frontend build, Prettier/ESLint, `pip-audit`/`npm audit`, and a Docker image build. Railway deploys via its native GitHub integration gated on these checks ("Wait for CI" — see [DEPLOYMENT.md](DEPLOYMENT.md) → "CI/CD"). Still run tests locally before pushing for a fast signal.
+**CI:** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on every push to `main` and every PR — `uv lock --check`, tests (Postgres + Redis services), ruff lint/format, migration-drift check, `check --deploy`, the frontend build, Prettier/ESLint, `pip-audit`/`npm audit` (both npm trees), and a Docker image build. The audit job also runs on a weekly cron. Dependency updates are automated — see "Dependency management" below. Railway deploys via its native GitHub integration gated on these checks ("Wait for CI" — see [DEPLOYMENT.md](DEPLOYMENT.md) → "CI/CD"). Still run tests locally before pushing for a fast signal.
 
 ## Daily commands
 
@@ -191,6 +191,33 @@ uv run python manage.py cleanup_assets --soft-deleted --unused-assets --days 30 
 - Recommended schedule: Weekly (e.g., Sunday 3am)
 - Kwargs: `{"delete_files": true, "days_old": 30}`
 - Configure at `/admin/django_celery_beat/periodictask/`
+
+## Dependency management
+
+Every dependency source is tracked by Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) and audited in CI; nothing needs a manual "check for updates" pass.
+
+| Source | Manifest | Updated by |
+|--------|----------|------------|
+| Python | `pyproject.toml` + `uv.lock` (the Dockerfile installs with `uv sync --frozen`; there is no `requirements.txt`) | Dependabot `uv` ecosystem, weekly, patch/minor grouped |
+| Frontend toolchain + CodeMirror | `package.json` + `package-lock.json` | Dependabot `npm`, weekly; `@codemirror/*` + `@lezer/*` grouped |
+| citeproc-js runtime | `engine/bibliography/package.json` | Dependabot `npm`, weekly |
+| GitHub Actions | `.github/workflows/*.yml` | Dependabot `github-actions`, weekly, grouped |
+| Docker base images (`node`, `python`, `uv`) | `Dockerfile` | Dependabot `docker`, weekly |
+| Local-dev images (`postgres`, `redis`) | `compose.yaml` | Dependabot `docker-compose`, weekly |
+| pre-commit hook revs | `.pre-commit-config.yaml` | [pre-commit-autoupdate.yml](.github/workflows/pre-commit-autoupdate.yml), weekly PR |
+
+- **Security:** Dependabot alerts + security-update PRs are enabled in the repo settings, and the CI `security` job runs `pip-audit` and `npm audit --audit-level=high` on every PR and weekly on `main`.
+- **Auto-merge:** [dependabot-auto-merge.yml](.github/workflows/dependabot-auto-merge.yml) enables GitHub auto-merge on Dependabot PRs for patch/minor bumps; they merge once the required CI checks pass. Major bumps wait for review. Merging to `main` deploys via Railway, so narrow the allowed update types there if that is ever too aggressive.
+- **Version pins live in one place:** ruff and prettier run as `local` pre-commit hooks using the versions in `uv.lock` / `package-lock.json`, so pre-commit, CI and editors always agree.
+- **Known ceiling:** Django is held at 6.0.x by `django-celery-beat` (its latest release requires `django<6.1`). Dependabot will open the 6.1 PR once django-celery-beat lifts that cap.
+
+Manual refresh, if ever needed:
+
+```bash
+uv lock --upgrade && uv sync --all-extras    # Python (then bump floors in pyproject.toml)
+npx npm-check-updates -u && npm install      # npm (root; repeat in engine/bibliography)
+uv run pre-commit autoupdate                 # pre-commit hook revs
+```
 
 ## Environment Variables
 

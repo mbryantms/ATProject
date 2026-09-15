@@ -17,7 +17,7 @@ RUN cd engine/bibliography && npm ci --omit=dev
 
 # Copy source files needed for frontend build
 COPY static/ static/
-COPY postcss.config.js ./
+COPY postcss.config.mjs ./
 
 # Build CSS and JS
 RUN npm run build
@@ -26,9 +26,21 @@ RUN npm run build
 # -- Stage 2: Python production image --
 FROM python:3.14-slim
 
+# uv installs the locked Python dependencies straight from uv.lock, so there is
+# no separately-maintained requirements.txt to drift out of sync (Dependabot
+# bumps pyproject.toml + uv.lock and the image follows). Pinned so the build is
+# reproducible; Dependabot's docker ecosystem tracks this tag.
+COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /uvx /bin/
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Install into the image's system Python (no venv) so `python`, `gunicorn`,
+# `celery` etc. resolve exactly as they did with pip, and never download a
+# separate interpreter.
+ENV UV_PROJECT_ENVIRONMENT=/usr/local \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy
 
 # Set work directory
 WORKDIR /app
@@ -46,9 +58,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy Node.js runtime from builder stage (for citeproc-js subprocess only)
 COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (production only, exact versions from uv.lock).
+# --frozen fails the build if uv.lock is out of date with pyproject.toml rather
+# than silently re-resolving. The project itself isn't a package, so nothing
+# else is installed at this layer and it caches until the lock changes.
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser

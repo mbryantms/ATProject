@@ -31,6 +31,15 @@ module.exports = [
     },
   },
   {
+    // ESM build config (postcss.config.mjs) — Node globals, module syntax.
+    files: ['*.config.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
     // Node/CommonJS build config and subprocess scripts (require/module/process).
     files: ['*.config.js', 'engine/bibliography/**/*.js'],
     languageOptions: {

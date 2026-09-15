@@ -1,0 +1,84 @@
+# Dependabot version updates — one config for every dependency source in the
+# repo. Security alerts + security-update PRs are enabled separately in the
+# repo settings (Settings → Code security). CI runs on every Dependabot PR;
+# .github/workflows/dependabot-auto-merge.yml auto-merges patch/minor PRs once
+# CI is green, majors wait for a human.
+#
+# Grouping keeps the PR count sane: each ecosystem gets one weekly PR for all
+# patch/minor bumps, and majors arrive individually. `cooldown` skips releases
+# younger than a few days so a broken release is usually yanked/patched before
+# it reaches us.
+version: 2
+updates:
+  # Python — pyproject.toml + uv.lock (Dockerfile installs from uv.lock, so
+  # this is the single source of truth for production deps).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    cooldown:
+      default-days: 3
+    labels: ["dependencies", "python"]
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # Frontend build toolchain + CodeMirror editor bundle.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    cooldown:
+      default-days: 3
+    labels: ["dependencies", "javascript"]
+    groups:
+      # @codemirror/* and @lezer/* are released in lockstep — bump together.
+      codemirror:
+        patterns: ["@codemirror/*", "@lezer/*"]
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # citeproc-js runtime (separate package.json, installed into the image).
+  - package-ecosystem: "npm"
+    directory: "/engine/bibliography"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels: ["dependencies", "javascript"]
+
+  # Actions used by .github/workflows/*.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels: ["dependencies", "ci"]
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Base images in the Dockerfile (node, python, uv).
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels: ["dependencies", "docker"]
+
+  # Local-dev service images in compose.yaml (postgres, redis).
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    labels: ["dependencies", "docker"]
