@@ -1,0 +1,93 @@
+/*  Admin "Dropcap styles" gallery (templates/admin/engine/dropcap_gallery.html).
+ *  A standalone page on the site's own stylesheets so every style renders
+ *  exactly as it will in a post; this file only adds the chrome around the
+ *  samples. Tokens come from base.css / colors.css.
+ */
+
+body.mk-dropcap-gallery {
+  margin: 0;
+  padding: 0 0 4rem;
+}
+
+.mk-dg-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.25rem;
+  padding: 0.6rem 1.25rem;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.8rem;
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--AT-figure-caption-outline-color);
+}
+
+.mk-dg-bar a {
+  color: inherit;
+}
+
+.mk-dg-count {
+  color: var(--AT-body-link-hover-color);
+}
+
+.mk-dg-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-left: auto;
+}
+
+.mk-dropcap-gallery main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.mk-dg-group {
+  margin: 3rem 0 0.5rem;
+  padding-bottom: 0.25rem;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--AT-figure-caption-outline-color);
+}
+
+.mk-dg-style {
+  margin: 2rem 0 0;
+}
+
+.mk-dg-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.mk-dg-title code {
+  font-size: 0.8em;
+}
+
+.mk-dg-meta {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--AT-body-link-hover-color);
+}
+
+.mk-dg-style .markdownBody {
+  padding: 0 0.75rem;
+  outline: 1px dashed var(--AT-figure-caption-outline-color);
+}
+
+.mk-dg-usage {
+  margin: 0.5rem 0 0;
+  font-family: var(--AT-sans-serif-font-stack);
+  font-size: 0.75rem;
+  color: var(--AT-body-link-hover-color);
+}

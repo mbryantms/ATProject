@@ -78,16 +78,84 @@
   }
 
   function closeAll(except) {
-    document.querySelectorAll('.mk-glyph-panel').forEach(function (panel) {
-      if (panel === except) return;
-      panel.hidden = true;
-      var toggle = panel.parentElement.querySelector('.mk-glyph-toggle');
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    document
+      .querySelectorAll('.mk-glyph-panel, .mk-dropcap-panel')
+      .forEach(function (panel) {
+        if (panel === except) return;
+        panel.hidden = true;
+        var toggle = panel.parentElement.querySelector(
+          '.mk-glyph-toggle, .mk-dropcap-toggle',
+        );
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      });
+  }
+
+  // ---- Dropcap style picker (DropcapPickerSelect) ----
+  // The <select> is the form control; tiles set it and the preview mirrors
+  // it, so keyboard users and the tiles stay in sync either way.
+
+  function dropcapTileFor(picker, key) {
+    var tiles = picker.querySelectorAll('.mk-dropcap-option');
+    for (var i = 0; i < tiles.length; i++) {
+      if (tiles[i].dataset.key === key) return tiles[i];
+    }
+    return null;
+  }
+
+  function updateDropcapPreview(picker) {
+    var select = picker.querySelector('.mk-dropcap-select');
+    var letter = picker.querySelector('.mk-dropcap-preview-letter');
+    var name = picker.querySelector('.mk-dropcap-preview-name');
+    if (!select || !letter || !name) return;
+    var key = select.value;
+    var tile = dropcapTileFor(picker, key);
+    picker.querySelectorAll('.mk-dropcap-option').forEach(function (t) {
+      t.setAttribute('aria-pressed', String(t === tile));
+    });
+    if (tile && tile.dataset.family) {
+      letter.style.fontFamily = "'" + tile.dataset.family + "'";
+      letter.style.fontWeight = tile.dataset.weight || '400';
+      letter.hidden = false;
+      name.textContent = tile.dataset.label || key;
+    } else {
+      letter.hidden = true;
+      var opt = select.options[select.selectedIndex];
+      name.textContent = opt ? opt.text : '';
+    }
+  }
+
+  function filterDropcapTiles(panel, query) {
+    var q = (query || '').trim().toLowerCase();
+    panel.querySelectorAll('.mk-dropcap-option').forEach(function (tile) {
+      var hay = (
+        (tile.dataset.label || '') +
+        ' ' +
+        (tile.dataset.key || '') +
+        ' ' +
+        (tile.getAttribute('title') || '')
+      ).toLowerCase();
+      tile.hidden = q !== '' && hay.indexOf(q) === -1;
+    });
+    panel.querySelectorAll('.mk-dropcap-group').forEach(function (group) {
+      group.hidden = !group.querySelector('.mk-dropcap-option:not([hidden])');
     });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.mk-glyph-picker').forEach(updatePreview);
+    document.querySelectorAll('.mk-dropcap-picker').forEach(updateDropcapPreview);
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target.classList && e.target.classList.contains('mk-dropcap-select')) {
+      updateDropcapPreview(e.target.closest('.mk-dropcap-picker'));
+    }
+  });
+
+  document.addEventListener('input', function (e) {
+    if (e.target.classList && e.target.classList.contains('mk-dropcap-search')) {
+      filterDropcapTiles(e.target.closest('.mk-dropcap-panel'), e.target.value);
+    }
   });
 
   document.addEventListener('click', function (e) {
@@ -121,6 +189,36 @@
       return;
     }
 
+    var dcToggle = e.target.closest('.mk-dropcap-toggle');
+    if (dcToggle) {
+      var dcPicker = dcToggle.closest('.mk-dropcap-picker');
+      var dcPanel = dcPicker.querySelector('.mk-dropcap-panel');
+      var dcOpen = dcPanel.hidden;
+      closeAll();
+      if (dcOpen) {
+        dcPanel.hidden = false;
+        var dcSearch = dcPanel.querySelector('.mk-dropcap-search');
+        if (dcSearch) {
+          dcSearch.value = '';
+          filterDropcapTiles(dcPanel, '');
+          dcSearch.focus();
+        }
+      }
+      dcToggle.setAttribute('aria-expanded', String(dcOpen));
+      return;
+    }
+
+    var dcOption = e.target.closest('.mk-dropcap-option');
+    if (dcOption) {
+      var optPicker2 = dcOption.closest('.mk-dropcap-picker');
+      var dcSelect = optPicker2.querySelector('.mk-dropcap-select');
+      dcSelect.value = dcOption.dataset.key || '';
+      dcSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      closeAll();
+      dcSelect.focus();
+      return;
+    }
+
     var swatch = e.target.closest('.mk-color-swatch');
     if (swatch) {
       var wrap = swatch.closest('.mk-color-picker');
@@ -132,7 +230,7 @@
       return;
     }
 
-    if (!e.target.closest('.mk-glyph-picker')) closeAll();
+    if (!e.target.closest('.mk-glyph-picker, .mk-dropcap-picker')) closeAll();
   });
 
   document.addEventListener('input', function (e) {

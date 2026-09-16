@@ -269,3 +269,116 @@ class GlyphPickerInput(forms.TextInput):
             groups,
             names,
         )
+
+
+class DropcapPickerSelect(forms.Select):
+    """Grouped ``<select>`` for a dropcap field plus a popover of sample
+    tiles, one per style, rendered in the face itself.
+
+    The select stays the form control (keyboard, screen readers, plain
+    submission); the tiles just set it. Faces come from the generated
+    ``css/dist/dropcaps.css``, whose ``@font-face`` rules are all it needs
+    from that file; the rest is scoped to ``.markdownBody``. Choices are
+    whatever the model field provides (site: none + styles; document:
+    inherit + none + styles), so the non-style options render as plain text
+    tiles at the top.
+    """
+
+    SAMPLE_LETTER = "A"
+
+    class Media:
+        css = {"all": ("css/admin-widgets.css", "css/dist/dropcaps.css")}
+        js = ("js/admin-widgets.js",)
+
+    def __init__(self, attrs=None, choices=(), gallery_url=""):
+        base = {"class": "mk-dropcap-select"}
+        if attrs:
+            base.update(attrs)
+        super().__init__(base, choices)
+        self.gallery_url = gallery_url
+
+    def _special_choices(self):
+        """Top-level (ungrouped) choices: inherit / none."""
+        return [
+            (value, label)
+            for value, label in self.choices
+            if not isinstance(label, (list, tuple))
+        ]
+
+    def render(self, name, value, attrs=None, renderer=None):
+        from engine.markdown import dropcaps
+
+        select_html = super().render(name, value, attrs, renderer)
+        specials = format_html_join(
+            "",
+            '<button type="button" class="mk-dropcap-option mk-dropcap-special" '
+            'data-key="{}" data-label="{}">{}</button>',
+            ((v, label, label) for v, label in self._special_choices()),
+        )
+        groups = format_html_join(
+            "",
+            '<div class="mk-dropcap-group" data-group="{}">'
+            '<span class="mk-dropcap-group-label">{}</span>'
+            '<div class="mk-dropcap-grid">{}</div>'
+            "</div>",
+            (
+                (
+                    group_key,
+                    group_label,
+                    format_html_join(
+                        "",
+                        '<button type="button" class="mk-dropcap-option" '
+                        'data-key="{0}" data-label="{1}" data-family="{2}" '
+                        'data-weight="{3}" title="{1} — {4}">'
+                        '<span class="mk-dropcap-sample" '
+                        "style=\"font-family: '{2}'; font-weight: {3}\">{5}</span>"
+                        '<span class="mk-dropcap-name">{1}</span></button>',
+                        (
+                            (
+                                s.key,
+                                s.label,
+                                s.family,
+                                s.weight,
+                                s.description,
+                                self.SAMPLE_LETTER,
+                            )
+                            for s in styles
+                        ),
+                    ),
+                )
+                for group_key, group_label, styles in dropcaps.grouped_styles()
+                if styles
+            ),
+        )
+        gallery_link = (
+            format_html(
+                '<a class="mk-dropcap-gallery-link" href="{}" target="_blank" '
+                'rel="noopener">See every style in body text ↗</a>',
+                self.gallery_url,
+            )
+            if self.gallery_url
+            else ""
+        )
+        return format_html(
+            '<span class="mk-dropcap-picker">'
+            "{}"
+            '<span class="mk-dropcap-preview" aria-hidden="true">'
+            '<span class="mk-dropcap-preview-letter">{}</span>'
+            '<span class="mk-dropcap-preview-name"></span>'
+            "</span>"
+            '<button type="button" class="mk-dropcap-toggle button" '
+            'aria-expanded="false" aria-haspopup="true">Choose…</button>'
+            '<div class="mk-dropcap-panel" hidden>'
+            '<input type="search" class="mk-dropcap-search" '
+            'placeholder="Filter styles…" aria-label="Filter dropcap styles">'
+            '<div class="mk-dropcap-specials">{}</div>'
+            "{}"
+            '<div class="mk-dropcap-panel-foot">{}</div>'
+            "</div>"
+            "</span>",
+            select_html,
+            self.SAMPLE_LETTER,
+            specials,
+            groups,
+            gallery_link,
+        )

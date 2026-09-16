@@ -147,7 +147,8 @@ No automatic dropcap on this opening paragraph.
 - Registry: `engine/markdown/dropcaps.py` (keys, families, per-face `scale`/`nudge` tuning, licence). Model choices, the cheatsheet and the stylesheet all read from it.
 - Postprocessor: `engine/markdown/postprocessors/dropcap_enhancer.py` hoists the opening letter into `span.dropcap-letter` (inert until a style class is present) and moves block classes onto the paragraph.
 - Stylesheet: `static/css/src/dropcaps.css` is **generated** — run `uv run python manage.py generate_dropcaps_css` after editing the registry (the test suite runs `--check`). Faces live in `static/font/dropcap/<key>/` as Latin-only woff2 subsets with their `OFL.txt`; `unicode-range` means a face is only fetched on pages that use it.
-- Adding a style: drop the subset woff2 + licence in a new folder, add a `_s(...)` entry, regenerate the CSS, tune `scale`/`nudge` visually.
+- Adding a style: drop the subset woff2 + licence in a new folder, add a `_s(...)` entry, regenerate the CSS, tune `scale`/`nudge`/`gap` visually.
+- Choosing: the three admin fields use `DropcapPickerSelect` (a grouped select plus a tile popover in the real faces; `engine/admin/widgets.py`, `static/js/admin-widgets.js`, `static/css/admin-widgets.css`). Site settings → "See every style in body text" opens `admin:engine_sitesettings_dropcap_gallery`, a standalone page on the site CSS. The editor completes `::: {.dropcap…}` fences and `{.dropcap-<key>` classes from the registry.
 
 ### Asset System
 

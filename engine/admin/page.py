@@ -137,6 +137,13 @@ class PageAdmin(admin.ModelAdmin):
     ]
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "dropcap_style":
+            from .widgets import DropcapPickerSelect
+
+            kwargs["widget"] = DropcapPickerSelect(
+                gallery_url=reverse("admin:engine_sitesettings_dropcap_gallery")
+            )
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
         if db_field.name != "content":
             return super().formfield_for_dbfield(db_field, request, **kwargs)
 

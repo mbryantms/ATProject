@@ -19,6 +19,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
+from engine.markdown import dropcaps
 from engine.markdown.cheatsheet import (
     palette_payload as cheatsheet_palette_payload,
 )
@@ -209,6 +210,8 @@ EDITOR_FENCE_SNIPPETS = [
     },
 ]
 
+EDITOR_FENCE_SNIPPETS += dropcaps.editor_fence_snippets()
+
 # Inline class names surfaced when the cursor is inside ``{.``. These apply to
 # bracketed spans (``[text]{.smallcaps}``), images/links (``![alt](src){.class}``),
 # and fenced divs. Not every class is valid in every context, but that's on the
@@ -240,6 +243,7 @@ EDITOR_INLINE_CLASSES = [
     {"name": "table-small", "detail": "Compact table"},
     {"name": "sortable", "detail": "Sortable table"},
 ]
+EDITOR_INLINE_CLASSES += dropcaps.editor_inline_classes()
 
 
 class ContentAssetInline(admin.StackedInline):
@@ -820,6 +824,13 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             from .widgets import LANGUAGE_SUGGESTIONS, DatalistTextInput
 
             kwargs["widget"] = DatalistTextInput(LANGUAGE_SUGGESTIONS)
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
+        elif db_field.name == "dropcap_style":
+            from .widgets import DropcapPickerSelect
+
+            kwargs["widget"] = DropcapPickerSelect(
+                gallery_url=reverse("admin:engine_sitesettings_dropcap_gallery")
+            )
             return super().formfield_for_dbfield(db_field, request, **kwargs)
         elif db_field.name == "citation_style":
             # Present curated CSL styles as a dropdown without changing the

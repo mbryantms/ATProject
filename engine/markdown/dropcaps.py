@@ -493,3 +493,38 @@ def clamp_lines(value) -> int | None:
     if lines < MIN_LINES or lines > MAX_LINES:
         return None
     return lines
+
+
+def editor_fence_snippets() -> list[dict]:
+    """Fenced-div snippets for the editor's ``:::`` completion."""
+    return [
+        {
+            "className": "dropcap-STYLE",
+            "detail": "Dropcap in a named style",
+            "template": "::: {.dropcap-${1:cinzel}}\n${2:Paragraph}\n:::\n$0",
+        },
+        {
+            "className": "dropcap",
+            "detail": "Dropcap in the document's style (lines= 2–6)",
+            "template": "::: {.dropcap lines=${1:3}}\n${2:Paragraph}\n:::\n$0",
+        },
+        {
+            "className": "dropcap-not",
+            "detail": "No automatic dropcap on this opening paragraph",
+            "template": "::: {.dropcap-not}\n${1:Paragraph}\n:::\n$0",
+        },
+    ]
+
+
+def editor_inline_classes() -> list[dict]:
+    """Class names for the editor's ``{.`` completion: the two switches plus
+    one entry per style."""
+    entries = [
+        {"name": "dropcap", "detail": "Dropcap (document style)"},
+        {"name": "dropcap-not", "detail": "Suppress the automatic dropcap"},
+    ]
+    entries.extend(
+        {"name": style.css_class, "detail": f"Dropcap: {style.label}"}
+        for style in STYLES
+    )
+    return entries
