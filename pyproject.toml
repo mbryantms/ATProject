@@ -67,5 +67,7 @@ reportMissingTypeStubs = false
 
 [dependency-groups]
 dev = [
+    "brotli>=1.1",
+    "fonttools>=4.50",
     "pre-commit-hooks>=6.0.0",
 ]

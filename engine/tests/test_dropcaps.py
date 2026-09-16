@@ -272,4 +272,9 @@ class StylesheetTests(TestCase):
         for style in dropcaps.STYLES:
             font = Path(settings.BASE_DIR) / style.font_path.lstrip("/")
             self.assertTrue(font.exists(), font)
-            self.assertTrue((font.parent / "OFL.txt").exists(), font.parent)
+            licences = [
+                p
+                for p in ("OFL.txt", "LICENSE.txt", "UFL.txt")
+                if (font.parent / p).exists()
+            ]
+            self.assertTrue(licences, f"no licence file beside {font}")
