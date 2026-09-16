@@ -106,10 +106,10 @@ def render_entry_source(
     """The ``_s(...)`` block for the registry, in the file's ruff layout."""
     lines = [
         "    _s(",
-        f"        {key!r},",
-        f"        {label!r},",
-        f"        {family!r},",
-        f"        {group!r},",
+        f"        {_q(key)},",
+        f"        {_q(label)},",
+        f"        {_q(family)},",
+        f"        {_q(group)},",
     ]
     if variable:
         lines.append("        variable=True,")
@@ -122,10 +122,16 @@ def render_entry_source(
     if gap != 0.1:
         lines.append(f"        gap={gap:g},")
     if license != "OFL-1.1":
-        lines.append(f"        license={license!r},")
-    lines.append(f"        description={description!r},")
+        lines.append(f"        license={_q(license)},")
+    lines.append(f"        description={_q(description)},")
     lines.append("    ),")
-    return "\n".join(lines).replace("'", '"') + "\n"
+    return "\n".join(lines) + "\n"
+
+
+def _q(value: str) -> str:
+    """A double-quoted Python string literal (ruff's style), escaping only
+    what needs it so apostrophes in descriptions survive."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _group_marker(group: str) -> str:
@@ -267,6 +273,11 @@ class Command(BaseCommand):
             "--source", help="Local TTF/OTF instead of Google Fonts (needs --license)."
         )
         add.add_argument("--license", help="Licence text file for --source.")
+        add.add_argument(
+            "--license-id",
+            help="Short licence label for the registry when --license is not "
+            "an OFL/LICENSE/UFL file (e.g. 'Freeware (Dieter Steffmann)').",
+        )
         add.add_argument("--weight", type=int, default=None)
         add.add_argument("--scale", type=float, default=1.0)
         add.add_argument("--nudge", type=float, default=0.0)
@@ -351,9 +362,9 @@ class Command(BaseCommand):
             licence_name = licence_path.name
             if licence_name not in LICENCE_FILES:
                 licence_name = "LICENSE.txt"
-                licence_id = "See LICENSE.txt"
+                licence_id = options.get("license_id") or "See LICENSE.txt"
             else:
-                licence_id = LICENCE_FILES[licence_name]
+                licence_id = options.get("license_id") or LICENCE_FILES[licence_name]
             licence_text = licence_path.read_text()
             display = family
             chosen = Path(source).name

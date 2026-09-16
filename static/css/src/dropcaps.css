@@ -46,34 +46,10 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Goudy Bookletter 1911';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/goudy-bookletter-1911/goudy-bookletter-1911.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Sorts Mill Goudy';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/sorts-mill-goudy/sorts-mill-goudy.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
   font-family: 'Cardo';
   font-weight: 700;
   font-style: normal;
   src: url('/static/font/dropcap/cardo/cardo.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Della Respira';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/della-respira/della-respira.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -86,18 +62,10 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Rozha One';
+  font-family: 'Decorated Roman Initials';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/rozha-one/rozha-one.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Abril Fatface';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/abril-fatface/abril-fatface.woff2') format('woff2');
+  src: url('/static/font/dropcap/decorated-roman-initials/decorated-roman-initials.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -118,14 +86,6 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Pirata One';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/pirata-one/pirata-one.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
   font-family: 'New Rocker';
   font-weight: 400;
   font-style: normal;
@@ -142,46 +102,6 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Metamorphous';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/metamorphous/metamorphous.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'MedievalSharp';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/medievalsharp/medievalsharp.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Uncial Antiqua';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/uncial-antiqua/uncial-antiqua.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Almendra Display';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/almendra-display/almendra-display.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Almendra SC';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/almendra-sc/almendra-sc.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
   font-family: 'Astloch';
   font-weight: 700;
   font-style: normal;
@@ -190,10 +110,50 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Fondamento';
+  font-family: 'Kanzlei Initialen';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/fondamento/fondamento.woff2') format('woff2');
+  src: url('/static/font/dropcap/kanzlei-initialen/kanzlei-initialen.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Koenigsberger Gotisch';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/koenigsberger-gotisch/koenigsberger-gotisch.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Grusskarten Gotisch';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/grusskarten-gotisch/grusskarten-gotisch.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Hansa Gotisch';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/hansa-gotisch/hansa-gotisch.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Hermann Gotisch';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/hermann-gotisch/hermann-gotisch.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Westminster Gotisch';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/westminster-gotisch/westminster-gotisch.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -206,58 +166,26 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Elsie Swash Caps';
+  font-family: 'Romantik';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/elsie-swash-caps/elsie-swash-caps.woff2') format('woff2');
+  src: url('/static/font/dropcap/romantik/romantik.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Eagle Lake';
+  font-family: 'Coelnische Current';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/eagle-lake/eagle-lake.woff2') format('woff2');
+  src: url('/static/font/dropcap/coelnische-current/coelnische-current.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Milonga';
+  font-family: 'Paulus Franck Initialen';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/milonga/milonga.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Great Vibes';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/great-vibes/great-vibes.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Alex Brush';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/alex-brush/alex-brush.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Tangerine';
-  font-weight: 700;
-  font-style: normal;
-  src: url('/static/font/dropcap/tangerine/tangerine.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
-  font-family: 'Kaushan Script';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/kaushan-script/kaushan-script.woff2') format('woff2');
+  src: url('/static/font/dropcap/paulus-franck-initialen/paulus-franck-initialen.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -278,14 +206,6 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Ewert';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/ewert/ewert.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
   font-family: 'Emblema One';
   font-weight: 400;
   font-style: normal;
@@ -302,14 +222,6 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Bungee Shade';
-  font-weight: 400;
-  font-style: normal;
-  src: url('/static/font/dropcap/bungee-shade/bungee-shade.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
-}
-@font-face {
   font-family: 'Limelight';
   font-weight: 400;
   font-style: normal;
@@ -318,10 +230,42 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
-  font-family: 'Fascinate';
+  font-family: 'Lettres Ombrées Ornées';
   font-weight: 400;
   font-style: normal;
-  src: url('/static/font/dropcap/fascinate/fascinate.woff2') format('woff2');
+  src: url('/static/font/dropcap/lettres-ombrees-ornees/lettres-ombrees-ornees.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Acorn Initials';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/acorn-initials/acorn-initials.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Arabesque Initialen';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/arabesque-initialen/arabesque-initialen.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Typographer Woodcut Initials';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/typographer-woodcut/typographer-woodcut.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'AnnStone';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/annstone/annstone.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -391,76 +335,62 @@
 .markdownBody p.dropcap-cormorant-garamond,
 .markdownBody.dropcap-playfair-display,
 .markdownBody p.dropcap-playfair-display,
-.markdownBody.dropcap-goudy-bookletter-1911,
-.markdownBody p.dropcap-goudy-bookletter-1911,
-.markdownBody.dropcap-sorts-mill-goudy,
-.markdownBody p.dropcap-sorts-mill-goudy,
 .markdownBody.dropcap-cardo,
 .markdownBody p.dropcap-cardo,
-.markdownBody.dropcap-della-respira,
-.markdownBody p.dropcap-della-respira,
 .markdownBody.dropcap-im-fell-english,
 .markdownBody p.dropcap-im-fell-english,
-.markdownBody.dropcap-rozha-one,
-.markdownBody p.dropcap-rozha-one,
-.markdownBody.dropcap-abril-fatface,
-.markdownBody p.dropcap-abril-fatface,
+.markdownBody.dropcap-decorated-roman-initials,
+.markdownBody p.dropcap-decorated-roman-initials,
 .markdownBody.dropcap-unifraktur-maguntia,
 .markdownBody p.dropcap-unifraktur-maguntia,
 .markdownBody.dropcap-grenze-gotisch,
 .markdownBody p.dropcap-grenze-gotisch,
-.markdownBody.dropcap-pirata-one,
-.markdownBody p.dropcap-pirata-one,
 .markdownBody.dropcap-new-rocker,
 .markdownBody p.dropcap-new-rocker,
 .markdownBody.dropcap-fruktur,
 .markdownBody p.dropcap-fruktur,
-.markdownBody.dropcap-metamorphous,
-.markdownBody p.dropcap-metamorphous,
-.markdownBody.dropcap-medievalsharp,
-.markdownBody p.dropcap-medievalsharp,
-.markdownBody.dropcap-uncial-antiqua,
-.markdownBody p.dropcap-uncial-antiqua,
-.markdownBody.dropcap-almendra-display,
-.markdownBody p.dropcap-almendra-display,
-.markdownBody.dropcap-almendra-sc,
-.markdownBody p.dropcap-almendra-sc,
 .markdownBody.dropcap-astloch,
 .markdownBody p.dropcap-astloch,
-.markdownBody.dropcap-fondamento,
-.markdownBody p.dropcap-fondamento,
+.markdownBody.dropcap-kanzlei-initialen,
+.markdownBody p.dropcap-kanzlei-initialen,
+.markdownBody.dropcap-koenigsberger-gotisch,
+.markdownBody p.dropcap-koenigsberger-gotisch,
+.markdownBody.dropcap-grusskarten-gotisch,
+.markdownBody p.dropcap-grusskarten-gotisch,
+.markdownBody.dropcap-hansa-gotisch,
+.markdownBody p.dropcap-hansa-gotisch,
+.markdownBody.dropcap-hermann-gotisch,
+.markdownBody p.dropcap-hermann-gotisch,
+.markdownBody.dropcap-westminster-gotisch,
+.markdownBody p.dropcap-westminster-gotisch,
 .markdownBody.dropcap-berkshire-swash,
 .markdownBody p.dropcap-berkshire-swash,
-.markdownBody.dropcap-elsie-swash-caps,
-.markdownBody p.dropcap-elsie-swash-caps,
-.markdownBody.dropcap-eagle-lake,
-.markdownBody p.dropcap-eagle-lake,
-.markdownBody.dropcap-milonga,
-.markdownBody p.dropcap-milonga,
-.markdownBody.dropcap-great-vibes,
-.markdownBody p.dropcap-great-vibes,
-.markdownBody.dropcap-alex-brush,
-.markdownBody p.dropcap-alex-brush,
-.markdownBody.dropcap-tangerine,
-.markdownBody p.dropcap-tangerine,
-.markdownBody.dropcap-kaushan-script,
-.markdownBody p.dropcap-kaushan-script,
+.markdownBody.dropcap-romantik,
+.markdownBody p.dropcap-romantik,
+.markdownBody.dropcap-coelnische-current,
+.markdownBody p.dropcap-coelnische-current,
+.markdownBody.dropcap-paulus-franck-initialen,
+.markdownBody p.dropcap-paulus-franck-initialen,
 .markdownBody.dropcap-lobster,
 .markdownBody p.dropcap-lobster,
 .markdownBody.dropcap-rye,
 .markdownBody p.dropcap-rye,
-.markdownBody.dropcap-ewert,
-.markdownBody p.dropcap-ewert,
 .markdownBody.dropcap-emblema-one,
 .markdownBody p.dropcap-emblema-one,
 .markdownBody.dropcap-monoton,
 .markdownBody p.dropcap-monoton,
-.markdownBody.dropcap-bungee-shade,
-.markdownBody p.dropcap-bungee-shade,
 .markdownBody.dropcap-limelight,
 .markdownBody p.dropcap-limelight,
-.markdownBody.dropcap-fascinate,
-.markdownBody p.dropcap-fascinate {
+.markdownBody.dropcap-lettres-ombrees-ornees,
+.markdownBody p.dropcap-lettres-ombrees-ornees,
+.markdownBody.dropcap-acorn-initials,
+.markdownBody p.dropcap-acorn-initials,
+.markdownBody.dropcap-arabesque-initialen,
+.markdownBody p.dropcap-arabesque-initialen,
+.markdownBody.dropcap-typographer-woodcut,
+.markdownBody p.dropcap-typographer-woodcut,
+.markdownBody.dropcap-annstone,
+.markdownBody p.dropcap-annstone {
   --dropcap-float: left;
 }
 
@@ -495,35 +425,11 @@
   --dropcap-scale: 1.05;
 }
 
-/* Goudy Bookletter 1911 — OFL-1.1 */
-.markdownBody.dropcap-goudy-bookletter-1911,
-.markdownBody p.dropcap-goudy-bookletter-1911 {
-  --dropcap-font: 'Goudy Bookletter 1911';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.08;
-}
-
-/* Sorts Mill Goudy — OFL-1.1 */
-.markdownBody.dropcap-sorts-mill-goudy,
-.markdownBody p.dropcap-sorts-mill-goudy {
-  --dropcap-font: 'Sorts Mill Goudy';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.08;
-}
-
 /* Cardo — OFL-1.1 */
 .markdownBody.dropcap-cardo,
 .markdownBody p.dropcap-cardo {
   --dropcap-font: 'Cardo';
   --dropcap-weight: 700;
-  --dropcap-scale: 1.06;
-}
-
-/* Della Respira — OFL-1.1 */
-.markdownBody.dropcap-della-respira,
-.markdownBody p.dropcap-della-respira {
-  --dropcap-font: 'Della Respira';
-  --dropcap-weight: 400;
   --dropcap-scale: 1.06;
 }
 
@@ -535,18 +441,10 @@
   --dropcap-scale: 1.08;
 }
 
-/* Rozha One — OFL-1.1 */
-.markdownBody.dropcap-rozha-one,
-.markdownBody p.dropcap-rozha-one {
-  --dropcap-font: 'Rozha One';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.02;
-}
-
-/* Abril Fatface — OFL-1.1 */
-.markdownBody.dropcap-abril-fatface,
-.markdownBody p.dropcap-abril-fatface {
-  --dropcap-font: 'Abril Fatface';
+/* Decorated Roman Initials — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-decorated-roman-initials,
+.markdownBody p.dropcap-decorated-roman-initials {
+  --dropcap-font: 'Decorated Roman Initials';
   --dropcap-weight: 400;
 }
 
@@ -565,13 +463,6 @@
   --dropcap-weight: 500;
 }
 
-/* Pirata One — OFL-1.1 */
-.markdownBody.dropcap-pirata-one,
-.markdownBody p.dropcap-pirata-one {
-  --dropcap-font: 'Pirata One';
-  --dropcap-weight: 400;
-}
-
 /* New Rocker — OFL-1.1 */
 .markdownBody.dropcap-new-rocker,
 .markdownBody p.dropcap-new-rocker {
@@ -586,45 +477,6 @@
   --dropcap-weight: 400;
 }
 
-/* Metamorphous — OFL-1.1 */
-.markdownBody.dropcap-metamorphous,
-.markdownBody p.dropcap-metamorphous {
-  --dropcap-font: 'Metamorphous';
-  --dropcap-weight: 400;
-}
-
-/* MedievalSharp — OFL-1.1 */
-.markdownBody.dropcap-medievalsharp,
-.markdownBody p.dropcap-medievalsharp {
-  --dropcap-font: 'MedievalSharp';
-  --dropcap-weight: 400;
-}
-
-/* Uncial Antiqua — OFL-1.1 */
-.markdownBody.dropcap-uncial-antiqua,
-.markdownBody p.dropcap-uncial-antiqua {
-  --dropcap-font: 'Uncial Antiqua';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.02;
-}
-
-/* Almendra Display — OFL-1.1 */
-.markdownBody.dropcap-almendra-display,
-.markdownBody p.dropcap-almendra-display {
-  --dropcap-font: 'Almendra Display';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.05;
-  --dropcap-gap: 0.16em;
-}
-
-/* Almendra SC — OFL-1.1 */
-.markdownBody.dropcap-almendra-sc,
-.markdownBody p.dropcap-almendra-sc {
-  --dropcap-font: 'Almendra SC';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.06;
-}
-
 /* Astloch — OFL-1.1 */
 .markdownBody.dropcap-astloch,
 .markdownBody p.dropcap-astloch {
@@ -632,12 +484,49 @@
   --dropcap-weight: 700;
 }
 
-/* Fondamento — OFL-1.1 */
-.markdownBody.dropcap-fondamento,
-.markdownBody p.dropcap-fondamento {
-  --dropcap-font: 'Fondamento';
+/* Kanzlei Initialen — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-kanzlei-initialen,
+.markdownBody p.dropcap-kanzlei-initialen {
+  --dropcap-font: 'Kanzlei Initialen';
+  --dropcap-weight: 400;
+  --dropcap-scale: 1.1;
+  --dropcap-gap: 0.14em;
+}
+
+/* Koenigsberger Gotisch — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-koenigsberger-gotisch,
+.markdownBody p.dropcap-koenigsberger-gotisch {
+  --dropcap-font: 'Koenigsberger Gotisch';
   --dropcap-weight: 400;
   --dropcap-scale: 1.05;
+}
+
+/* Grusskarten Gotisch — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-grusskarten-gotisch,
+.markdownBody p.dropcap-grusskarten-gotisch {
+  --dropcap-font: 'Grusskarten Gotisch';
+  --dropcap-weight: 400;
+}
+
+/* Hansa Gotisch — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-hansa-gotisch,
+.markdownBody p.dropcap-hansa-gotisch {
+  --dropcap-font: 'Hansa Gotisch';
+  --dropcap-weight: 400;
+}
+
+/* Hermann Gotisch — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-hermann-gotisch,
+.markdownBody p.dropcap-hermann-gotisch {
+  --dropcap-font: 'Hermann Gotisch';
+  --dropcap-weight: 400;
+}
+
+/* Westminster Gotisch — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-westminster-gotisch,
+.markdownBody p.dropcap-westminster-gotisch {
+  --dropcap-font: 'Westminster Gotisch';
+  --dropcap-weight: 400;
 }
 
 /* Berkshire Swash — OFL-1.1 */
@@ -649,63 +538,29 @@
   --dropcap-gap: 0.16em;
 }
 
-/* Elsie Swash Caps — OFL-1.1 */
-.markdownBody.dropcap-elsie-swash-caps,
-.markdownBody p.dropcap-elsie-swash-caps {
-  --dropcap-font: 'Elsie Swash Caps';
+/* Romantik — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-romantik,
+.markdownBody p.dropcap-romantik {
+  --dropcap-font: 'Romantik';
   --dropcap-weight: 400;
-  --dropcap-gap: 0.18em;
+  --dropcap-scale: 1.1;
+  --dropcap-gap: 0.14em;
 }
 
-/* Eagle Lake — OFL-1.1 */
-.markdownBody.dropcap-eagle-lake,
-.markdownBody p.dropcap-eagle-lake {
-  --dropcap-font: 'Eagle Lake';
+/* Coelnische Current — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-coelnische-current,
+.markdownBody p.dropcap-coelnische-current {
+  --dropcap-font: 'Coelnische Current';
   --dropcap-weight: 400;
-  --dropcap-scale: 1.02;
 }
 
-/* Milonga — OFL-1.1 */
-.markdownBody.dropcap-milonga,
-.markdownBody p.dropcap-milonga {
-  --dropcap-font: 'Milonga';
+/* Paulus Franck Initialen — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-paulus-franck-initialen,
+.markdownBody p.dropcap-paulus-franck-initialen {
+  --dropcap-font: 'Paulus Franck Initialen';
   --dropcap-weight: 400;
-  --dropcap-scale: 1.02;
-}
-
-/* Great Vibes — OFL-1.1 */
-.markdownBody.dropcap-great-vibes,
-.markdownBody p.dropcap-great-vibes {
-  --dropcap-font: 'Great Vibes';
-  --dropcap-weight: 400;
-  --dropcap-scale: 0.92;
-  --dropcap-gap: 0.3em;
-}
-
-/* Alex Brush — OFL-1.1 */
-.markdownBody.dropcap-alex-brush,
-.markdownBody p.dropcap-alex-brush {
-  --dropcap-font: 'Alex Brush';
-  --dropcap-weight: 400;
-  --dropcap-scale: 0.92;
-  --dropcap-gap: 0.3em;
-}
-
-/* Tangerine — OFL-1.1 */
-.markdownBody.dropcap-tangerine,
-.markdownBody p.dropcap-tangerine {
-  --dropcap-font: 'Tangerine';
-  --dropcap-weight: 700;
-  --dropcap-scale: 0.92;
-  --dropcap-gap: 0.28em;
-}
-
-/* Kaushan Script — OFL-1.1 */
-.markdownBody.dropcap-kaushan-script,
-.markdownBody p.dropcap-kaushan-script {
-  --dropcap-font: 'Kaushan Script';
-  --dropcap-weight: 400;
-  --dropcap-scale: 1.02;
+  --dropcap-scale: 1.05;
+  --dropcap-gap: 0.16em;
 }
 
 /* Lobster — OFL-1.1 */
@@ -719,14 +574,6 @@
 .markdownBody.dropcap-rye,
 .markdownBody p.dropcap-rye {
   --dropcap-font: 'Rye';
-  --dropcap-weight: 400;
-  --dropcap-scale: 0.98;
-}
-
-/* Ewert — OFL-1.1 */
-.markdownBody.dropcap-ewert,
-.markdownBody p.dropcap-ewert {
-  --dropcap-font: 'Ewert';
   --dropcap-weight: 400;
   --dropcap-scale: 0.98;
 }
@@ -747,14 +594,6 @@
   --dropcap-scale: 0.98;
 }
 
-/* Bungee Shade — OFL-1.1 */
-.markdownBody.dropcap-bungee-shade,
-.markdownBody p.dropcap-bungee-shade {
-  --dropcap-font: 'Bungee Shade';
-  --dropcap-weight: 400;
-  --dropcap-scale: 0.96;
-}
-
 /* Limelight — OFL-1.1 */
 .markdownBody.dropcap-limelight,
 .markdownBody p.dropcap-limelight {
@@ -762,9 +601,44 @@
   --dropcap-weight: 400;
 }
 
-/* Fascinate — OFL-1.1 */
-.markdownBody.dropcap-fascinate,
-.markdownBody p.dropcap-fascinate {
-  --dropcap-font: 'Fascinate';
+/* Lettres Ombrées Ornées — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-lettres-ombrees-ornees,
+.markdownBody p.dropcap-lettres-ombrees-ornees {
+  --dropcap-font: 'Lettres Ombrées Ornées';
+  --dropcap-weight: 400;
+  --dropcap-scale: 1.1;
+  --dropcap-gap: 0.14em;
+}
+
+/* Acorn Initials — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-acorn-initials,
+.markdownBody p.dropcap-acorn-initials {
+  --dropcap-font: 'Acorn Initials';
+  --dropcap-weight: 400;
+  --dropcap-gap: 0.14em;
+}
+
+/* Arabesque Initialen — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-arabesque-initialen,
+.markdownBody p.dropcap-arabesque-initialen {
+  --dropcap-font: 'Arabesque Initialen';
+  --dropcap-weight: 400;
+  --dropcap-scale: 0.95;
+  --dropcap-gap: 0.16em;
+}
+
+/* Typographer Woodcut Initials — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-typographer-woodcut,
+.markdownBody p.dropcap-typographer-woodcut {
+  --dropcap-font: 'Typographer Woodcut Initials';
+  --dropcap-weight: 400;
+  --dropcap-scale: 0.8;
+  --dropcap-gap: 0.16em;
+}
+
+/* AnnStone — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-annstone,
+.markdownBody p.dropcap-annstone {
+  --dropcap-font: 'AnnStone';
   --dropcap-weight: 400;
 }

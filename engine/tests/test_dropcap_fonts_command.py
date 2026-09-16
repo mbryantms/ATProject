@@ -68,6 +68,16 @@ class HelperTests(TestCase):
         minimal = cmd.render_entry_source(
             key="k", label="L", family="F", group="script"
         )
+        quoted = cmd.render_entry_source(
+            key="k",
+            label="L",
+            family="F",
+            group="script",
+            description='After Franck\'s "Kunstbuch" of 1601.',
+        )
+        ast.parse(quoted.strip().rstrip(","))
+        self.assertIn("Franck's", quoted)
+        self.assertIn('\\"Kunstbuch\\"', quoted)
         self.assertNotIn("weight=", minimal)
         self.assertNotIn("scale=", minimal)
         self.assertNotIn("license=", minimal)
