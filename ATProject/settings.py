@@ -148,16 +148,16 @@ _CSP_MEDIA_SRC = ["'self'"]
 _CSP_CONNECT_SRC = ["'self'", "https://cloudflareinsights.com"]
 
 # CSP.NONCE is replaced with a per-request 'nonce-<value>' in the header.
-# It lets nonced scripts run; 'unsafe-inline' is the fallback for older
-# browsers (ignored when a nonce is present). 'self' + explicit origins cover
-# Django admin scripts, MathJax (jsdelivr), and Cloudflare analytics.
+# It lets nonced scripts run. 'self' + explicit origins cover Django admin
+# scripts, MathJax (jsdelivr), and Cloudflare analytics. No 'unsafe-inline':
+# every browser that supports CSP nonces ignores it anyway, and Firefox logs
+# a warning about the dead keyword on every page load.
 # Note: 'strict-dynamic' was removed because it causes browsers to ignore the
 # 'self' and URL allowlists, which blocks Django admin scripts.
 _CSP_DIRECTIVES = {
     "default-src": ["'self'"],
     "script-src": [
         "'self'",
-        "'unsafe-inline'",
         CSP.NONCE,
         "https://cdn.jsdelivr.net",
         "https://static.cloudflareinsights.com",
