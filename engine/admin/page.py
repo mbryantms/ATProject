@@ -119,6 +119,7 @@ class PageAdmin(admin.ModelAdmin):
                     "cite_picker_controls",
                     "asset_markdown_reference_helper",
                     ("show_toc", "first_line_caps"),
+                    "dropcap_style",
                 ],
                 "description": (
                     "Write page content in Pandoc-flavoured Markdown. The same "
@@ -136,6 +137,13 @@ class PageAdmin(admin.ModelAdmin):
     ]
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "dropcap_style":
+            from .widgets import DropcapPickerSelect
+
+            kwargs["widget"] = DropcapPickerSelect(
+                gallery_url=reverse("admin:engine_sitesettings_dropcap_gallery")
+            )
+            return super().formfield_for_dbfield(db_field, request, **kwargs)
         if db_field.name != "content":
             return super().formfield_for_dbfield(db_field, request, **kwargs)
 

@@ -9,6 +9,7 @@ from functools import cached_property
 
 from django.db import models
 
+from engine.markdown import dropcaps
 from engine.markdown.extensions.toc_extractor import (
     extract_toc_from_html,
     normalize_toc_structure,
@@ -61,6 +62,28 @@ class Page(TimeStampedModel):
         verbose_name="Intro Paragraph Small Caps",
         help_text="Style the first line of the opening paragraph with small caps.",
     )
+    dropcap_style = models.CharField(
+        max_length=40,
+        blank=True,
+        default=dropcaps.INHERIT,
+        choices=dropcaps.document_dropcap_choices,
+        verbose_name="Dropcap",
+        help_text=(
+            "Dropcap style for the opening paragraph. Inherits the site default "
+            "unless set; choose None to switch it off for this page."
+        ),
+    )
+
+    @property
+    def effective_dropcap_style(self) -> str:
+        """Style key for the opening paragraph after applying the site
+        default, or ``""`` when no dropcap should show."""
+        from .settings import SiteSettings
+
+        return dropcaps.resolve_style(
+            self.dropcap_style, SiteSettings.load().default_dropcap_style
+        )
+
     is_active = models.BooleanField(
         default=True,
         help_text="Whether this page content is active",

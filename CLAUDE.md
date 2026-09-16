@@ -126,6 +126,30 @@ Several images can share one spot via a Pandoc fenced div; each image is a norma
 - Tile title/caption come from the asset (or `PostAsset.custom_caption`); both optional. `engine/markdown/postprocessors/gallery_enhancer.py` builds the block after the image enhancer; `static/css/src/gallery.css` and `static/js/gallery-wall.js` (wall row packing) render it; the image-focus viewer scopes previous/next to the gallery.
 - Attribute names avoid `rows`/`cols`: Pandoc passes real HTML attribute names through verbatim and the sanitizer strips them.
 
+### Dropcaps
+
+Off by default. `SiteSettings.default_dropcap_style` turns them on site-wide; `Post.dropcap_style` / `Page.dropcap_style` override per document (`inherit`, `none`, or a style key). The document-level style is a `dropcap-<key>` class on the `.markdownBody` wrapper set at request time, so changing a setting never needs a re-render. In markdown:
+
+```markdown
+::: {.dropcap-cinzel lines=2}
+Any paragraph, in a named style. `lines=` is 2–6.
+:::
+
+::: {.dropcap}
+Reuse the document's style on an extra paragraph.
+:::
+
+::: {.dropcap-not}
+No automatic dropcap on this opening paragraph.
+:::
+```
+
+- Registry: `engine/markdown/dropcaps.py` (keys, families, per-face `scale`/`nudge` tuning, licence). Model choices, the cheatsheet and the stylesheet all read from it.
+- Postprocessor: `engine/markdown/postprocessors/dropcap_enhancer.py` hoists the opening letter into `span.dropcap-letter` (inert until a style class is present) and moves block classes onto the paragraph.
+- Stylesheet: `static/css/src/dropcaps.css` is **generated** — run `uv run python manage.py generate_dropcaps_css` after editing the registry (the test suite runs `--check`). Faces live in `static/font/dropcap/<key>/` as Latin-only woff2 subsets with their `OFL.txt`; `unicode-range` means a face is only fetched on pages that use it.
+- Adding or removing a style: `uv run python manage.py dropcap_fonts add "Family Name" --group classic|blackletter|calligraphic|script|display [--description "…"]` fetches the face from the Google Fonts repo (OFL/Apache/UFL only), subsets it, writes the licence, inserts the registry entry and regenerates the CSS; `--source file.ttf --license LICENSE.txt` for a font you obtained elsewhere; `--file X.ttf` to pick a specific weight. `dropcap_fonts remove <key>` reverses it (refuses while posts/pages/site default use the key unless `--force`); `dropcap_fonts list` shows files and usage. Then tune `scale`/`nudge`/`gap` on the admin gallery page and commit the registry, the font folder and `dropcaps.css` together.
+- Choosing: the three admin fields use `DropcapPickerSelect` (a grouped select plus a tile popover in the real faces; `engine/admin/widgets.py`, `static/js/admin-widgets.js`, `static/css/admin-widgets.css`). Site settings → "See every style in body text" opens `admin:engine_sitesettings_dropcap_gallery`, a standalone page on the site CSS. The editor completes `::: {.dropcap…}` fences and `{.dropcap-<key>` classes from the registry.
+
 ### Asset System
 
 - Assets stored in R2 with automatic rendition generation (400, 800, 1200, 1600px widths)

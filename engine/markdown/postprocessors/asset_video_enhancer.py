@@ -104,7 +104,7 @@ def enhance_video_assets(html: str, context: dict) -> str:
     Uses shared soup caching for efficiency.
     """
     # Lazy import to avoid circular import
-    from engine.markdown.renderer import render_markdown
+    from engine.markdown.renderer import render_markdown_fragment
     from engine.models import Asset, AssetMetadata
 
     soup = get_shared_soup(html, context)
@@ -406,7 +406,7 @@ def enhance_video_assets(html: str, context: dict) -> str:
 
                 # Render caption as markdown if it's from metadata
                 if metadata.get("caption"):
-                    caption_html = render_markdown(caption, context=context)
+                    caption_html = render_markdown_fragment(caption, context)
                     caption_soup = BeautifulSoup(caption_html, "html.parser")
 
                     # Extract content from caption (remove wrapper <p> if it exists)
@@ -502,7 +502,7 @@ def enhance_video_assets(html: str, context: dict) -> str:
                 figcaption = soup.new_tag("figcaption")
 
                 # Render caption as markdown
-                caption_html = render_markdown(caption, context=context)
+                caption_html = render_markdown_fragment(caption, context)
                 caption_soup = BeautifulSoup(caption_html, "html.parser")
 
                 # Extract content from caption (remove wrapper <p> if it exists)

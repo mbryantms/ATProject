@@ -7,7 +7,7 @@
 {% block page_title %}{{ page.title }}{% endblock %}
 
 {% block content %}
-<div id="markdownBody" class="markdownBody">
+<div id="markdownBody" class="markdownBody{% if page.effective_dropcap_style %} dropcap-{{ page.effective_dropcap_style }}{% endif %}">
   {% include "posts/includes/table_of_contents.html" with toc=toc_nodes %}
   {{ content_html|safe }}
 </div>

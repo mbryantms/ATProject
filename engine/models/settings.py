@@ -1,6 +1,8 @@
 from django.core.cache import cache
 from django.db import models
 
+from engine.markdown import dropcaps
+
 
 class SiteSettings(models.Model):
     """Singleton model for site-wide settings. Only one row (pk=1) exists."""
@@ -73,6 +75,19 @@ class SiteSettings(models.Model):
         default="apa",
         blank=True,
         help_text="Default CSL citation style (e.g., apa, chicago-author-date, mla).",
+    )
+
+    # --- Typography ---
+    default_dropcap_style = models.CharField(
+        max_length=40,
+        blank=True,
+        default=dropcaps.INHERIT,
+        choices=dropcaps.site_dropcap_choices,
+        verbose_name="Default dropcap",
+        help_text=(
+            "Dropcap style for the opening paragraph of every post and page. "
+            "Off unless set; each post or page can override it."
+        ),
     )
 
     class Meta:

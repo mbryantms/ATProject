@@ -113,6 +113,18 @@ class PageAdminMarkdownTests(TestCase):
 
     def setUp(self):
         self.client.force_login(self.admin)
+        # The preview view caches renders in the shared cache (Redis locally),
+        # which outlives the test database. Clear this class's entries so a
+        # previous run cannot satisfy a preview from cache and skip the render.
+        import hashlib
+
+        from django.core.cache import cache
+
+        for content in ("Preview", "![Diagram](@diagram)"):
+            digest = hashlib.sha256(
+                f"page:{self.page.pk}:{content}".encode()
+            ).hexdigest()
+            cache.delete(f"admin-preview:{digest}")
 
     def test_change_form_has_shared_markdown_authoring_helpers(self):
         response = self.client.get(

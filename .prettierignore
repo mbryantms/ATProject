@@ -26,3 +26,6 @@ _site/
 # Let a Django/Jinja formatter (e.g., djlint) handle these if you prefer
 **/templates/**/*.html
 *.djhtml
+
+# Generated from engine/markdown/dropcaps.py by `manage.py generate_dropcaps_css`
+static/css/src/dropcaps.css

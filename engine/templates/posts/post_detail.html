@@ -13,7 +13,7 @@
   {% include "posts/page_metadata.html" %}
 {% endblock page-metadata %}
   {% block content %}
-  <div id="markdownBody" class="markdownBody">
+  <div id="markdownBody" class="markdownBody{% if post.effective_dropcap_style %} dropcap-{{ post.effective_dropcap_style }}{% endif %}">
     {% include "posts/includes/table_of_contents.html" with toc=toc_nodes %}
     {% if post.abstract %}
       <blockquote class="page-abstract first-block block blockquote-level-1">

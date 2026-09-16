@@ -1,0 +1,42 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dropcap styles | {{ site_title }}</title>
+  <link rel="stylesheet" href="{% static 'css/dist/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dist/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dist/colors.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dist/dark-mode.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin-dropcap-gallery.css' %}">
+</head>
+<body class="mk-dropcap-gallery">
+  <header class="mk-dg-bar">
+    <a href="{{ back_url }}">&lsaquo; Site settings</a>
+    <strong>Dropcap styles</strong>
+    <span class="mk-dg-count">{{ style_count }} styles · each shown at 3 lines, then 2 lines with an opening quote</span>
+    <nav class="mk-dg-nav">
+      {% for group_key, group_label, styles in groups %}<a href="#group-{{ group_key }}">{{ group_label }}</a>{% endfor %}
+    </nav>
+  </header>
+  <main>
+    {% for group_key, group_label, styles in groups %}
+      <h2 id="group-{{ group_key }}" class="mk-dg-group">{{ group_label }}</h2>
+      {% for style in styles %}
+        <section class="mk-dg-style" id="style-{{ style.key }}">
+          <h3 class="mk-dg-title">
+            {{ style.label }}
+            <code>{{ style.key }}</code>
+            <span class="mk-dg-meta">{{ style.description }} {{ style.license }}</span>
+          </h3>
+          <div class="markdownBody {{ style.css_class }}">
+            <p class="dropcap first-graf"><span class="dropcap-letter">{{ sample_letter }}</span>{{ sample_rest }}</p>
+            <p class="dropcap" style="--dropcap-lines: 2"><span class="dropcap-letter"><span class="dropcap-punct">&ldquo;</span>{{ quote_letter }}</span>{{ quote_rest }}</p>
+          </div>
+          <p class="mk-dg-usage">In markdown: <code>::: {.{{ style.css_class }}}</code></p>
+        </section>
+      {% endfor %}
+    {% endfor %}
+  </main>
+</body>
+</html>

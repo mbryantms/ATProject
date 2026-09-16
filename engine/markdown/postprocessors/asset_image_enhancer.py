@@ -211,7 +211,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
       </span>
     </figure>
     """
-    from engine.markdown.renderer import render_markdown
+    from engine.markdown.renderer import render_markdown_fragment
     from engine.models import Asset, AssetMetadata
 
     soup = get_shared_soup(html, context)
@@ -496,7 +496,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
                 figcaption = soup.new_tag("figcaption")
 
                 if metadata.get("caption"):
-                    caption_html = render_markdown(caption, context=context)
+                    caption_html = render_markdown_fragment(caption, context)
                     caption_soup = BeautifulSoup(caption_html, "html.parser")
 
                     caption_content = caption_soup.find("p")
@@ -576,7 +576,7 @@ def enhance_image_assets(html: str, context: dict) -> str:
 
                 figcaption = soup.new_tag("figcaption")
 
-                caption_html = render_markdown(caption, context=context)
+                caption_html = render_markdown_fragment(caption, context)
                 caption_soup = BeautifulSoup(caption_html, "html.parser")
 
                 caption_content = caption_soup.find("p")
