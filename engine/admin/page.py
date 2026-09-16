@@ -119,6 +119,7 @@ class PageAdmin(admin.ModelAdmin):
                     "cite_picker_controls",
                     "asset_markdown_reference_helper",
                     ("show_toc", "first_line_caps"),
+                    "dropcap_style",
                 ],
                 "description": (
                     "Write page content in Pandoc-flavoured Markdown. The same "

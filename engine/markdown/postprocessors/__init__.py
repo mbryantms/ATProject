@@ -19,6 +19,7 @@ from .blockquote_enhancer import blockquote_enhancer_default
 from .citation_renderer import citation_renderer_default
 from .columns_enhancer import columns_enhancer_default
 from .date_enhancer_v2 import date_enhancer_v2_default
+from .dropcap_enhancer import dropcap_enhancer_default
 from .epigraph_enhancer import epigraph_enhancer_default
 from .first_paragraph_marker import first_paragraph_marker_default
 from .footnote_enhancer import footnote_enhancer_default
@@ -53,6 +54,7 @@ POSTPROCESSORS = [
     further_reading_renderer_default,  # Curated Further Reading section (after references)
     block_marker_default,  # Mark discrete content blocks with "block" class
     first_paragraph_marker_default,  # Mark first paragraph in each section
+    dropcap_enhancer_default,  # Hoist opening letters for dropcaps (after first-graf marking)
     link_decorator_default,  # Unified link handling: external attrs + icon decoration
     math_copy_button_default,  # Add copy buttons to display block math equations
 ]

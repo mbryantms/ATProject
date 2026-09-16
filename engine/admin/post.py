@@ -1707,6 +1707,12 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             f'<link rel="stylesheet" href="{static(path)}">'
             for path in self._PREVIEW_CSS_FILES
         )
+        # Same wrapper class the detail templates emit, so the document-level
+        # dropcap (post/page setting or site default) shows in the preview.
+        wrapper_class = "markdownBody"
+        dropcap_key = getattr(owner, "effective_dropcap_style", "") if owner else ""
+        if dropcap_key:
+            wrapper_class += f" dropcap-{dropcap_key}"
         iframe_doc = (
             "<!DOCTYPE html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
@@ -1721,7 +1727,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             "Admin preview — site CSS is loaded; MathJax and client-side "
             "enhancements are not."
             "</div>"
-            '<div id="markdownBody" class="markdownBody">'
+            f'<div id="markdownBody" class="{wrapper_class}">'
             f"{rendered}"
             "</div></body></html>"
         )
@@ -1882,7 +1888,7 @@ class PostAdmin(SoftDeleteAdminMixin, admin.ModelAdmin):
             {
                 "fields": (
                     ("show_toc", "first_line_caps"),
-                    ("citation_style",),
+                    ("dropcap_style", "citation_style"),
                     ("certainty", "importance"),
                     ("allow_comments", "rating"),
                 ),

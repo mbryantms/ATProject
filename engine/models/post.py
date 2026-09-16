@@ -18,6 +18,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 
+from engine.markdown import dropcaps
 from engine.markdown.extensions.toc_extractor import (
     HeadingNode,
     normalize_toc_structure,
@@ -155,6 +156,27 @@ class Post(TimeStampedModel, SoftDeleteModel, UniqueSlugMixin):
         verbose_name="Intro Paragraph Small Caps",
         help_text="Style the first line of opening paragraph with small caps.",
     )
+    dropcap_style = models.CharField(
+        max_length=40,
+        blank=True,
+        default=dropcaps.INHERIT,
+        choices=dropcaps.document_dropcap_choices,
+        verbose_name="Dropcap",
+        help_text=(
+            "Dropcap style for the opening paragraph. Inherits the site default "
+            "unless set; choose None to switch it off for this post."
+        ),
+    )
+
+    @property
+    def effective_dropcap_style(self) -> str:
+        """Style key for the opening paragraph after applying the site
+        default, or ``""`` when no dropcap should show."""
+        from .settings import SiteSettings
+
+        return dropcaps.resolve_style(
+            self.dropcap_style, SiteSettings.load().default_dropcap_style
+        )
 
     # Markdown source of truth
     content_markdown = models.TextField(help_text="Author in markdown only.")

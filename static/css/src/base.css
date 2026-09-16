@@ -7,6 +7,7 @@
 @import './toc.css';
 @import './reading-progress.css';
 @import './gallery.css';
+@import './dropcaps.css';
 
 :root {
   --AT-serif-font-stack:

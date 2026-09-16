@@ -35,3 +35,23 @@ def render_markdown(text, context=None):
     html = apply_postprocessors(html, context)
 
     return html
+
+
+def render_markdown_fragment(text, context):
+    """
+    Render a nested fragment (an image or video caption) with the parent
+    document's context.
+
+    Sets ``context["fragment"]`` for the duration so postprocessors that only
+    make sense for a whole document (the automatic dropcap on the opening
+    paragraph) leave the fragment alone.
+    """
+    previous = context.get("fragment")
+    context["fragment"] = True
+    try:
+        return render_markdown(text, context=context)
+    finally:
+        if previous is None:
+            context.pop("fragment", None)
+        else:
+            context["fragment"] = previous

@@ -126,6 +126,29 @@ Several images can share one spot via a Pandoc fenced div; each image is a norma
 - Tile title/caption come from the asset (or `PostAsset.custom_caption`); both optional. `engine/markdown/postprocessors/gallery_enhancer.py` builds the block after the image enhancer; `static/css/src/gallery.css` and `static/js/gallery-wall.js` (wall row packing) render it; the image-focus viewer scopes previous/next to the gallery.
 - Attribute names avoid `rows`/`cols`: Pandoc passes real HTML attribute names through verbatim and the sanitizer strips them.
 
+### Dropcaps
+
+Off by default. `SiteSettings.default_dropcap_style` turns them on site-wide; `Post.dropcap_style` / `Page.dropcap_style` override per document (`inherit`, `none`, or a style key). The document-level style is a `dropcap-<key>` class on the `.markdownBody` wrapper set at request time, so changing a setting never needs a re-render. In markdown:
+
+```markdown
+::: {.dropcap-cinzel lines=2}
+Any paragraph, in a named style. `lines=` is 2–6.
+:::
+
+::: {.dropcap}
+Reuse the document's style on an extra paragraph.
+:::
+
+::: {.dropcap-not}
+No automatic dropcap on this opening paragraph.
+:::
+```
+
+- Registry: `engine/markdown/dropcaps.py` (keys, families, per-face `scale`/`nudge` tuning, licence). Model choices, the cheatsheet and the stylesheet all read from it.
+- Postprocessor: `engine/markdown/postprocessors/dropcap_enhancer.py` hoists the opening letter into `span.dropcap-letter` (inert until a style class is present) and moves block classes onto the paragraph.
+- Stylesheet: `static/css/src/dropcaps.css` is **generated** — run `uv run python manage.py generate_dropcaps_css` after editing the registry (the test suite runs `--check`). Faces live in `static/font/dropcap/<key>/` as Latin-only woff2 subsets with their `OFL.txt`; `unicode-range` means a face is only fetched on pages that use it.
+- Adding a style: drop the subset woff2 + licence in a new folder, add a `_s(...)` entry, regenerate the CSS, tune `scale`/`nudge` visually.
+
 ### Asset System
 
 - Assets stored in R2 with automatic rendition generation (400, 800, 1200, 1600px widths)

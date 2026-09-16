@@ -378,6 +378,23 @@ CHEATSHEET_SECTIONS = [
                 "::: {.float-right}\n${1:Content}\n:::\n$0",
                 "Float a block (also `.float-left`, `.width-full`)",
             ),
+            _i(
+                "::: {.dropcap-STYLE} … :::",
+                "::: {.dropcap-${1:cinzel}}\n${2:Paragraph}\n:::\n$0",
+                "Dropcap on the first paragraph inside, in a named style "
+                "(keys are listed under Site settings → Default dropcap)",
+            ),
+            _i(
+                "::: {.dropcap lines=2} … :::",
+                "::: {.dropcap lines=${1:2}}\n${2:Paragraph}\n:::\n$0",
+                "Dropcap in the document's style on any paragraph; "
+                "`lines=` sets the drop height (2–6)",
+            ),
+            _i(
+                "::: {.dropcap-not} … :::",
+                "::: {.dropcap-not}\n${1:Paragraph}\n:::\n$0",
+                "Suppress the automatic dropcap on the opening paragraph",
+            ),
         ],
     },
     {

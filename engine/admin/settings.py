@@ -42,6 +42,18 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Typography",
+            {
+                "fields": ("default_dropcap_style",),
+                "description": (
+                    "Dropcap on the opening paragraph of every post and page. "
+                    "Off unless set here; each post or page can pick its own "
+                    "style or switch it off. Authors can also mark any "
+                    "paragraph with <code>::: {.dropcap-STYLE}</code>."
+                ),
+            },
+        ),
+        (
             "Zotero Integration",
             {
                 "fields": (
