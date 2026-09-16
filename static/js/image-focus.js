@@ -206,7 +206,19 @@
     const parts = descriptor.split('.');
     const tagName = parts.shift() || 'div';
     const classes = parts.filter(Boolean);
+    /*  The image enhancer wraps <picture> (not the <img>) in the wrapper, so
+        look through a <picture> parent when checking for an existing one;
+        otherwise we'd nest a second wrapper and double up its hover hint.
+     */
     let wrapper = element.parentElement;
+    if (
+      useExistingWrapper &&
+      wrapper &&
+      wrapper.tagName.toLowerCase() === 'picture' &&
+      wrapper.parentElement
+    ) {
+      wrapper = wrapper.parentElement;
+    }
     const matchesExisting =
       wrapper &&
       useExistingWrapper &&
