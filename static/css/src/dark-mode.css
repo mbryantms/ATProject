@@ -215,6 +215,7 @@ html[data-theme='dark'] {
   /*  Image focus.
    */
   --AT-image-focus-image-hover-drop-shadow-color: #a6a6a6;
+  --AT-image-focus-enlarge-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(241,241,241)" stroke-width="1.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.6 15.6L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>');
 
   /*  Page toolbar.
    */
@@ -465,6 +466,7 @@ html[data-theme='dark'] {
     /*  Image focus.
      */
     --AT-image-focus-image-hover-drop-shadow-color: #a6a6a6;
+    --AT-image-focus-enlarge-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgb(241,241,241)" stroke-width="1.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.6 15.6L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>');
 
     /*  Page toolbar.
      */

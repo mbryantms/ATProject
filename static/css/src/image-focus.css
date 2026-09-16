@@ -7,19 +7,15 @@
 /*=--------=*/
 
 :root {
-  --SA-image-focus-sans-serif-font-stack: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --SA-image-focus-sans-serif-font-stack: var(--AT-sans-serif-font-stack);
 
   --SA-image-focus-image-background-color: #ffffff;
 
   --SA-image-focus-image-hover-drop-shadow-color: rgba(0, 0, 0, 0.4);
-  --SA-image-focus-image-hover-tooltip-background-color: rgba(0, 0, 0, 0.75);
-  --SA-image-focus-image-hover-tooltip-text-color: #ffffff;
-  --SA-image-focus-image-hover-tooltip-inverted-background-color: rgba(
-    255,
-    255,
-    255,
-    0.6
-  );
+  /*  Hairline magnifier-plus for the enlarge badge; stroke matches the body
+      text color. dark-mode.css swaps in a light-stroke copy.
+   */
+  --AT-image-focus-enlarge-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.6 15.6L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>');
 
   --SA-image-focus-overlay-background-color: rgba(0, 0, 0, 0.9);
   --SA-image-focus-overlay-image-caption-background-color: rgba(0, 0, 0, 0.75);
@@ -100,16 +96,16 @@
 
 #image-focus-overlay .close-button {
   position: absolute;
-  top: 0.5em;
-  right: 0.5em;
+  top: 0.75em;
+  right: 0.75em;
   z-index: 10;
-  width: 2.5em;
-  height: 2.5em;
+  width: 2em;
+  height: 2em;
   border: none;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-family: var(--SA-image-focus-sans-serif-font-stack);
   line-height: 1;
   cursor: pointer;
@@ -135,12 +131,13 @@
   opacity: 0;
 }
 
-/* On mobile, adjust close button size */
+/* On mobile, keep the close button a comfortable tap target */
 @media (max-width: 649px) {
   #image-focus-overlay .close-button {
+    top: 0.5em;
+    right: 0.5em;
     width: 2.25em;
     height: 2.25em;
-    font-size: 1.25rem;
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.7);
   }
@@ -155,16 +152,16 @@
  */
 #image-focus-overlay .caption-toggle-button {
   position: absolute;
-  top: 3.5em;
-  right: 0.5em;
+  top: 3.25em;
+  right: 0.75em;
   z-index: 10;
-  width: 2.5em;
-  height: 2.5em;
+  width: 2em;
+  height: 2em;
   border: none;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -203,9 +200,9 @@
 @media (max-width: 649px) {
   #image-focus-overlay .caption-toggle-button {
     top: 3.25em;
+    right: 0.5em;
     width: 2.25em;
     height: 2.25em;
-    font-size: 1.25rem;
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.7);
   }
@@ -283,6 +280,8 @@
   width: fit-content;
   text-align: center;
   font-family: var(--SA-image-focus-sans-serif-font-stack);
+  font-size: 0.9rem;
+  line-height: 1.4;
   cursor: auto;
   z-index: 1;
   transition: bottom 0.15s ease;
@@ -297,7 +296,7 @@
 @media (min-width: 650px) and (orientation: portrait),
   (min-height: 650px) and (orientation: landscape) {
   #image-focus-overlay .caption {
-    font-size: 2vmin;
+    font-size: clamp(0.8rem, 1.8vmin, 1rem);
   }
 }
 
@@ -333,7 +332,7 @@
 #image-focus-overlay .caption .caption-text-wrapper {
   background-color: var(--SA-image-focus-overlay-image-caption-background-color);
   padding: 0.125em 1.25em 1px 1.25em;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 @media (max-width: 649px) and (orientation: portrait),
   (max-height: 649px) and (orientation: landscape) {
@@ -365,6 +364,14 @@
   }
 }
 
+/*  Gallery tiles fold the asset title into the caption as a block line; keep
+    it on its own line here too.
+ */
+#image-focus-overlay .caption .figure-title {
+  display: block;
+  font-weight: 600;
+}
+
 #image-focus-overlay .caption code {
   background-color: inherit;
   border: none;
@@ -391,7 +398,7 @@
   position: relative;
   margin: 0;
   padding: 0.625em 2em 0.875em 1.25em;
-  border-radius: 8px;
+  border-radius: 4px;
   background-color: var(--SA-image-focus-overlay-image-caption-background-color);
   cursor: copy;
   user-select: none;
@@ -495,9 +502,10 @@
   flex-flow: column;
   z-index: 3;
   font-family: var(--SA-image-focus-sans-serif-font-stack);
-  font-size: 1.25rem;
-  padding: 1em;
-  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 0.75em 1em;
+  border-radius: 4px;
   bottom: 1em;
   right: 1em;
   max-width: calc(100vw - 4em);
@@ -589,7 +597,7 @@
   position: absolute;
   z-index: 2;
   font-family: var(--SA-image-focus-sans-serif-font-stack);
-  font-size: 1.5rem;
+  font-size: 1rem;
   left: 1em;
   top: 1em;
   font-weight: 600;
@@ -638,7 +646,7 @@
 }
 
 #image-focus-overlay .slideshow-buttons button {
-  font-size: 3rem;
+  font-size: 2rem;
   color: var(--SA-image-focus-overlay-slideshow-button-color);
   border: none;
   background-color: transparent;
@@ -647,7 +655,7 @@
   transition: left 0.3s ease;
   pointer-events: auto;
   cursor: pointer;
-  width: 4rem;
+  width: 3rem;
   background-repeat: no-repeat;
   background-position: center;
   background-origin: content-box;
@@ -660,6 +668,9 @@
 }
 
 #image-focus-overlay .slideshow-buttons button svg {
+  display: block;
+  width: 1em;
+  height: 1em;
   pointer-events: none;
   fill: currentColor;
 }
@@ -719,46 +730,52 @@
   left: 1.75em;
 }
 
-/*=---------=*/
-/*= Tooltip =*/
-/*=---------=*/
+/*=-----------------=*/
+/*= Enlarge badge   =*/
+/*=-----------------=*/
 
+/*  Hover hint on focusable images: the same magnifier-plus badge on every
+    image site-wide, styled as a miniature caption box (page background,
+    1px caption outline, square corners). Centered on a lone figure; tucked
+    into the top-right corner of a gallery tile, where the tile caption that
+    slides up from the bottom can never cover it.
+ */
 .image-wrapper.focusable::after {
-  content: 'Click to enlarge';
+  content: '';
   display: block;
   position: absolute;
-  margin: auto;
-  left: 0;
-  right: 0;
-  bottom: 0.5em;
-  padding: 0.3em 0.75em 0.35em 0.75em;
-  font-size: 1rem;
-  font-family: var(--SA-image-focus-sans-serif-font-stack);
-  background-color: var(--SA-image-focus-image-hover-tooltip-background-color);
-  color: var(--SA-image-focus-image-hover-tooltip-text-color);
-  border-radius: 0.25em;
+  top: 50%;
+  left: 50%;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -1.125rem 0 0 -1.125rem;
+  box-sizing: border-box;
+  background-color: var(--background-color);
+  background-image: var(--AT-image-focus-enlarge-icon);
+  background-size: 65% 65%;
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0 0 0 1px var(--AT-figure-caption-outline-color);
   opacity: 0;
   transition: opacity 0.15s ease;
   pointer-events: none;
+  z-index: 2;
 }
 .image-wrapper.focusable.small-image::after {
-  content: '';
-  background-color: var(--SA-image-focus-image-hover-tooltip-inverted-background-color);
-  background-image: url('/static/img/icon/icons.svg?v=1754602014#magnifying-glass-plus-light');
-  background-size: 56px 56px;
-  background-origin: content-box;
-  background-repeat: no-repeat;
-  background-position: center;
-  filter: invert(1);
-  bottom: 0;
-  height: 100%;
-  width: 100%;
-  padding: 0.5em;
-  box-sizing: border-box;
-  border-radius: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.875rem 0 0 -0.875rem;
 }
-.image-wrapper::after {
-  width: fit-content;
+/*  Gallery tiles are sized by the row, not the asset, so the small-image
+    reduction (keyed to intrinsic size) does not apply there.
+ */
+.gallery .gallery-item .image-wrapper.focusable::after {
+  top: 0.5rem;
+  left: auto;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
 }
 .image-wrapper.focusable:hover::after {
   opacity: 1;
