@@ -129,6 +129,20 @@ def render_css() -> str:
         on_selectors.append(f".markdownBody p.{style.css_class}")
     parts.append(",\n".join(on_selectors) + " {\n  --dropcap-float: left;\n}\n")
 
+    # Body paragraphs indent their first line; with a floated initial that
+    # indent lands between the letter and the rest of the word. Drop it
+    # whenever a style is active, and only then, so the same cached HTML
+    # still indents when no dropcap style is set.
+    parts.append(
+        "\n/*  No first-line indent beside an active dropcap: the float already\n"
+        " *  sets the first line off, and the indent would gap the word.\n */\n"
+    )
+    indent_selectors = []
+    for style in dropcaps.STYLES:
+        indent_selectors.append(f".markdownBody.{style.css_class} p.dropcap")
+        indent_selectors.append(f".markdownBody p.dropcap.{style.css_class}")
+    parts.append(",\n".join(indent_selectors) + " {\n  text-indent: 0;\n}\n")
+
     for style in dropcaps.STYLES:
         decls = [
             f"  --dropcap-font: '{style.family}';",
