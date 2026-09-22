@@ -261,6 +261,9 @@ class StylesheetTests(TestCase):
             self.assertIn(f"font-family: '{style.family}';", css)
             self.assertIn(f".markdownBody.{style.css_class}", css)
             self.assertIn(f".markdownBody p.{style.css_class}", css)
+            # An active style also removes the paragraph's first-line indent.
+            self.assertIn(f".markdownBody.{style.css_class} p.dropcap", css)
+            self.assertIn(f".markdownBody p.dropcap.{style.css_class}", css)
             self.assertIn(style.font_path, css)
 
     @override_settings()
