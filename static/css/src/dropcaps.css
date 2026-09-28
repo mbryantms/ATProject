@@ -70,6 +70,14 @@
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
 @font-face {
+  font-family: 'Goudy Initialen';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/goudy-initialen/goudy-initialen.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
   font-family: 'UnifrakturMaguntia';
   font-weight: 400;
   font-style: normal;
@@ -154,6 +162,14 @@
   font-weight: 400;
   font-style: normal;
   src: url('/static/font/dropcap/westminster-gotisch/westminster-gotisch.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
+@font-face {
+  font-family: 'Deutsche Zierschrift';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/deutsche-zierschrift/deutsche-zierschrift.woff2') format('woff2');
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
@@ -269,6 +285,14 @@
   font-display: swap;
   unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
 }
+@font-face {
+  font-family: 'Cheshire Initials';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/static/font/dropcap/cheshire-initials/cheshire-initials.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A, U+00C0-00D6, U+00D8-00DE;
+}
 
 /*  Only used-on-page faces are fetched: unicode-range gates the download. */
 
@@ -341,6 +365,8 @@
 .markdownBody p.dropcap-im-fell-english,
 .markdownBody.dropcap-decorated-roman-initials,
 .markdownBody p.dropcap-decorated-roman-initials,
+.markdownBody.dropcap-goudy-initialen,
+.markdownBody p.dropcap-goudy-initialen,
 .markdownBody.dropcap-unifraktur-maguntia,
 .markdownBody p.dropcap-unifraktur-maguntia,
 .markdownBody.dropcap-grenze-gotisch,
@@ -363,6 +389,8 @@
 .markdownBody p.dropcap-hermann-gotisch,
 .markdownBody.dropcap-westminster-gotisch,
 .markdownBody p.dropcap-westminster-gotisch,
+.markdownBody.dropcap-deutsche-zierschrift,
+.markdownBody p.dropcap-deutsche-zierschrift,
 .markdownBody.dropcap-berkshire-swash,
 .markdownBody p.dropcap-berkshire-swash,
 .markdownBody.dropcap-romantik,
@@ -390,7 +418,9 @@
 .markdownBody.dropcap-typographer-woodcut,
 .markdownBody p.dropcap-typographer-woodcut,
 .markdownBody.dropcap-annstone,
-.markdownBody p.dropcap-annstone {
+.markdownBody p.dropcap-annstone,
+.markdownBody.dropcap-cheshire-initials,
+.markdownBody p.dropcap-cheshire-initials {
   --dropcap-float: left;
 }
 
@@ -411,6 +441,8 @@
 .markdownBody p.dropcap.dropcap-im-fell-english,
 .markdownBody.dropcap-decorated-roman-initials p.dropcap,
 .markdownBody p.dropcap.dropcap-decorated-roman-initials,
+.markdownBody.dropcap-goudy-initialen p.dropcap,
+.markdownBody p.dropcap.dropcap-goudy-initialen,
 .markdownBody.dropcap-unifraktur-maguntia p.dropcap,
 .markdownBody p.dropcap.dropcap-unifraktur-maguntia,
 .markdownBody.dropcap-grenze-gotisch p.dropcap,
@@ -433,6 +465,8 @@
 .markdownBody p.dropcap.dropcap-hermann-gotisch,
 .markdownBody.dropcap-westminster-gotisch p.dropcap,
 .markdownBody p.dropcap.dropcap-westminster-gotisch,
+.markdownBody.dropcap-deutsche-zierschrift p.dropcap,
+.markdownBody p.dropcap.dropcap-deutsche-zierschrift,
 .markdownBody.dropcap-berkshire-swash p.dropcap,
 .markdownBody p.dropcap.dropcap-berkshire-swash,
 .markdownBody.dropcap-romantik p.dropcap,
@@ -460,7 +494,9 @@
 .markdownBody.dropcap-typographer-woodcut p.dropcap,
 .markdownBody p.dropcap.dropcap-typographer-woodcut,
 .markdownBody.dropcap-annstone p.dropcap,
-.markdownBody p.dropcap.dropcap-annstone {
+.markdownBody p.dropcap.dropcap-annstone,
+.markdownBody.dropcap-cheshire-initials p.dropcap,
+.markdownBody p.dropcap.dropcap-cheshire-initials {
   text-indent: 0;
 }
 
@@ -516,6 +552,15 @@
 .markdownBody p.dropcap-decorated-roman-initials {
   --dropcap-font: 'Decorated Roman Initials';
   --dropcap-weight: 400;
+}
+
+/* Goudy Initialen — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-goudy-initialen,
+.markdownBody p.dropcap-goudy-initialen {
+  --dropcap-font: 'Goudy Initialen';
+  --dropcap-weight: 400;
+  --dropcap-scale: 0.95;
+  --dropcap-gap: 0.16em;
 }
 
 /* UnifrakturMaguntia — OFL-1.1 */
@@ -596,6 +641,13 @@
 .markdownBody.dropcap-westminster-gotisch,
 .markdownBody p.dropcap-westminster-gotisch {
   --dropcap-font: 'Westminster Gotisch';
+  --dropcap-weight: 400;
+}
+
+/* Deutsche Zierschrift — Freeware (Dieter Steffmann) */
+.markdownBody.dropcap-deutsche-zierschrift,
+.markdownBody p.dropcap-deutsche-zierschrift {
+  --dropcap-font: 'Deutsche Zierschrift';
   --dropcap-weight: 400;
 }
 
@@ -711,4 +763,13 @@
 .markdownBody p.dropcap-annstone {
   --dropcap-font: 'AnnStone';
   --dropcap-weight: 400;
+}
+
+/* Cheshire Initials — 1001Fonts FFC (House of Lime) */
+.markdownBody.dropcap-cheshire-initials,
+.markdownBody p.dropcap-cheshire-initials {
+  --dropcap-font: 'Cheshire Initials';
+  --dropcap-weight: 400;
+  --dropcap-scale: 0.95;
+  --dropcap-gap: 0.16em;
 }

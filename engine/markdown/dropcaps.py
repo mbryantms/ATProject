@@ -146,6 +146,16 @@ STYLES: tuple[DropcapStyle, ...] = (
         license="Freeware (Dieter Steffmann)",
         description="Decorated roman initials.",
     ),
+    _s(
+        "goudy-initialen",
+        "Goudy Initialen",
+        "Goudy Initialen",
+        "classic",
+        scale=0.95,
+        gap=0.16,
+        license="Freeware (Dieter Steffmann)",
+        description="Frederic Goudy's floriated Lanston initials (No. 296); capitals only.",
+    ),
     # Blackletter & Medieval
     _s(
         "unifraktur-maguntia",
@@ -240,6 +250,14 @@ STYLES: tuple[DropcapStyle, ...] = (
         "blackletter",
         license="Freeware (Dieter Steffmann)",
         description="Westminster gothic.",
+    ),
+    _s(
+        "deutsche-zierschrift",
+        "Deutsche Zierschrift",
+        "Deutsche Zierschrift",
+        "blackletter",
+        license="Freeware (Dieter Steffmann)",
+        description="Rudolf Koch's 1919 decorative blackletter.",
     ),
     # Calligraphic
     _s(
@@ -367,6 +385,16 @@ STYLES: tuple[DropcapStyle, ...] = (
         "display",
         license="Freeware (Dieter Steffmann)",
         description="Carved, stone-look capitals.",
+    ),
+    _s(
+        "cheshire-initials",
+        "Cheshire Initials",
+        "Cheshire Initials",
+        "display",
+        scale=0.95,
+        gap=0.16,
+        license="1001Fonts FFC (House of Lime)",
+        description="Scanned Victorian decorated initials.",
     ),
 )
 
