@@ -24,6 +24,7 @@ that the licence permits web embedding.
 
 from __future__ import annotations
 
+import importlib
 import io
 import json
 import re
@@ -320,6 +321,10 @@ class Command(BaseCommand):
     def _regenerate(self, options):
         if options.get("no_css"):
             return
+        # The registry file was rewritten after this process imported it;
+        # reload so the stylesheet is rendered from the new entry set rather
+        # than the stale in-memory STYLES.
+        importlib.reload(dropcaps)
         call_command("generate_dropcaps_css", stdout=self.stdout)
 
     # -- actions

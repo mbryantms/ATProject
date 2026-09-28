@@ -1,0 +1,15 @@
+Goudy Initialen
+Author: Dieter Steffmann (Typographer Mediengestaltung), after Frederic W.
+Goudy's floriated initials (Lanston Monotype, Goudy Initials No. 296)
+Source: https://www.1001fonts.com/goudy-initialen-font.html (fetched 2026-09-28)
+1001fonts licence classification at fetch time: Free for commercial use
+(1001Fonts Free For Commercial Use License, FFC:
+https://www.1001fonts.com/licenses/ffc.html)
+Font name table: "Copyright (c) Typographer Mediengestaltung, 2000. All
+rights reserved." Version 1.1; 2000; http://www.steffmann.de
+
+Dieter Steffmann distributes his fonts as freeware for private and
+commercial use (see https://www.steffmann.de/). This file records the
+provenance of the subset woff2 beside it; the original TTF is unmodified
+apart from being subset to Latin letters and digits for web delivery. The
+face contains capitals only; it has no lowercase or digit glyphs.

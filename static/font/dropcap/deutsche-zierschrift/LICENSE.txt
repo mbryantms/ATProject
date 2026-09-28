@@ -1,0 +1,12 @@
+Deutsche Zierschrift
+Author: Dieter Steffmann (Typographer Mediengestaltung), digitised and
+hinted after Rudolf Koch's Deutsche Zierschrift (Gebr. Klingspor, 1919-1921)
+Source: https://www.dafont.com/deutsche-zierschrif.font (fetched 2026-09-28)
+dafont licence classification at fetch time: 100% Free
+Font name table: "Copyright (c) Typographer Mediengestaltung, 2002. All
+rights reserved." Version 1.0; 2002; http://www.steffmann.de
+
+Dieter Steffmann distributes his fonts as freeware for private and
+commercial use (see https://www.steffmann.de/). This file records the
+provenance of the subset woff2 beside it; the original TTF is unmodified
+apart from being subset to Latin letters and digits for web delivery.
