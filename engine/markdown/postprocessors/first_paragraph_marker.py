@@ -26,6 +26,21 @@ def _add_class_to_paragraph(p: Tag, classes: list[str]) -> None:
     p["class"] = merged_classes
 
 
+def _is_dropcap_fence(div: Tag) -> bool:
+    """True for a div whose only classes are dropcap ones (``dropcap``,
+    ``dropcap-not``, ``dropcap-<key>``) and whose only other attribute is
+    the fence's ``lines=`` value."""
+    classes = div.get("class") or []
+    if isinstance(classes, str):
+        classes = classes.split()
+    # ``block`` is added by the block marker (which runs earlier) to top-level
+    # elements; it says nothing about what the div is.
+    marks = [c for c in classes if c != "block"]
+    if not marks or not all(c == "dropcap" or c.startswith("dropcap-") for c in marks):
+        return False
+    return all(attr in ("class", "data-lines") for attr in div.attrs)
+
+
 def _find_first_paragraph_in_children(
     parent: Tag, skip_elements: list[str] | None = None
 ) -> Tag | None:
@@ -155,6 +170,12 @@ def first_paragraph_marker(
 
     # 6. Mark first paragraph after images, figures, blockquotes, divs, or hrs
     for element in soup.find_all(["img", "figure", "blockquote", "div", "hr"]):
+        if element.name == "div" and _is_dropcap_fence(element):
+            # A ``::: {.dropcap-…}`` fence is unwrapped (or left as a bare
+            # wrapper) by the dropcap enhancer, which runs after this; the
+            # paragraph following it is an ordinary continuation and keeps
+            # its indent.
+            continue
         # Find the next sibling that is a paragraph
         next_sibling = element.find_next_sibling()
         while next_sibling:

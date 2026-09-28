@@ -190,6 +190,33 @@ class EnhancerTests(TestCase):
         self.assertIn(f"dropcap dropcap-{key}", html)
         self.assertIn("--dropcap-lines: 2", html)
 
+    def test_paragraph_after_a_fence_keeps_its_indent(self):
+        # The first-paragraph marker runs before the fence is unwrapped; it
+        # must not treat the fence as a block that resets the indent.
+        key = dropcaps.STYLES[0].key
+        md = (
+            "Opening paragraph here.\n\n"
+            "Second paragraph.\n\n"
+            f"::: {{.dropcap-{key}}}\n"
+            "Marked paragraph.\n"
+            ":::\n\n"
+            "Continuation after the fence.\n\n"
+            f"::: {{.dropcap-{key}}}\n"
+            "First of two.\n\n"
+            "Second of two.\n"
+            ":::\n\n"
+            "Continuation after the two-paragraph fence.\n"
+        )
+        html = render_markdown(md, context={})
+        self.assertNotIn(
+            '<p class="block first-graf">Continuation after the fence.', html
+        )
+        self.assertIn('<p class="block">Continuation after the fence.', html)
+        self.assertIn(
+            '<p class="block">Continuation after the two-paragraph fence.', html
+        )
+        self.assertIn('<p class="block">Second of two.', html)
+
 
 class ResolutionTests(TestCase):
     def setUp(self):

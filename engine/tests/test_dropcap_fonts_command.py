@@ -192,6 +192,29 @@ class CommandTests(TestCase):
                 no_css=True,
             )
 
+    def test_regenerate_reloads_registry_before_rendering_css(self):
+        # ``add``/``remove`` rewrite dropcaps.py on disk after this process
+        # imported it; the stylesheet must be rendered from the new file.
+        command = cmd.Command()
+        calls = []
+        with (
+            mock.patch.object(
+                cmd.importlib,
+                "reload",
+                side_effect=lambda m: calls.append(("reload", m)),
+            ),
+            mock.patch.object(
+                cmd,
+                "call_command",
+                side_effect=lambda *a, **k: calls.append(("css", a[0])),
+            ),
+        ):
+            command._regenerate({"no_css": False})
+            command._regenerate({"no_css": True})
+        self.assertEqual(
+            calls, [("reload", dropcaps), ("css", "generate_dropcaps_css")]
+        )
+
     def test_add_no_register_only_prints_entry(self):
         out = self._add("Ultra", group="display", no_register=True)
         self.assertIn("Add to STYLES", out)
