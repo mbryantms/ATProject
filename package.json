@@ -26,16 +26,16 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "autoprefixer": "^10.6.1",
-    "baseline-browser-mapping": "^2.11.26",
-    "cssnano": "^9.0.5",
+    "baseline-browser-mapping": "^2.11.27",
+    "cssnano": "^9.1.2",
     "esbuild": "^0.28.2",
     "eslint": "^10.11.0",
-    "globals": "^17.12.0",
-    "lucide-static": "^1.48.0",
+    "globals": "^17.13.0",
+    "lucide-static": "^1.49.0",
     "npm-run-all2": "^9.0.3",
     "postcss": "^8.5.28",
     "postcss-cli": "^12.0.0",
-    "postcss-custom-properties": "^15.0.1",
+    "postcss-custom-properties": "^15.0.3",
     "postcss-import": "^17.0.0",
     "postcss-mixins": "^12.1.2",
     "postcss-nested": "^8.0.1",
@@ -52,6 +52,6 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.13",
     "@floating-ui/dom": "^1.8.0",
-    "@lezer/highlight": "^1.2.4"
+    "@lezer/highlight": "^1.2.5"
   }
 }
