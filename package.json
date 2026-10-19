@@ -26,32 +26,32 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "autoprefixer": "^10.6.1",
-    "baseline-browser-mapping": "^2.11.26",
-    "cssnano": "^9.0.5",
+    "baseline-browser-mapping": "^2.11.29",
+    "cssnano": "^9.8.0",
     "esbuild": "^0.28.2",
-    "eslint": "^10.11.0",
-    "globals": "^17.12.0",
-    "lucide-static": "^1.48.0",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "lucide-static": "^1.58.0",
     "npm-run-all2": "^9.0.3",
     "postcss": "^8.5.28",
     "postcss-cli": "^12.0.0",
-    "postcss-custom-properties": "^15.0.1",
-    "postcss-import": "^17.0.0",
+    "postcss-custom-properties": "^15.0.4",
+    "postcss-import": "^17.0.1",
     "postcss-mixins": "^12.1.2",
     "postcss-nested": "^8.0.1",
     "postcss-sorting": "^10.0.0",
-    "prettier": "^3.9.9"
+    "prettier": "^3.9.10"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-markdown": "^6.5.2",
-    "@codemirror/language": "^6.12.4",
+    "@codemirror/language": "^6.13.1",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.6",
-    "@codemirror/view": "^6.43.13",
+    "@codemirror/view": "^6.43.14",
     "@floating-ui/dom": "^1.8.0",
-    "@lezer/highlight": "^1.2.4"
+    "@lezer/highlight": "^1.2.5"
   }
 }
