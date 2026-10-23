@@ -121,7 +121,8 @@ Flower is already in `pyproject.toml`; use it for a persistent, full-featured Ce
      ```
    - Go to **Settings** → **Networking** → **Generate Domain** (or attach a custom domain)
 3. Set service-level environment variables (or inherit from the project):
-   - `CELERY_BROKER_URL` — same Redis URL the web/worker services use (Railway's shared-variables pattern handles this automatically)
+   - `REDIS_URL` — add it as a **reference variable** (`${{Redis.REDIS_URL}}`), exactly like the web/worker/beat services. `settings.py` derives `CELERY_BROKER_URL` from it.
+   - **Do not set `CELERY_BROKER_URL` as a service variable.** Celery reads that environment variable ahead of the Django settings value, so a pasted connection string silently overrides `REDIS_URL` and keeps working only until the next Redis password rotation (this broke Flower after the October 2026 credential rotation). Never paste the `REDIS_PUBLIC_URL`/TCP-proxy address here either — the private `redis.railway.internal` host is what every other service uses.
    - `FLOWER_BASIC_AUTH` — `admin:SOME_STRONG_PASSWORD`, required to gate the dashboard behind HTTP basic auth. **Do not skip this** — Flower exposes task payloads including asset IDs and markdown content.
    - `FLOWER_UNAUTHENTICATED_API=false` — blocks the JSON API endpoints to anonymous callers
 4. Visit `https://<flower-service>.up.railway.app/flower/` (note the `/flower/` prefix matches `--url_prefix`); log in with the credentials from `FLOWER_BASIC_AUTH`.
