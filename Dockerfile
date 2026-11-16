@@ -24,7 +24,7 @@ RUN npm run build
 
 
 # -- Stage 2: Python production image --
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # uv installs the locked Python dependencies straight from uv.lock, so there is
 # no separately-maintained requirements.txt to drift out of sync (Dependabot
