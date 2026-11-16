@@ -30,7 +30,7 @@ FROM python:3.14-slim
 # no separately-maintained requirements.txt to drift out of sync (Dependabot
 # bumps pyproject.toml + uv.lock and the image follows). Pinned so the build is
 # reproducible; Dependabot's docker ecosystem tracks this tag.
-COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -59,14 +59,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
 
 # Install Python dependencies (production only, exact versions from uv.lock).
-# --frozen fails the build if uv.lock is out of date with pyproject.toml rather
+# --locked fails the build if uv.lock is out of date with pyproject.toml rather
 # than silently re-resolving. The project itself isn't a package, so nothing
 # else is installed at this layer and it caches until the lock changes.
 # No BuildKit cache mount here: Railway's builder rejects cache mounts without
 # a service-scoped `id=` (GitHub's buildx accepts the anonymous form, so CI
 # would not catch it). --no-cache keeps uv's download cache out of the layer.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project --no-cache
+RUN uv sync --locked --no-dev --no-install-project --no-cache
 
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser

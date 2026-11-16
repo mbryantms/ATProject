@@ -80,7 +80,7 @@ posts-md/               # Markdown content files
 - **Frontend**: PostCSS, esbuild (ES2017), @floating-ui/dom
 - **Citations**: citeproc-js via Node.js subprocess, CSL styles
 - **Observability**: Sentry SDK (Django + Celery integrations); see [SENTRY.md](SENTRY.md)
-- **Deployment**: Railway, Docker (multi-stage: Node builder + Python 3.13-slim), Gunicorn, WhiteNoise
+- **Deployment**: Railway, Docker (multi-stage: Node builder + Python 3.14-slim), Gunicorn, WhiteNoise
 
 ## Key Patterns
 
@@ -243,7 +243,7 @@ Every dependency source is tracked by Dependabot ([.github/dependabot.yml](.gith
 
 | Source | Manifest | Updated by |
 |--------|----------|------------|
-| Python | `pyproject.toml` + `uv.lock` (the Dockerfile installs with `uv sync --frozen`; there is no `requirements.txt`) | Dependabot `uv` ecosystem, weekly, patch/minor grouped |
+| Python | `pyproject.toml` + `uv.lock` (the Dockerfile installs with `uv sync --locked`; there is no `requirements.txt`) | Dependabot `uv` ecosystem, weekly, patch/minor grouped |
 | Frontend toolchain + CodeMirror | `package.json` + `package-lock.json` | Dependabot `npm`, weekly; `@codemirror/*` + `@lezer/*` grouped |
 | citeproc-js runtime | `engine/bibliography/package.json` | Dependabot `npm`, weekly |
 | GitHub Actions | `.github/workflows/*.yml` | Dependabot `github-actions`, weekly, grouped |

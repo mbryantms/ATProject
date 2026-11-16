@@ -83,7 +83,7 @@ This guide walks through deploying ATProject to **Neon** (serverless PostgreSQL)
 1. Click **"+ New"** → **"GitHub Repo"**
 2. Select your ATProject repository
 3. Railway detects the `Dockerfile` and builds the image from it (Python deps
-   come from `uv.lock` via `uv sync --frozen`; there is no `requirements.txt`)
+   come from `uv.lock` via `uv sync --locked`; there is no `requirements.txt`)
 4. **Important**: In the service settings:
    - Go to **Settings** → **Deploy**
    - Leave the **Start Command** empty to use the Dockerfile `CMD` (migrate,

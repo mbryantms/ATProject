@@ -16,3 +16,8 @@ bibliography-design.md
 ARCHITECTURE.md
 DEPLOYMENT.md
 CLAUDE.md
+
+# Local environments and collected output are rebuilt inside the image.
+.venv/
+staticfiles/
+**/node_modules/
