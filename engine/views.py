@@ -1,7 +1,9 @@
+import logging
 import math
 from collections import OrderedDict
 
 from django.core.paginator import Paginator
+from django.db import OperationalError, connection
 from django.db.models import Count, F, Max, Min, Prefetch, Q, Sum
 from django.db.models.functions import ExtractYear
 from django.http import Http404, HttpResponse
@@ -28,6 +30,7 @@ from .models import (
 # renders every post on one page (no pager shown, unchanged UX); it only bounds
 # page weight and query result size once the archive grows large.
 ARCHIVE_PAGE_SIZE = 50
+logger = logging.getLogger(__name__)
 
 
 def _paginate_post_index(request, posts, sort="date"):
@@ -192,6 +195,26 @@ class IndexView(SEOContextMixin, TemplateView):
         )
 
     def get_context_data(self, **kwargs):
+        try:
+            return self._get_home_context(**kwargs)
+        except OperationalError:
+            # Neon can suspend between the homepage's SELECTs. Retry this
+            # idempotent context read once, only on a confirmed disconnect.
+            # Never replay a transaction or a query error on a live connection.
+            if (
+                connection.in_atomic_block
+                or not connection.autocommit
+                or connection.connection is None
+                or not connection.connection.closed
+            ):
+                raise
+            connection.close()
+            logger.warning(
+                "Database disconnected during homepage read; reconnecting once"
+            )
+            return self._get_home_context(**kwargs)
+
+    def _get_home_context(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         # Get the page object for intro content and featured config
