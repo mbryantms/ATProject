@@ -68,6 +68,10 @@ COPY --from=node-builder /usr/local/bin/node /usr/local/bin/node
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project --no-cache
 
+# Exercise the broker transport with production-only dependencies.
+# Development tools can otherwise mask missing Redis transport requirements.
+RUN python -c "import kombu.transport.redis"
+
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser
 
